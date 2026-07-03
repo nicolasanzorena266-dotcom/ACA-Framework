@@ -8,6 +8,7 @@ from aca_os.context_manager import ContextManager
 from aca_os.conversation_manager import ConversationManager
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
+from aca_os.output import ACAOutput
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolRequest
 
@@ -102,3 +103,6 @@ class ACAOSRuntime:
 
         final_state = with_memory.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
         return self.conversation_manager.after_process(final_state)
+
+    def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
+        return ACAOutput.from_state(self.process(event, state))
