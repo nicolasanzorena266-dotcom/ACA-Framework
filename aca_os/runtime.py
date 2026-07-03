@@ -82,12 +82,23 @@ class ACAOSRuntime:
         with_policy = mission_updated.evolve("POLICY_RESULT", policy_result=policy_result.to_dict())
         with_tools = with_policy.evolve("TOOL_EVIDENCE", tool_evidence=tool_evidence)
 
+        consolidated_memory = self.memory_engine.consolidate(with_tools)
+        relevant_memory = self.memory_engine.relevant_for_state(with_tools)
+
+        with_memory = with_tools.evolve(
+            "MEMORY_CONSOLIDATE",
+            memory_snapshot={
+                "consolidated": consolidated_memory,
+                "relevant": relevant_memory,
+            },
+        )
+
         context_bundle = self.context_manager.build(
-            with_tools,
-            memory=self.memory_engine.semantic,
+            with_memory,
+            memory=relevant_memory,
             tool_evidence=tool_evidence,
             domain_context=self.domain_context,
         )
 
-        final_state = with_tools.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
+        final_state = with_memory.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
         return self.conversation_manager.after_process(final_state)

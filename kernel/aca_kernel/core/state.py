@@ -19,6 +19,7 @@ class CognitiveState:
     active_mission: Optional[Dict[str, Any]] = None
     policy_result: Optional[Dict[str, Any]] = None
     tool_evidence: Dict[str, Any] = field(default_factory=dict)
+    memory_snapshot: Optional[Dict[str, Any]] = None
     context_bundle: Optional[Dict[str, Any]] = None
     compliance: List[Dict[str, Any]] = field(default_factory=list)
     timeline: List[Dict[str, Any]] = field(default_factory=list)
@@ -53,6 +54,7 @@ class CognitiveState:
             "active_mission": deepcopy(self.active_mission),
             "policy_result": deepcopy(self.policy_result),
             "tool_evidence": deepcopy(self.tool_evidence),
+            "memory_snapshot": deepcopy(self.memory_snapshot),
             "context_bundle": deepcopy(self.context_bundle),
             "compliance": deepcopy(self.compliance),
             "timeline": deepcopy(self.timeline),
