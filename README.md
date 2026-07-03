@@ -28,7 +28,7 @@ ACAOutput
 
 ## Status
 
-Release Candidate 1 Core â€” validation phase.
+RC1 Core is closed.
 
 The repository is the single source of truth for ACA Framework.
 Older ZIP prototypes are historical artifacts.
@@ -59,26 +59,17 @@ Run tests:
 python -m pytest
 ```
 
-## Structure
-
-```text
-specification/   Official ACA specification
-kernel/          ACA Kernel reference implementation
-aca_os/          ACA OS components
-runtime/         Runtime orchestration
-sdk/             Developer SDK
-domains/         Domain Packs, starting with Galicia Seguros
-studio/          Debug and visualization tooling
-tests/           Compliance and behavior tests
-examples/        Runnable examples
-docs/            ADRs, RFCs, roadmap and architecture notes
-tools/           Development utilities
-```
-
-## Current developer boundary
+## Developer boundary
 
 ```python
 from sdk.factory import process_message
 
 result = process_message("Que es CLEAS?")
 ```
+
+## What is next
+
+See:
+
+- `docs/RC1_CORE_CLOSED.md`
+- `docs/NEXT_PHASES.md`
