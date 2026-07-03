@@ -5,6 +5,7 @@ from aca_kernel.core.events import Event
 from aca_kernel.core.kernel import ACAKernel
 from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
+from aca_os.conversation_manager import ConversationManager
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
@@ -21,6 +22,7 @@ class ACAOSRuntime:
         tool_engine: ToolEngine | None = None,
         context_manager: ContextManager | None = None,
         memory_engine: MemoryEngine | None = None,
+        conversation_manager: ConversationManager | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
         self.kernel = kernel
@@ -30,6 +32,7 @@ class ACAOSRuntime:
         self.tool_engine = tool_engine or ToolEngine()
         self.context_manager = context_manager or ContextManager()
         self.memory_engine = memory_engine or MemoryEngine()
+        self.conversation_manager = conversation_manager or ConversationManager()
         self.domain_context = domain_context or {}
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
@@ -48,7 +51,8 @@ class ACAOSRuntime:
         return result.evidence if result.success else {"tool_error": result.error}
 
     def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
-        prepared = self.mission_manager.before_kernel(event, state)
+        conversation_state = self.conversation_manager.before_process(event, state)
+        prepared = self.mission_manager.before_kernel(event, conversation_state)
 
         policy_result = self.policy_manager.evaluate(
             prepared,
@@ -85,4 +89,5 @@ class ACAOSRuntime:
             domain_context=self.domain_context,
         )
 
-        return with_tools.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
+        final_state = with_tools.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
+        return self.conversation_manager.after_process(final_state)
