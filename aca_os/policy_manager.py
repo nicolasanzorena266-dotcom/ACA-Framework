@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
+from aca_os.text import normalize_text
+
 
 class PolicyDecision:
     ALLOW = "ALLOW"
@@ -26,13 +28,6 @@ class PolicyResult:
         }
 
 
-def _normalize_text(text: str) -> str:
-    text = (text or "").lower().strip()
-    for a, b in {"Ã¡": "a", "Ã©": "e", "Ã­": "i", "Ã³": "o", "Ãº": "u", "Ã±": "n"}.items():
-        text = text.replace(a, b)
-    return text
-
-
 class PolicyManager:
     def evaluate(
         self,
@@ -40,10 +35,10 @@ class PolicyManager:
         event,
         domain_context: Dict[str, Any] | None = None,
     ) -> PolicyResult:
-        text = _normalize_text(str(event.payload))
+        text = normalize_text(event.payload)
         domain_context = domain_context or {}
 
-        if "persona real" in text or "asesor" in text or "supervisor" in text:
+        if self._explicit_human_request(text):
             return PolicyResult(
                 decision=PolicyDecision.ESCALATE,
                 reason="user_requested_human",
@@ -71,6 +66,17 @@ class PolicyManager:
             reason="no_policy_block",
         )
 
+    def _explicit_human_request(self, text: str) -> bool:
+        terms = [
+            "persona real",
+            "asesor",
+            "asesora",
+            "supervisor",
+            "representante",
+            "humano",
+        ]
+        return any(term in text for term in terms)
+
     def _requires_real_file_access(self, text: str) -> bool:
         status_terms = [
             "estado de mi siniestro",
@@ -84,6 +90,7 @@ class PolicyManager:
             "cuando me pagan",
             "expediente",
             "numero de siniestro",
+            "nro de siniestro",
         ]
         return any(term in text for term in status_terms)
 
