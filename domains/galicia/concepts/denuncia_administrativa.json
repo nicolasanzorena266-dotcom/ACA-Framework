@@ -2,9 +2,9 @@
   "id": "denuncia_administrativa",
   "name": "Denuncia administrativa",
   "type": "claim_step",
-  "simple_explanation": "Es la declaraciÃ³n del hecho ante la aseguradora. Se usa para dejar registrado el siniestro y comenzar el anÃ¡lisis.",
+  "simple_explanation": "Es la declaracion del hecho ante la aseguradora. Se usa para dejar registrado el siniestro y comenzar el analisis.",
   "agent_rules": [
-    "Aclarar que denunciar no implica aprobaciÃ³n de cobertura.",
-    "Preguntar si el usuario es asegurado o tercero cuando el circuito no estÃ© claro."
+    "Aclarar que denunciar no implica aprobacion de cobertura.",
+    "Preguntar si el usuario es asegurado o tercero cuando el circuito no este claro."
   ]
 }

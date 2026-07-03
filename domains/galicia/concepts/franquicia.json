@@ -6,10 +6,10 @@
   "common_confusions": [
     "confundir franquicia con deuda",
     "creer que la aseguradora paga siempre el 100% del arreglo",
-    "pedir carta de franquicia antes de que el siniestro estÃ© cerrado"
+    "pedir carta de franquicia antes de que el siniestro este cerrado"
   ],
   "agent_rules": [
-    "Explicar con ejemplo numÃ©rico si el usuario no entiende.",
-    "No confirmar montos reales sin consultar pÃ³liza o expediente."
+    "Explicar con ejemplo numerico si el usuario no entiende.",
+    "No confirmar montos reales sin consultar poliza o expediente."
   ]
 }

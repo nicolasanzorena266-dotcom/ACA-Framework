@@ -1,4 +1,4 @@
-# Sprint 4 â€” Galicia Domain Pack v1
+# Sprint 4 - Galicia Domain Pack v1
 
 ## Added
 

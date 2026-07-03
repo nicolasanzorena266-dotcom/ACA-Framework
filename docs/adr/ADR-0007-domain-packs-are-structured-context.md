@@ -1,4 +1,4 @@
-# ADR-0007 â€” Domain Packs Are Structured Context
+# ADR-0007 - Domain Packs Are Structured Context
 
 ## Decision
 
