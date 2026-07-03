@@ -1,4 +1,4 @@
-﻿from typing import Any, Dict
+from typing import Any, Dict
 
 from aca_kernel.core.state import CognitiveState
 from aca_kernel.core.events import Event
@@ -7,7 +7,7 @@ from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
-from aca_os.policy_manager import PolicyDecision, PolicyManager
+from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolRequest
 
 
@@ -32,32 +32,35 @@ class ACAOSRuntime:
         self.memory_engine = memory_engine or MemoryEngine()
         self.domain_context = domain_context or {}
 
-    def _collect_tool_evidence(self, decision: str, event: Event) -> Dict[str, Any]:
-        if decision != PolicyDecision.USE_TOOL:
+    def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
+        if policy_result.decision != PolicyDecision.USE_TOOL:
             return {}
 
-        text = str(event.payload).lower()
-        if "cleas" in text or "convenio" in text:
-            request = ToolRequest(
-                tool_name="knowledge_base",
-                intent="lookup_concept",
-                payload={"key": "cleas"},
-            )
-            result = self.tool_engine.execute(request)
-            return result.evidence if result.success else {"tool_error": result.error}
+        if not policy_result.tool_key:
+            return {}
 
-        return {}
+        request = ToolRequest(
+            tool_name="knowledge_base",
+            intent="lookup_concept",
+            payload={"key": policy_result.tool_key},
+        )
+        result = self.tool_engine.execute(request)
+        return result.evidence if result.success else {"tool_error": result.error}
 
     def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
         prepared = self.mission_manager.before_kernel(event, state)
 
-        decision = self.policy_manager.evaluate(prepared, event)
-        tool_evidence = self._collect_tool_evidence(decision, event)
+        policy_result = self.policy_manager.evaluate(
+            prepared,
+            event,
+            domain_context=self.domain_context,
+        )
+        tool_evidence = self._collect_tool_evidence(policy_result)
 
-        if decision == PolicyDecision.ESCALATE:
+        if policy_result.decision == PolicyDecision.ESCALATE:
             prepared = prepared.evolve(
                 "POLICY_ESCALATE",
-                response="Puedo ayudarte a hablar con una persona para revisar esto.",
+                response="No tengo acceso al expediente ni puedo confirmar estados reales. Puedo orientarte con informacion general o ayudarte a hablar con una persona.",
             )
 
         graph = self.compiler.compile(event, prepared)
@@ -65,11 +68,15 @@ class ACAOSRuntime:
             event,
             graph,
             prepared,
-            context={"policy_decision": decision, "tool_evidence": tool_evidence},
+            context={
+                "policy_result": policy_result.to_dict(),
+                "tool_evidence": tool_evidence,
+            },
         )
 
         mission_updated = self.mission_manager.after_kernel(processed)
-        with_tools = mission_updated.evolve("TOOL_EVIDENCE", tool_evidence=tool_evidence)
+        with_policy = mission_updated.evolve("POLICY_RESULT", policy_result=policy_result.to_dict())
+        with_tools = with_policy.evolve("TOOL_EVIDENCE", tool_evidence=tool_evidence)
 
         context_bundle = self.context_manager.build(
             with_tools,
