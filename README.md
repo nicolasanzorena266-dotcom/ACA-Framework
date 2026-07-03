@@ -28,7 +28,7 @@ ACAOutput
 
 ## Status
 
-Release Candidate 1 â€” active development.
+Release Candidate 1 Core â€” validation phase.
 
 The repository is the single source of truth for ACA Framework.
 Older ZIP prototypes are historical artifacts.
@@ -45,6 +45,18 @@ With memory persistence:
 
 ```powershell
 python tools/aca_cli.py --message "Me chocaron ayer" --memory .aca/memory.json
+```
+
+Run smoke validation:
+
+```powershell
+python tools/smoke_rc1.py
+```
+
+Run tests:
+
+```powershell
+python -m pytest
 ```
 
 ## Structure
