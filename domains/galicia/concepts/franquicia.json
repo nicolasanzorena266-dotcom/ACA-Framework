@@ -1,0 +1,15 @@
+{
+  "id": "franquicia",
+  "name": "Franquicia",
+  "type": "coverage_concept",
+  "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+  "common_confusions": [
+    "confundir franquicia con deuda",
+    "creer que la aseguradora paga siempre el 100% del arreglo",
+    "pedir carta de franquicia antes de que el siniestro estÃ© cerrado"
+  ],
+  "agent_rules": [
+    "Explicar con ejemplo numÃ©rico si el usuario no entiende.",
+    "No confirmar montos reales sin consultar pÃ³liza o expediente."
+  ]
+}

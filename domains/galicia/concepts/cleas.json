@@ -1,0 +1,23 @@
+{
+  "id": "cleas",
+  "name": "CLEAS",
+  "type": "claims_convention",
+  "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resoluciÃ³n de ciertos siniestros automotores.",
+  "applies_when": [
+    "hay dos vehÃ­culos involucrados",
+    "ambas aseguradoras estÃ¡n adheridas",
+    "no hay lesionados",
+    "la responsabilidad puede determinarse con claridad"
+  ],
+  "does_not_apply_when": [
+    "hay lesionados",
+    "falta la denuncia de una parte",
+    "no estÃ¡ clara la responsabilidad",
+    "la otra compaÃ±Ã­a no estÃ¡ adherida"
+  ],
+  "agent_rules": [
+    "No prometer resoluciÃ³n automÃ¡tica.",
+    "No confirmar aplicaciÃ³n real sin consultar expediente.",
+    "Explicar en tÃ©rminos simples."
+  ]
+}

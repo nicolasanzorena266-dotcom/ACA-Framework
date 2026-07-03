@@ -1,0 +1,13 @@
+{
+  "id": "auto_claim_guidance",
+  "user_message": "Me chocaron ayer y el tercero no hizo la denuncia.",
+  "expected_program": "auto_claim_guidance",
+  "expected_mission": "auto_claim_guidance",
+  "required_questions": [
+    "hubo lesionados",
+    "sos asegurado o tercero damnificado"
+  ],
+  "must_explain": [
+    "la falta de denuncia del tercero puede demorar el avance"
+  ]
+}

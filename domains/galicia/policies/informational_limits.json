@@ -1,0 +1,12 @@
+{
+  "id": "informational_limits",
+  "name": "LÃ­mites del agente informativo Galicia",
+  "rules": [
+    "No consultar CRM por defecto.",
+    "No confirmar estado real de expediente.",
+    "No aprobar ni rechazar cobertura.",
+    "No prometer fechas de pago.",
+    "No prometer entrega de repuestos.",
+    "Ofrecer derivaciÃ³n humana cuando el usuario necesita revisiÃ³n puntual."
+  ]
+}
