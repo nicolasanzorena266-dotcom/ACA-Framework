@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from copy import deepcopy
@@ -17,6 +17,8 @@ class CognitiveState:
     response: Optional[str] = None
     selected_program: Optional[str] = None
     active_mission: Optional[Dict[str, Any]] = None
+    tool_evidence: Dict[str, Any] = field(default_factory=dict)
+    context_bundle: Optional[Dict[str, Any]] = None
     compliance: List[Dict[str, Any]] = field(default_factory=list)
     timeline: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -48,6 +50,8 @@ class CognitiveState:
             "response": self.response,
             "selected_program": self.selected_program,
             "active_mission": deepcopy(self.active_mission),
+            "tool_evidence": deepcopy(self.tool_evidence),
+            "context_bundle": deepcopy(self.context_bundle),
             "compliance": deepcopy(self.compliance),
             "timeline": deepcopy(self.timeline),
         }
