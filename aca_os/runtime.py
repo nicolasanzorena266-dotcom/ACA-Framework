@@ -51,35 +51,13 @@ class ACAOSRuntime:
         result = self.tool_engine.execute(request)
         return result.evidence if result.success else {"tool_error": result.error}
 
-    def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
-        conversation_state = self.conversation_manager.before_process(event, state)
-        prepared = self.mission_manager.before_kernel(event, conversation_state)
-
-        policy_result = self.policy_manager.evaluate(
-            prepared,
-            event,
-            domain_context=self.domain_context,
-        )
-        tool_evidence = self._collect_tool_evidence(policy_result)
-
-        if policy_result.decision == PolicyDecision.ESCALATE:
-            prepared = prepared.evolve(
-                "POLICY_ESCALATE",
-                response="No tengo acceso al expediente ni puedo confirmar estados reales. Puedo orientarte con informacion general o ayudarte a hablar con una persona.",
-            )
-
-        graph = self.compiler.compile(event, prepared)
-        processed = self.kernel.run(
-            event,
-            graph,
-            prepared,
-            context={
-                "policy_result": policy_result.to_dict(),
-                "tool_evidence": tool_evidence,
-            },
-        )
-
-        mission_updated = self.mission_manager.after_kernel(processed)
+    def _finalize_state(
+        self,
+        state: CognitiveState,
+        policy_result: PolicyResult,
+        tool_evidence: Dict[str, Any],
+    ) -> CognitiveState:
+        mission_updated = self.mission_manager.after_kernel(state)
         with_policy = mission_updated.evolve("POLICY_RESULT", policy_result=policy_result.to_dict())
         with_tools = with_policy.evolve("TOOL_EVIDENCE", tool_evidence=tool_evidence)
 
@@ -103,6 +81,37 @@ class ACAOSRuntime:
 
         final_state = with_memory.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
         return self.conversation_manager.after_process(final_state)
+
+    def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
+        conversation_state = self.conversation_manager.before_process(event, state)
+        prepared = self.mission_manager.before_kernel(event, conversation_state)
+
+        policy_result = self.policy_manager.evaluate(
+            prepared,
+            event,
+            domain_context=self.domain_context,
+        )
+        tool_evidence = self._collect_tool_evidence(policy_result)
+
+        if policy_result.decision == PolicyDecision.ESCALATE:
+            escalated = prepared.evolve(
+                "POLICY_ESCALATE",
+                response="No tengo acceso al expediente ni puedo confirmar estados reales. Puedo orientarte con informacion general o ayudarte a hablar con una persona.",
+            )
+            return self._finalize_state(escalated, policy_result, tool_evidence)
+
+        graph = self.compiler.compile(event, prepared)
+        processed = self.kernel.run(
+            event,
+            graph,
+            prepared,
+            context={
+                "policy_result": policy_result.to_dict(),
+                "tool_evidence": tool_evidence,
+            },
+        )
+
+        return self._finalize_state(processed, policy_result, tool_evidence)
 
     def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
         return ACAOutput.from_state(self.process(event, state))

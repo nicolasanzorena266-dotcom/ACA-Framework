@@ -94,20 +94,33 @@ class PolicyManager:
         ]
         return any(term in text for term in status_terms)
 
+    def _known_concept_available(
+        self,
+        key: str,
+        domain_context: Dict[str, Any],
+    ) -> bool:
+        concepts = domain_context.get("concepts", None)
+
+        if concepts is None:
+            return True
+
+        if concepts == {}:
+            return True
+
+        return key in concepts
+
     def _detect_concept_key(
         self,
         text: str,
         domain_context: Dict[str, Any],
     ) -> str | None:
-        concepts = domain_context.get("concepts", {})
-
         if "cleas" in text or "convenio" in text:
-            return "cleas" if "cleas" in concepts else None
+            return "cleas" if self._known_concept_available("cleas", domain_context) else None
 
         if "franquicia" in text:
-            return "franquicia" if "franquicia" in concepts else None
+            return "franquicia" if self._known_concept_available("franquicia", domain_context) else None
 
         if "denuncia administrativa" in text or "copia de denuncia" in text:
-            return "denuncia_administrativa" if "denuncia_administrativa" in concepts else None
+            return "denuncia_administrativa" if self._known_concept_available("denuncia_administrativa", domain_context) else None
 
         return None
