@@ -54,18 +54,27 @@ Status: completed.
 
 ## Epic 2 — Runtime Intelligence
 
-Status: active.
+Status: completed.
 
 - Sprint 31 — Decision Graph Engine: completed
 - Sprint 32 — Metrics Engine: completed
 - Sprint 33 — Component Registry: completed
 - Sprint 34 — Studio Evolution: completed
 
+## Epic 3 — Plugin SDK
+
+Status: active.
+
+- Sprint 35 — Plugin Manifest & Contract: completed
+- Sprint 36 — Plugin Loader: planned
+- Sprint 37 — Plugin Validator: planned
+- Sprint 38 — Plugin Lifecycle: planned
+- Sprint 39 — Example Plugins: planned
+
 ## Platform Expansion
 
-Planned after Runtime Intelligence foundation:
+Planned after Plugin SDK foundation:
 
-- Plugin SDK
 - REST API
 - MCP Server
 

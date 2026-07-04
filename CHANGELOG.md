@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Sprint 35 — Plugin Manifest & Contract
+
+- Started Epic 3 — Plugin SDK.
+- Added deterministic Plugin Manifest contract.
+- Added runtime compatibility, entrypoint, capabilities, permissions and hooks metadata.
+- Added Plugin Contract projection.
+- Added conversion from plugin manifest to Component Registry descriptor.
+- Added validation for unsupported manifest versions and duplicate declarations.
+- Added Plugin SDK manifest tests.
+
+
 ## Sprint 34 — Studio Evolution
 
 - Evolved ACA Studio from MVP panels into a Runtime Intelligence view model.

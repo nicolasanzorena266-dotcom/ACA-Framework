@@ -120,3 +120,30 @@ Metrics Engine is a passive runtime service. It derives counters, gauges, histog
 ACA Studio is a read-only Runtime Intelligence interface. It consumes the Runtime Introspection API and renders normalized panels for Runtime Health, Decision Graph, Metrics, Component Registry, Timeline, Trace and Event Bus.
 
 Studio is not allowed to own runtime behavior. It only projects already-observed runtime contracts.
+
+
+## Epic 3 — Plugin SDK Boundary
+
+Plugins are external capabilities. They do not become runtime internals and they do not depend on components directly.
+
+The first stable contract is the Plugin Manifest:
+
+```text
+Plugin
+  │
+  ▼
+Plugin Manifest
+  │
+  ▼
+Plugin Contract
+  │
+  ▼
+Component Registry
+  │
+  ▼
+Runtime API
+```
+
+A plugin must declare its name, version, runtime compatibility, entrypoint, capabilities, permissions, hooks, dependencies, tags and metadata before any future loader can execute it.
+
+Sprint 35 intentionally does not import plugin code. It only validates the manifest and projects it into runtime-visible metadata.
