@@ -69,7 +69,7 @@ Status: active.
 - Sprint 36 — Plugin Loader: completed
 - Sprint 37 — Plugin Validator: completed
 - Sprint 38 — Plugin Lifecycle: completed
-- Sprint 39 — Example Plugins: planned
+- Sprint 39 — Example Plugins: completed
 
 ## Platform Expansion
 

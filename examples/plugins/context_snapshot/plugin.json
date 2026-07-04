@@ -1,0 +1,44 @@
+{
+  "manifest_version": "1",
+  "name": "example.context_snapshot",
+  "version": "0.1.0",
+  "description": "Reference plugin that declares a read-only context snapshot capability.",
+  "provider": "aca.examples",
+  "runtime": {
+    "min_version": "0.3.0"
+  },
+  "entrypoint": {
+    "module": "examples.plugins.context_snapshot.plugin",
+    "factory": "create_plugin"
+  },
+  "capabilities": [
+    {
+      "name": "context.snapshot",
+      "kind": "runtime",
+      "description": "Expose a host-provided context snapshot as a deterministic plugin capability."
+    }
+  ],
+  "permissions": [
+    {
+      "name": "context.read",
+      "reason": "Required to read host context through the Runtime API boundary."
+    },
+    {
+      "name": "trace.read",
+      "reason": "Required to make context snapshots traceable and replay-safe."
+    }
+  ],
+  "hooks": [
+    {
+      "name": "on_initialize",
+      "target": "examples.plugins.context_snapshot.plugin:on_initialize"
+    }
+  ],
+  "dependencies": [],
+  "tags": ["example", "context", "read-only", "sdk"],
+  "metadata": {
+    "example": true,
+    "read_only": true,
+    "executes_on_load": false
+  }
+}

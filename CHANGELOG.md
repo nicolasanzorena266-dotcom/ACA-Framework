@@ -1,3 +1,13 @@
+# Changelog
+
+## Sprint 39 — Example Plugins
+
+- Added repository-hosted Plugin SDK example plugins.
+- Added Echo Tool, Context Snapshot and Decision Audit example manifests.
+- Added safe future entrypoint modules without changing loader execution semantics.
+- Added `aca_os.plugin_examples` catalog, validation and export helpers.
+- Added deterministic tests proving examples validate, load and lifecycle-manage as metadata only.
+
 ## Sprint 38 — Plugin Lifecycle
 
 - Added deterministic Plugin Lifecycle Manager.

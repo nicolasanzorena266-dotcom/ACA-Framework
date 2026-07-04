@@ -1,0 +1,48 @@
+{
+  "manifest_version": "1",
+  "name": "example.decision_audit",
+  "version": "0.1.0",
+  "description": "Reference plugin that declares decision graph audit metadata capabilities.",
+  "provider": "aca.examples",
+  "runtime": {
+    "min_version": "0.3.0"
+  },
+  "entrypoint": {
+    "module": "examples.plugins.decision_audit.plugin",
+    "factory": "create_plugin"
+  },
+  "capabilities": [
+    {
+      "name": "decision.audit",
+      "kind": "observability",
+      "description": "Read decision graph metadata for external observability adapters."
+    }
+  ],
+  "permissions": [
+    {
+      "name": "trace.read",
+      "reason": "Required to read execution trace decision metadata."
+    },
+    {
+      "name": "metrics.read",
+      "reason": "Required to expose deterministic decision audit metrics."
+    },
+    {
+      "name": "event.read",
+      "reason": "Required to correlate runtime events with decision graph records."
+    }
+  ],
+  "hooks": [
+    {
+      "name": "on_activate",
+      "target": "examples.plugins.decision_audit.plugin:on_activate"
+    }
+  ],
+  "dependencies": [],
+  "tags": ["example", "observability", "decision-graph", "sdk"],
+  "metadata": {
+    "example": true,
+    "observability_only": true,
+    "executes_on_load": false
+  }
+}

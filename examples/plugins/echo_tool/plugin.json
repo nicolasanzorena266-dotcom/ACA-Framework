@@ -1,0 +1,48 @@
+{
+  "manifest_version": "1",
+  "name": "example.echo_tool",
+  "version": "0.1.0",
+  "description": "Reference plugin that exposes a deterministic echo-style tool capability.",
+  "provider": "aca.examples",
+  "runtime": {
+    "min_version": "0.3.0"
+  },
+  "entrypoint": {
+    "module": "examples.plugins.echo_tool.plugin",
+    "factory": "create_plugin"
+  },
+  "capabilities": [
+    {
+      "name": "tool.echo",
+      "kind": "tool",
+      "description": "Return a deterministic echo payload for SDK smoke tests."
+    }
+  ],
+  "permissions": [
+    {
+      "name": "tool.execute",
+      "reason": "Required to expose the example echo tool through the plugin contract."
+    },
+    {
+      "name": "metrics.read",
+      "reason": "Used by host runtimes to show example plugin execution metrics."
+    }
+  ],
+  "hooks": [
+    {
+      "name": "on_activate",
+      "target": "examples.plugins.echo_tool.plugin:on_activate"
+    },
+    {
+      "name": "on_stop",
+      "target": "examples.plugins.echo_tool.plugin:on_stop"
+    }
+  ],
+  "dependencies": [],
+  "tags": ["example", "tool", "sdk"],
+  "metadata": {
+    "example": true,
+    "deterministic": true,
+    "executes_on_load": false
+  }
+}
