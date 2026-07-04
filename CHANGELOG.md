@@ -37,3 +37,12 @@
 - Added ADR and RFC structure.
 - Added reference Kernel skeleton.
 - Added Mission, Policy and Memory OS contracts.
+
+## Sprint 32 — Metrics Engine
+
+- Added deterministic Metrics Engine.
+- Added runtime metrics export API.
+- Added counters, gauges, histograms and percentile aggregation.
+- Added component-level metrics derived from Execution Trace.
+- Integrated metrics into runtime introspection.
+- Added Sprint 32 documentation.

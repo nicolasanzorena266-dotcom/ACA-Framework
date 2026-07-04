@@ -73,6 +73,7 @@ class RuntimeIntrospectionAPI:
             "tool_engine": "tool execution",
             "memory_engine": "memory consolidation",
             "context_manager": "context assembly",
+            "metrics_engine": "runtime metrics aggregation",
             "event_bus": "internal event publication",
         }
         return [
@@ -95,6 +96,15 @@ class RuntimeIntrospectionAPI:
         events = (event_bus or self.runtime.event_bus).events()
         timeline = RuntimeTimeline.from_state(state, events).to_dict() if state else {}
 
+        metrics = self.runtime.metrics_engine.snapshot(runtime_id=self.runtime.runtime_id).to_dict()
+        metrics.update(
+            {
+                "timeline_entries": len(timeline.get("entries", [])) if timeline else 0,
+                "runtime_event_count": len(events),
+                "last_trace_duration_ms": trace.duration_ms if trace else None,
+            }
+        )
+
         return RuntimeIntrospectionSnapshot(
             runtime_id=self.runtime.runtime_id,
             status="ready",
@@ -107,12 +117,7 @@ class RuntimeIntrospectionAPI:
                 "event_types": [event.type for event in events],
                 "events": [event.to_dict() for event in events],
             },
-            metrics={
-                "trace_count": len(getattr(self.runtime, "_traces", {})),
-                "timeline_entries": len(timeline.get("entries", [])) if timeline else 0,
-                "runtime_event_count": len(events),
-                "last_trace_duration_ms": trace.duration_ms if trace else None,
-            },
+            metrics=metrics,
         )
 
     def inspect_trace(self, trace_id: str | None = None) -> Dict[str, Any]:

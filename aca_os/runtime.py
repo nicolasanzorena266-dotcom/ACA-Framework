@@ -12,6 +12,7 @@ from aca_os.event_bus import EventBus
 from aca_os.introspection import RuntimeIntrospectionAPI, RuntimeIntrospectionSnapshot
 from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
+from aca_os.metrics_engine import MetricsEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.session import ExecutionSession
@@ -40,6 +41,7 @@ class ACAOSRuntime:
         action_planner: ActionPlanner | None = None,
         flow_router: FlowRouter | None = None,
         decision_graph_engine: DecisionGraphEngine | None = None,
+        metrics_engine: MetricsEngine | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -55,6 +57,7 @@ class ACAOSRuntime:
         self.action_planner = action_planner or ActionPlanner()
         self.flow_router = flow_router or FlowRouter()
         self.decision_graph_engine = decision_graph_engine or DecisionGraphEngine()
+        self.metrics_engine = metrics_engine or MetricsEngine()
         self.event_bus = event_bus or EventBus()
         self.domain_context = domain_context or {}
         self.runtime_id = str(uuid4())
@@ -218,6 +221,7 @@ class ACAOSRuntime:
         self._traces[trace.trace_id] = trace
         self._last_state = state
         self._last_event = event
+        self.metrics_engine.observe_trace(trace)
         return trace
 
     def last_trace(self) -> ExecutionTrace | None:
@@ -249,6 +253,9 @@ class ACAOSRuntime:
             return trace.to_dict()
         raise ValueError(f"Unsupported trace export format: {format}")
 
+
+    def export_metrics(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        return self.metrics_engine.export(runtime_id=self.runtime_id, format=format)
 
     def studio_view(self):
         return build_studio_view(self.inspect_runtime())
