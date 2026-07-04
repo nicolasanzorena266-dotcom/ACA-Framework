@@ -44,6 +44,10 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/runtime/components", "List registered Runtime components.", "component.list"),
         RuntimeEndpoint("GET", "/runtime/components/{name}", "Return one registered component descriptor.", "component.read"),
         RuntimeEndpoint("GET", "/runtime/plugins", "List loaded plugins, optionally loading a plugin root first.", "plugin.list"),
+        RuntimeEndpoint("GET", "/runtime/domain-packs", "List runtime-integrated Domain Packs, optionally loading a root first.", "domain_pack.list"),
+        RuntimeEndpoint("GET", "/runtime/domain-packs/{name}", "Return one runtime-integrated Domain Pack.", "domain_pack.read"),
+        RuntimeEndpoint("POST", "/runtime/domain-packs/load", "Load and integrate Domain Packs from a root.", "domain_pack.load"),
+        RuntimeEndpoint("GET", "/runtime/domain-context", "Return runtime Domain Pack context.", "domain_pack.context.read"),
         RuntimeEndpoint("POST", "/runtime/plugins/load", "Load plugins from a plugin root.", "plugin.load"),
         RuntimeEndpoint("GET", "/runtime/plugin-lifecycle", "Return plugin lifecycle snapshot.", "plugin.lifecycle.read"),
         RuntimeEndpoint("POST", "/runtime/plugin-lifecycle", "Apply a plugin lifecycle transition.", "plugin.lifecycle.transition"),
@@ -120,6 +124,58 @@ class RuntimeEndpointAPI:
         if root:
             runtime.load_plugins(str(root), strict=strict)
         return runtime.export_plugins(format="dict")
+
+
+    def domain_packs(
+        self,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        runtime = self.runtime_factory(memory_path=memory_path)
+        if root:
+            runtime.load_domain_packs(str(root), strict=strict)
+        return runtime.export_domain_packs(format="dict")
+
+    def load_domain_packs(
+        self,
+        *,
+        root: str | Path,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        if not root:
+            raise ValueError("root is required.")
+        runtime = self.runtime_factory(memory_path=memory_path)
+        return runtime.load_domain_packs(str(root), strict=strict)
+
+    def domain_pack(
+        self,
+        name: str,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        if not name:
+            raise ValueError("domain pack name is required.")
+        runtime = self.runtime_factory(memory_path=memory_path)
+        if root:
+            runtime.load_domain_packs(str(root), strict=strict)
+        return runtime.get_domain_pack(name)
+
+    def domain_context(
+        self,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        runtime = self.runtime_factory(memory_path=memory_path)
+        if root:
+            runtime.load_domain_packs(str(root), strict=strict)
+        return runtime.export_domain_pack_context(format="dict")
 
     def load_plugins(
         self,
@@ -265,6 +321,10 @@ class RuntimeEndpointAPI:
             return self.components(memory_path=memory_path)
         if method == "GET" and path == "/runtime/plugins":
             return self.plugins(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/domain-packs":
+            return self.domain_packs(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
+        if method == "GET" and path == "/runtime/domain-context":
+            return self.domain_context(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
         if method == "POST" and path == "/runtime/events":
             return self.process_event(
                 event_type=payload.get("event_type") or payload.get("type"),

@@ -106,6 +106,39 @@ class RuntimeRESTAPI:
                         memory_path=payload.get("memory_path") or memory_path,
                     )
                 )
+            if method == "GET" and clean_path == "/runtime/domain-packs":
+                return self.ok(
+                    self.runtime_api.domain_packs(
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
+            if method == "GET" and len(segments) == 3 and segments[:2] == ["runtime", "domain-packs"]:
+                return self.ok(
+                    self.runtime_api.domain_pack(
+                        unquote(segments[2]),
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
+            if method == "POST" and clean_path == "/runtime/domain-packs/load":
+                return self.ok(
+                    self.runtime_api.load_domain_packs(
+                        root=payload.get("root"),
+                        strict=_as_bool(payload.get("strict")),
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
+            if method == "GET" and clean_path == "/runtime/domain-context":
+                return self.ok(
+                    self.runtime_api.domain_context(
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
             if method == "GET" and clean_path == "/runtime/metrics":
                 return self.ok(self.runtime_api.metrics(memory_path=memory_path))
             if method == "GET" and clean_path == "/runtime/introspection":
@@ -200,6 +233,33 @@ class RuntimeRESTAPI:
         memory_path: str | Path | None = None,
     ) -> Dict[str, Any]:
         return self.runtime_api.plugins(root=root, strict=strict, memory_path=memory_path)
+
+    def domain_packs(
+        self,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        return self.runtime_api.domain_packs(root=root, strict=strict, memory_path=memory_path)
+
+    def load_domain_packs(
+        self,
+        *,
+        root: str | Path,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        return self.runtime_api.load_domain_packs(root=root, strict=strict, memory_path=memory_path)
+
+    def domain_context(
+        self,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        return self.runtime_api.domain_context(root=root, strict=strict, memory_path=memory_path)
 
     def metrics(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
         return self.runtime_api.metrics(memory_path=memory_path)

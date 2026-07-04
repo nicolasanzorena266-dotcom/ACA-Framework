@@ -1,3 +1,11 @@
+
+## 0.3.0-sprint49 - Domain Pack Runtime Integration
+
+- Added Runtime Domain Pack integration boundary.
+- Exposed Domain Pack runtime context to execution context bundles.
+- Added Runtime API and REST endpoints for Domain Pack load/list/read/context operations.
+- Added tests for Runtime, API and REST Domain Pack integration.
+
 # Changelog
 
 ## 0.3.0-sprint48 — Example Domain Packs

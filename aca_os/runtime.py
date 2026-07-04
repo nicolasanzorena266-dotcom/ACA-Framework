@@ -18,6 +18,7 @@ from aca_os.plugin_lifecycle import PluginLifecycleManager
 from aca_os.plugin_loader import PluginLoader
 from aca_os.domain_pack_loader import DomainPackLoader
 from aca_os.domain_pack_validator import DomainPackValidator
+from aca_os.domain_pack_runtime import DomainPackRuntime
 from aca_os.plugin_validator import PluginValidator
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
@@ -76,6 +77,7 @@ class ACAOSRuntime:
         self.plugin_lifecycle = plugin_lifecycle
         self.domain_pack_validator = domain_pack_validator or DomainPackValidator()
         self.domain_pack_loader = domain_pack_loader or DomainPackLoader(validator=self.domain_pack_validator)
+        self.domain_pack_runtime = DomainPackRuntime(self.domain_pack_loader)
         self.component_registry = component_registry or build_registry_from_runtime(self)
         self.plugin_validator.bind_registry(self.component_registry)
         self.plugin_loader.bind_registry(self.component_registry)
@@ -128,7 +130,23 @@ class ACAOSRuntime:
             )
             self.component_registry.initialize("domain_pack_loader")
             self.component_registry.activate("domain_pack_loader")
+        if self.component_registry.get("domain_pack_runtime") is None:
+            self.component_registry.register_instance(
+                name="domain_pack_runtime",
+                instance=self.domain_pack_runtime,
+                role="domain pack runtime integration",
+                capabilities=(
+                    "domain_pack.runtime.load",
+                    "domain_pack.runtime.export",
+                    "domain_pack.runtime.context",
+                ),
+                tags=("domain-pack", "runtime", "integration"),
+                metadata={"runtime_owned": True},
+            )
+            self.component_registry.initialize("domain_pack_runtime")
+            self.component_registry.activate("domain_pack_runtime")
         self.domain_context = domain_context or {}
+        self.domain_context.setdefault("domain_packs", self.domain_pack_runtime.context())
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
         self._traces: Dict[str, ExecutionTrace] = {}
@@ -365,10 +383,25 @@ class ACAOSRuntime:
         return self.plugin_lifecycle.export(format=format)
 
     def load_domain_packs(self, root: str, *, strict: bool = False) -> Dict[str, Any]:
-        return self.domain_pack_loader.load(root, strict=strict).to_dict()
+        snapshot = self.domain_pack_runtime.load(root, strict=strict)
+        self.domain_context["domain_packs"] = snapshot.to_context()
+        return snapshot.to_dict()
 
     def export_domain_packs(self, *, format: str = "dict") -> Dict[str, Any] | str:
-        return self.domain_pack_loader.export(format=format)
+        return self.domain_pack_runtime.export(format=format)
+
+    def export_domain_pack_context(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        context = self.domain_pack_runtime.context()
+        if format == "dict":
+            return context
+        if format == "json":
+            import json
+
+            return json.dumps(context, ensure_ascii=False, indent=2)
+        raise ValueError(f"Unsupported Domain Pack context export format: {format}")
+
+    def get_domain_pack(self, name: str) -> Dict[str, Any]:
+        return {"pack": self.domain_pack_runtime.get(name).to_dict()}
 
     def export_domain_pack_validation(self, *, format: str = "dict") -> Dict[str, Any] | str:
         return self.domain_pack_validator.export(format=format)
