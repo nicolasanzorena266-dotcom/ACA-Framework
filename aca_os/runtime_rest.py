@@ -220,6 +220,19 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/demo/domain-flow":
                 return self.ok(self.runtime_api.domain_flow_scenario())
+            if method == "GET" and clean_path == "/deploy/package":
+                return self.ok(
+                    self.runtime_api.deploy_package(
+                        app_name=_first(params, "app_name") or "aca-framework",
+                        host=_first(params, "host") or "0.0.0.0",
+                        port_env=_first(params, "port_env") or "PORT",
+                        fallback_port=int(_first(params, "fallback_port") or 8765),
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                    )
+                )
+            if method == "GET" and clean_path == "/deploy/validate":
+                return self.ok(self.runtime_api.validate_deploy_package(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

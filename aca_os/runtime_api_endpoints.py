@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Mapping
 
 from aca_kernel.core.events import Event
 from aca_os.demo_domain_flow import DemoDomainRuntimeFlowRunner
+from aca_os.deployable_web_package import build_deployable_web_package, validate_deployable_web_package
 from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
@@ -71,6 +72,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("POST", "/demo/human-test", "Run the deterministic human test demo.", "demo.human_test.run"),
         RuntimeEndpoint("GET", "/demo/domain-flow", "Return the demo Domain Pack runtime flow scenario.", "demo.domain_flow.read"),
         RuntimeEndpoint("POST", "/demo/domain-flow", "Run one message through a loaded Domain Pack demo flow.", "demo.domain_flow.run"),
+        RuntimeEndpoint("GET", "/deploy/package", "Return deployable ACA Web Runtime package contract.", "deploy.package.read"),
+        RuntimeEndpoint("GET", "/deploy/validate", "Validate deployable ACA Web Runtime package files.", "deploy.package.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -336,6 +339,33 @@ class RuntimeEndpointAPI:
             memory_path=memory_path,
         )
 
+    def deploy_package(
+        self,
+        *,
+        app_name: str = "aca-framework",
+        host: str = "0.0.0.0",
+        port_env: str = "PORT",
+        fallback_port: int = 8765,
+        studio_path: str | Path = "studio/index.html",
+        domain_pack_root: str | Path = "examples/domain_packs",
+    ) -> Dict[str, Any]:
+        return build_deployable_web_package(
+            app_name=app_name,
+            host=host,
+            port_env=port_env,
+            fallback_port=fallback_port,
+            studio_path=studio_path,
+            domain_pack_root=domain_pack_root,
+        )
+
+    def validate_deploy_package(
+        self,
+        *,
+        project_root: str | Path = ".",
+        package: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_deployable_web_package(project_root=project_root, package=package)
+
     def run_human_demo(
         self,
         *,
@@ -427,6 +457,17 @@ class RuntimeEndpointAPI:
                 pack_name=payload.get("pack_name") or params.get("pack_name"),
                 memory_path=payload.get("memory_path") or memory_path,
             )
+        if method == "GET" and path == "/deploy/package":
+            return self.deploy_package(
+                app_name=params.get("app_name") or "aca-framework",
+                host=params.get("host") or "0.0.0.0",
+                port_env=params.get("port_env") or "PORT",
+                fallback_port=int(params.get("fallback_port") or 8765),
+                studio_path=params.get("studio_path") or "studio/index.html",
+                domain_pack_root=params.get("domain_pack_root") or "examples/domain_packs",
+            )
+        if method == "GET" and path == "/deploy/validate":
+            return self.validate_deploy_package(project_root=params.get("project_root") or ".")
         raise ValueError(f"Unsupported local Studio API request: {method} {path}.")
 
     def run_message(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import threading
 import webbrowser
@@ -23,6 +24,8 @@ from aca_os.web_runtime_launcher import build_local_web_runtime_plan, render_lau
 
 
 DEFAULT_STUDIO_FILE = ROOT / "studio" / "index.html"
+DEFAULT_HOST = os.environ.get("ACA_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.environ.get("PORT") or os.environ.get("ACA_PORT") or "8765")
 
 
 class ACAWebRuntimeRequestHandler(BaseHTTPRequestHandler):
@@ -101,8 +104,8 @@ class ACAWebRuntimeServer(ThreadingHTTPServer):
 
 
 def build_server(
-    host: str = "127.0.0.1",
-    port: int = 8765,
+    host: str = DEFAULT_HOST,
+    port: int = DEFAULT_PORT,
     *,
     studio_file: str | Path = DEFAULT_STUDIO_FILE,
 ) -> ThreadingHTTPServer:
@@ -116,8 +119,8 @@ def build_server(
 
 def serve(
     *,
-    host: str = "127.0.0.1",
-    port: int = 8765,
+    host: str = DEFAULT_HOST,
+    port: int = DEFAULT_PORT,
     studio_file: str | Path = DEFAULT_STUDIO_FILE,
     open_browser: bool = False,
 ) -> None:
@@ -136,8 +139,8 @@ def serve(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ACA Local Web Runtime")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind. Defaults to localhost.")
-    parser.add_argument("--port", default=8765, type=int, help="Port to bind. Defaults to 8765.")
+    parser.add_argument("--host", default=DEFAULT_HOST, help="Host to bind. Defaults to ACA_HOST or localhost.")
+    parser.add_argument("--port", default=DEFAULT_PORT, type=int, help="Port to bind. Defaults to PORT, ACA_PORT or 8765.")
     parser.add_argument("--studio-file", default=str(DEFAULT_STUDIO_FILE), help="Studio HTML file to serve.")
     parser.add_argument("--open", action="store_true", help="Open Studio in the default browser.")
     parser.add_argument("--print-plan", action="store_true", help="Print launch plan and exit.")

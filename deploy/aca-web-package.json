@@ -1,0 +1,31 @@
+{
+  "contract": "deployable_web_package.v1",
+  "app_name": "aca-framework",
+  "runtime": "python",
+  "python_version": ">=3.10",
+  "process": {
+    "type": "web",
+    "command": "python tools/aca_web.py --host 0.0.0.0",
+    "local_command": "python tools/aca_web.py --host 127.0.0.1 --port 8765 --open",
+    "host": "0.0.0.0",
+    "port_env": "PORT",
+    "fallback_port": 8765
+  },
+  "healthcheck": {
+    "method": "GET",
+    "path": "/health",
+    "expected_status": 200,
+    "expected_json_status": "ok"
+  },
+  "routes": {
+    "studio": "/studio",
+    "health": "/health",
+    "runtime_status": "/runtime/status",
+    "studio_binding": "/studio/binding",
+    "demo_domain_flow": "/demo/domain-flow"
+  },
+  "assets": {
+    "studio_html": "studio/index.html",
+    "domain_pack_root": "examples/domain_packs"
+  }
+}
