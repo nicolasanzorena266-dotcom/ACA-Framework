@@ -147,3 +147,28 @@ Runtime API
 A plugin must declare its name, version, runtime compatibility, entrypoint, capabilities, permissions, hooks, dependencies, tags and metadata before any future loader can execute it.
 
 Sprint 35 intentionally does not import plugin code. It only validates the manifest and projects it into runtime-visible metadata.
+
+
+## Sprint 36 — Plugin Loader
+
+The Plugin Loader is a Runtime Service that discovers `plugin.json` manifests, validates them through the Plugin Manifest contract and registers plugin capabilities in the Component Registry.
+
+It does not import plugin entrypoints and does not execute plugin code. This preserves deterministic loading and keeps Plugin SDK lifecycle execution separate from manifest discovery.
+
+```text
+Plugin Directory
+  │
+  ▼
+plugin.json
+  │
+  ▼
+PluginLoader
+  │
+  ▼
+PluginContract
+  │
+  ▼
+ComponentRegistry
+```
+
+Interfaces such as Studio, REST, CLI and MCP must observe loaded plugins through Runtime APIs and registry snapshots, not through plugin implementation modules.

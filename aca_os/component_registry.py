@@ -257,4 +257,9 @@ def _runtime_component_specs() -> Dict[str, Dict[str, Any]]:
             "capabilities": ("event.publish", "event.read"),
             "tags": ("observability", "runtime"),
         },
+        "plugin_loader": {
+            "role": "plugin manifest loader",
+            "capabilities": ("plugin.discover", "plugin.load", "plugin.export"),
+            "tags": ("plugin-sdk", "runtime"),
+        },
     }

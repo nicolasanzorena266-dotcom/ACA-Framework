@@ -66,7 +66,7 @@ Status: completed.
 Status: active.
 
 - Sprint 35 — Plugin Manifest & Contract: completed
-- Sprint 36 — Plugin Loader: planned
+- Sprint 36 — Plugin Loader: completed
 - Sprint 37 — Plugin Validator: planned
 - Sprint 38 — Plugin Lifecycle: planned
 - Sprint 39 — Example Plugins: planned

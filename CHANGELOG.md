@@ -1,6 +1,18 @@
 # Changelog
 
 
+## Sprint 36 — Plugin Loader
+
+- Added deterministic Plugin Loader runtime service.
+- Added recursive `plugin.json` discovery.
+- Added manifest loading through the Plugin Contract boundary.
+- Added Component Registry registration for loaded plugins.
+- Added duplicate plugin detection and observable failed load results.
+- Added `ACAOSRuntime.load_plugins()` and `ACAOSRuntime.export_plugins()`.
+- Registered Plugin Loader as a runtime component.
+- Added Sprint 36 Plugin Loader tests.
+
+
 ## Sprint 35 — Plugin Manifest & Contract
 
 - Started Epic 3 — Plugin SDK.
