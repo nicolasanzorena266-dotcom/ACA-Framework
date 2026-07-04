@@ -4,10 +4,10 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
-from aca_kernel.core.events import Event
-from sdk.factory import build_galicia_runtime, process_message
+from sdk.factory import build_galicia_runtime
+from aca_os.runtime_api_endpoints import RuntimeEndpoint, RuntimeEndpointAPI
 
 
 RuntimeFactory = Callable[..., Any]
@@ -29,37 +29,21 @@ class RESTResponse:
         return json.dumps(self.payload, ensure_ascii=False, indent=2)
 
 
-@dataclass(frozen=True)
-class RESTEndpoint:
-    method: str
-    path: str
-    description: str
-
-    def to_dict(self) -> Dict[str, str]:
-        return {"method": self.method, "path": self.path, "description": self.description}
+RESTEndpoint = RuntimeEndpoint
 
 
 class RuntimeRESTAPI:
-    """Small REST-facing runtime facade.
+    """Small REST adapter over the stable Runtime endpoint API.
 
-    This class owns request normalization only. All runtime behavior is delegated
-    to ACAOSRuntime and SDK runtime factories.
+    This class owns HTTP-ish request normalization only. Endpoint behavior is
+    delegated to RuntimeEndpointAPI, which delegates to ACAOSRuntime.
     """
 
-    endpoints = (
-        RESTEndpoint("GET", "/health", "Return REST adapter and Runtime health."),
-        RESTEndpoint("GET", "/runtime/status", "Return Runtime status summary."),
-        RESTEndpoint("GET", "/runtime/components", "List registered Runtime components."),
-        RESTEndpoint("GET", "/runtime/plugins", "List loaded plugins, optionally loading a plugin root first."),
-        RESTEndpoint("GET", "/runtime/metrics", "Return current Runtime metrics."),
-        RESTEndpoint("GET", "/runtime/introspection", "Return Runtime introspection snapshot."),
-        RESTEndpoint("POST", "/runtime/run", "Execute one Runtime message."),
-        RESTEndpoint("POST", "/runtime/trace", "Execute one Runtime message and return its execution trace."),
-        RESTEndpoint("POST", "/sessions/replay", "Replay a persisted execution session."),
-    )
+    endpoints = RuntimeEndpointAPI.endpoints
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
         self.runtime_factory = runtime_factory
+        self.runtime_api = RuntimeEndpointAPI(runtime_factory=runtime_factory)
 
     def route(
         self,
@@ -72,34 +56,86 @@ class RuntimeRESTAPI:
         method = method.upper()
         clean_path = path.rstrip("/") or "/"
         params = _normalize_query(query)
+        segments = _segments(clean_path)
 
         try:
             payload = _normalize_body(body)
+            memory_path = _first(params, "memory_path") or _first(params, "memory")
+
             if method == "GET" and clean_path == "/health":
-                return self.ok(self.health())
+                health = self.runtime_api.health(memory_path=memory_path)
+                health["adapter"] = "runtime-rest"
+                return self.ok(health)
             if method == "GET" and clean_path == "/runtime/status":
-                return self.ok(self.status(memory_path=_first(params, "memory_path") or _first(params, "memory")))
+                return self.ok(self.runtime_api.status(memory_path=memory_path))
             if method == "GET" and clean_path == "/runtime/components":
-                return self.ok(self.components(memory_path=_first(params, "memory_path") or _first(params, "memory")))
+                return self.ok(self.runtime_api.components(memory_path=memory_path))
+            if method == "GET" and len(segments) == 3 and segments[:2] == ["runtime", "components"]:
+                return self.ok(self.runtime_api.component(unquote(segments[2]), memory_path=memory_path))
             if method == "GET" and clean_path == "/runtime/plugins":
                 return self.ok(
-                    self.plugins(
+                    self.runtime_api.plugins(
                         root=_first(params, "root"),
                         strict=_as_bool(_first(params, "strict")),
-                        memory_path=_first(params, "memory_path") or _first(params, "memory"),
+                        memory_path=memory_path,
+                    )
+                )
+            if method == "POST" and clean_path == "/runtime/plugins/load":
+                return self.ok(
+                    self.runtime_api.load_plugins(
+                        root=payload.get("root"),
+                        strict=_as_bool(payload.get("strict")),
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
+            if method == "GET" and clean_path == "/runtime/plugin-lifecycle":
+                return self.ok(
+                    self.runtime_api.plugin_lifecycle(
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
+            if method == "POST" and clean_path == "/runtime/plugin-lifecycle":
+                return self.ok(
+                    self.runtime_api.transition_plugin(
+                        plugin_name=payload.get("plugin_name") or payload.get("name"),
+                        action=payload.get("action"),
+                        root=payload.get("root"),
+                        strict=_as_bool(payload.get("strict")),
+                        memory_path=payload.get("memory_path") or memory_path,
                     )
                 )
             if method == "GET" and clean_path == "/runtime/metrics":
-                return self.ok(self.metrics(memory_path=_first(params, "memory_path") or _first(params, "memory")))
+                return self.ok(self.runtime_api.metrics(memory_path=memory_path))
             if method == "GET" and clean_path == "/runtime/introspection":
-                return self.ok(self.introspection(memory_path=_first(params, "memory_path") or _first(params, "memory")))
+                return self.ok(self.runtime_api.introspection(memory_path=memory_path))
+            if method == "GET" and clean_path == "/runtime/studio":
+                return self.ok(self.runtime_api.studio(memory_path=memory_path))
             if method == "POST" and clean_path == "/runtime/run":
-                return self.ok(self.run(**payload))
+                return self.ok(self.runtime_api.run_message(**payload))
+            if method == "POST" and clean_path == "/runtime/events":
+                return self.ok(
+                    self.runtime_api.process_event(
+                        event_type=payload.get("event_type") or payload.get("type"),
+                        payload=payload.get("payload"),
+                        metadata=payload.get("metadata"),
+                        memory_path=payload.get("memory_path"),
+                        include_trace=_as_bool(payload.get("include_trace")),
+                        include_introspection=_as_bool(payload.get("include_introspection")),
+                        include_studio=_as_bool(payload.get("include_studio")),
+                        save_session_path=payload.get("save_session_path"),
+                    )
+                )
             if method == "POST" and clean_path == "/runtime/trace":
-                return self.ok(self.trace(**payload))
+                return self.ok(self.runtime_api.trace(**payload))
+            if method == "POST" and clean_path == "/sessions/save":
+                return self.ok(self.runtime_api.save_session(**payload))
             if method == "POST" and clean_path == "/sessions/replay":
-                return self.ok(self.replay_session(**payload))
+                return self.ok(self.runtime_api.replay_session(**payload))
             return self.error(404, "not_found", f"No REST endpoint for {method} {clean_path}.")
+        except KeyError as exc:
+            return self.error(404, "not_found", str(exc).strip("'"))
         except ValueError as exc:
             return self.error(400, "bad_request", str(exc))
         except TypeError as exc:
@@ -112,30 +148,15 @@ class RuntimeRESTAPI:
         return RESTResponse(status_code=status_code, payload={"error": {"code": code, "message": message}})
 
     def health(self) -> Dict[str, Any]:
-        status = self.status()
-        return {
-            "status": "ok",
-            "adapter": "runtime-rest",
-            "runtime_status": status["status"],
-            "runtime_id": status["runtime_id"],
-            "endpoints": [endpoint.to_dict() for endpoint in self.endpoints],
-        }
+        health = self.runtime_api.health()
+        health["adapter"] = "runtime-rest"
+        return health
 
     def status(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
-        runtime = self.runtime_factory(memory_path=memory_path)
-        snapshot = runtime.inspect_runtime().to_dict()
-        plugins = runtime.export_plugins(format="dict")
-        return {
-            "status": snapshot["status"],
-            "runtime_id": snapshot["runtime_id"],
-            "component_count": len(snapshot["components"]),
-            "plugin_count": plugins["plugin_count"],
-            "trace_count": snapshot["metrics"]["trace_count"],
-        }
+        return self.runtime_api.status(memory_path=memory_path)
 
     def components(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
-        runtime = self.runtime_factory(memory_path=memory_path)
-        return runtime.export_components(format="dict")
+        return self.runtime_api.components(memory_path=memory_path)
 
     def plugins(
         self,
@@ -144,70 +165,22 @@ class RuntimeRESTAPI:
         strict: bool = False,
         memory_path: str | Path | None = None,
     ) -> Dict[str, Any]:
-        runtime = self.runtime_factory(memory_path=memory_path)
-        if root:
-            runtime.load_plugins(str(root), strict=strict)
-        return runtime.export_plugins(format="dict")
+        return self.runtime_api.plugins(root=root, strict=strict, memory_path=memory_path)
 
     def metrics(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
-        runtime = self.runtime_factory(memory_path=memory_path)
-        return runtime.export_metrics(format="dict")
+        return self.runtime_api.metrics(memory_path=memory_path)
 
     def introspection(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
-        runtime = self.runtime_factory(memory_path=memory_path)
-        return runtime.export_introspection(format="dict")
+        return self.runtime_api.introspection(memory_path=memory_path)
 
-    def run(
-        self,
-        *,
-        message: str,
-        conversation_id: str = "rest",
-        memory_path: str | Path | None = None,
-        include_events: bool = False,
-        include_trace: bool = False,
-        include_introspection: bool = False,
-        include_studio: bool = False,
-        save_session_path: str | Path | None = None,
-    ) -> Dict[str, Any]:
-        if not message:
-            raise ValueError("message is required.")
-        result = process_message(
-            message=message,
-            conversation_id=conversation_id,
-            memory_path=memory_path,
-            include_runtime_events=include_events,
-            include_introspection=include_introspection,
-            include_studio=include_studio,
-            save_session_path=save_session_path,
-        )
-        if include_trace:
-            # process_message currently returns trace only through the output payload.
-            return result
-        result.pop("execution_trace", None)
-        return result
+    def run(self, **payload: Any) -> Dict[str, Any]:
+        return self.runtime_api.run_message(**payload)
 
-    def trace(
-        self,
-        *,
-        message: str,
-        conversation_id: str = "rest",
-        memory_path: str | Path | None = None,
-    ) -> Dict[str, Any]:
-        if not message:
-            raise ValueError("message is required.")
-        runtime = self.runtime_factory(memory_path=memory_path)
-        runtime.process_output(_message_event(message, conversation_id))
-        return runtime.export_trace(format="dict")
+    def trace(self, **payload: Any) -> Dict[str, Any]:
+        return self.runtime_api.trace(**payload)
 
     def replay_session(self, *, path: str | Path, memory_path: str | Path | None = None) -> Dict[str, Any]:
-        if not path:
-            raise ValueError("path is required.")
-        runtime = self.runtime_factory(memory_path=memory_path)
-        return runtime.replay_session(str(path)).to_dict()
-
-
-def _message_event(message: str, conversation_id: str) -> Event:
-    return Event(type="user_message", payload=message, metadata={"conversation_id": conversation_id})
+        return self.runtime_api.replay_session(path=path, memory_path=memory_path)
 
 
 def _normalize_query(query: Mapping[str, Any] | str | None) -> Dict[str, Any]:
@@ -248,3 +221,7 @@ def _as_bool(value: Any) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _segments(path: str) -> list[str]:
+    return [part for part in path.split("/") if part]

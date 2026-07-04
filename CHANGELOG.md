@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 42 — Runtime API Endpoints
+
+- Added transport-neutral RuntimeEndpointAPI.
+- Added stable runtime endpoint catalog with capabilities.
+- Added REST routes for component detail, generic events, Studio view, plugin loading, plugin lifecycle transitions and session saving.
+- Added tests for Runtime endpoint behavior and REST routing.
+
 ## 0.3.0-sprint41
 
 - Added REST API Foundation as a thin Runtime Interface.
