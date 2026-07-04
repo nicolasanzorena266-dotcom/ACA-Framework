@@ -30,6 +30,7 @@ RUNTIME_PIPELINE = [
     "action_planner",
     "flow_router",
     "execution_plan",
+    "event_bus",
     "mission_manager",
     "policy_manager",
     "tool_engine",
@@ -89,6 +90,7 @@ class DoctorReport:
 class RuntimeInspection:
     pipeline: List[str]
     zero_cost_components: List[str]
+    observability_components: List[str] = field(default_factory=list)
     status: str = "ready"
 
     def to_dict(self) -> Dict[str, Any]:
@@ -96,6 +98,7 @@ class RuntimeInspection:
             "status": self.status,
             "pipeline": list(self.pipeline),
             "zero_cost_components": list(self.zero_cost_components),
+            "observability_components": list(self.observability_components),
         }
 
 
@@ -177,6 +180,7 @@ def inspect_runtime() -> RuntimeInspection:
             "FlowRouter",
             "ExecutionPlan",
         ],
+        observability_components=["EventBus", "RuntimeEvent"],
     )
 
 

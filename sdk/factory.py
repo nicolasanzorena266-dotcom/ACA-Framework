@@ -7,6 +7,7 @@ from aca_kernel.compiler.compiler import GraphCompiler
 from aca_kernel.core.events import Event
 from aca_kernel.core.kernel import ACAKernel
 from aca_kernel.plugins.rules.default_registry import build_default_registry
+from aca_os.event_bus import EventBus
 from aca_os.memory_engine import MemoryEngine
 from aca_os.memory_store import JsonMemoryStore
 from aca_os.mission_manager import MissionManager
@@ -17,6 +18,7 @@ from domains.galicia.domain_pack import load_galicia_domain
 
 def build_galicia_runtime(
     memory_path: str | Path | None = None,
+    event_bus: EventBus | None = None,
 ) -> ACAOSRuntime:
     domain = load_galicia_domain()
 
@@ -43,6 +45,7 @@ def build_galicia_runtime(
         mission_manager=MissionManager(),
         tool_engine=tool_engine,
         memory_engine=memory_engine,
+        event_bus=event_bus,
         domain_context=domain.context(),
     )
 
@@ -51,8 +54,10 @@ def process_message(
     message: str,
     conversation_id: str = "default",
     memory_path: str | Path | None = None,
+    include_runtime_events: bool = False,
 ) -> Dict[str, Any]:
-    runtime = build_galicia_runtime(memory_path=memory_path)
+    event_bus = EventBus() if include_runtime_events else None
+    runtime = build_galicia_runtime(memory_path=memory_path, event_bus=event_bus)
 
     output = runtime.process_output(
         Event(
@@ -62,4 +67,7 @@ def process_message(
         )
     )
 
-    return output.to_dict()
+    result = output.to_dict()
+    if include_runtime_events and event_bus is not None:
+        result["runtime_events"] = [event.to_dict() for event in event_bus.events()]
+    return result
