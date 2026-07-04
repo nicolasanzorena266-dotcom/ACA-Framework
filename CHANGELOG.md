@@ -226,6 +226,15 @@
 - Added component-level metrics derived from Execution Trace.
 - Integrated metrics into runtime introspection.
 - Added Sprint 32 documentation.
+## Sprint 54 — Public Web Demo Prep
+
+- Added public web demo preparation contract.
+- Added public demo readiness validation.
+- Added `/public-demo/manifest` and `/public-demo/readiness` Runtime REST endpoints.
+- Added `tools/aca_public_demo.py` helper.
+- Added `deploy/public-web-demo.json`.
+
+
 ## Sprint 53 — Deployable Web Package
 
 - Added deployable ACA Web Runtime package contract.

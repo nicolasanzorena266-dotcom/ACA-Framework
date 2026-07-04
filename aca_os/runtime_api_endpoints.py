@@ -8,6 +8,7 @@ from aca_kernel.core.events import Event
 from aca_os.demo_domain_flow import DemoDomainRuntimeFlowRunner
 from aca_os.deployable_web_package import build_deployable_web_package, validate_deployable_web_package
 from aca_os.human_demo import HumanTestDemoRunner
+from aca_os.public_web_demo import build_public_web_demo_manifest, validate_public_web_demo_readiness
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from sdk.factory import build_galicia_runtime, process_message
@@ -74,6 +75,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("POST", "/demo/domain-flow", "Run one message through a loaded Domain Pack demo flow.", "demo.domain_flow.run"),
         RuntimeEndpoint("GET", "/deploy/package", "Return deployable ACA Web Runtime package contract.", "deploy.package.read"),
         RuntimeEndpoint("GET", "/deploy/validate", "Validate deployable ACA Web Runtime package files.", "deploy.package.validate"),
+        RuntimeEndpoint("GET", "/public-demo/manifest", "Return public ACA Web Demo preparation manifest.", "public_demo.manifest.read"),
+        RuntimeEndpoint("GET", "/public-demo/readiness", "Validate public ACA Web Demo readiness files.", "public_demo.readiness.read"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -366,6 +369,36 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_deployable_web_package(project_root=project_root, package=package)
 
+
+    def public_demo_manifest(
+        self,
+        *,
+        demo_name: str = "aca-public-web-demo",
+        public_base_url: str = "https://example.com",
+        domain_pack_root: str | Path = "examples/domain_packs",
+        default_domain_pack: str = "customer_support",
+        studio_path: str | Path = "studio/index.html",
+        port_env: str = "PORT",
+        fallback_port: int = 8765,
+    ) -> Dict[str, Any]:
+        return build_public_web_demo_manifest(
+            demo_name=demo_name,
+            public_base_url=public_base_url,
+            domain_pack_root=domain_pack_root,
+            default_domain_pack=default_domain_pack,
+            studio_path=studio_path,
+            port_env=port_env,
+            fallback_port=fallback_port,
+        )
+
+    def public_demo_readiness(
+        self,
+        *,
+        project_root: str | Path = ".",
+        manifest: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_public_web_demo_readiness(project_root=project_root, manifest=manifest)
+
     def run_human_demo(
         self,
         *,
@@ -439,6 +472,14 @@ class RuntimeEndpointAPI:
             )
         if method == "POST" and path == "/sessions/replay":
             return self.replay_session(path=payload.get("path"), memory_path=memory_path)
+
+        if method == "GET" and path == "/public-demo/manifest":
+            return self.public_demo_manifest(
+                public_base_url=params.get("public_base_url") or "https://example.com",
+                demo_name=params.get("demo_name") or "aca-public-web-demo",
+            )
+        if method == "GET" and path == "/public-demo/readiness":
+            return self.public_demo_readiness(project_root=params.get("project_root") or ".")
         if method == "GET" and path == "/demo/human-test":
             return self.human_demo_scenario()
         if method == "POST" and path == "/demo/human-test":
