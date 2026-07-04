@@ -1004,6 +1004,207 @@
           "no_crm_access"
         ]
       }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "missing": [
+          "user_need"
+        ],
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "reason": "no_policy_block",
+        "tool_key": null,
+        "triggered_rules": []
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "reason": "no_policy_block",
+        "tool_key": null,
+        "triggered_rules": []
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "missing": [
+          "user_need"
+        ],
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "reason": "domain_concept_lookup_required",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "domain_concept_lookup"
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "missing": [
+          "user_need"
+        ],
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "reason": "domain_concept_lookup_required",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "domain_concept_lookup"
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "missing": [
+          "user_need"
+        ],
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "reason": "request_requires_real_file_or_crm_access",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ]
+      }
     }
   ],
   "procedural": {},

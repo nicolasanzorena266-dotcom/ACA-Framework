@@ -11,6 +11,7 @@ from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolRequest
+from zero_cost.intent_matcher import IntentMatcher
 
 
 class ACAOSRuntime:
@@ -24,6 +25,7 @@ class ACAOSRuntime:
         context_manager: ContextManager | None = None,
         memory_engine: MemoryEngine | None = None,
         conversation_manager: ConversationManager | None = None,
+        intent_matcher: IntentMatcher | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
         self.kernel = kernel
@@ -34,15 +36,14 @@ class ACAOSRuntime:
         self.context_manager = context_manager or ContextManager()
         self.memory_engine = memory_engine or MemoryEngine()
         self.conversation_manager = conversation_manager or ConversationManager()
+        self.intent_matcher = intent_matcher or IntentMatcher()
         self.domain_context = domain_context or {}
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
         if policy_result.decision != PolicyDecision.USE_TOOL:
             return {}
-
         if not policy_result.tool_key:
             return {}
-
         request = ToolRequest(
             tool_name="knowledge_base",
             intent="lookup_concept",
@@ -84,7 +85,9 @@ class ACAOSRuntime:
 
     def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
         conversation_state = self.conversation_manager.before_process(event, state)
-        prepared = self.mission_manager.before_kernel(event, conversation_state)
+        intent_match = self.intent_matcher.match(event.payload)
+        with_intent = conversation_state.evolve("INTENT_MATCH", intent_match=intent_match.to_dict())
+        prepared = self.mission_manager.before_kernel(event, with_intent)
 
         policy_result = self.policy_manager.evaluate(
             prepared,
@@ -106,6 +109,7 @@ class ACAOSRuntime:
             graph,
             prepared,
             context={
+                "intent_match": intent_match.to_dict(),
                 "policy_result": policy_result.to_dict(),
                 "tool_evidence": tool_evidence,
             },

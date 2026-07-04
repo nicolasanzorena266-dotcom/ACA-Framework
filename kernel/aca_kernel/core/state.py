@@ -17,6 +17,7 @@ class CognitiveState:
     response: Optional[str] = None
     selected_program: Optional[str] = None
     active_mission: Optional[Dict[str, Any]] = None
+    intent_match: Optional[Dict[str, Any]] = None
     policy_result: Optional[Dict[str, Any]] = None
     tool_evidence: Dict[str, Any] = field(default_factory=dict)
     memory_snapshot: Optional[Dict[str, Any]] = None
@@ -52,6 +53,7 @@ class CognitiveState:
             "response": self.response,
             "selected_program": self.selected_program,
             "active_mission": deepcopy(self.active_mission),
+            "intent_match": deepcopy(self.intent_match),
             "policy_result": deepcopy(self.policy_result),
             "tool_evidence": deepcopy(self.tool_evidence),
             "memory_snapshot": deepcopy(self.memory_snapshot),

@@ -6,16 +6,11 @@ from aca_kernel.core.state import CognitiveState
 
 @dataclass(frozen=True)
 class ACAOutput:
-    """Final OS-level output.
-
-    The runtime can keep returning CognitiveState for low-level inspection,
-    but product integrations should consume ACAOutput.
-    """
-
     conversation_id: str
     response: str | None
     selected_program: str | None
     mission: Dict[str, Any] | None
+    intent_match: Dict[str, Any] | None
     policy_result: Dict[str, Any] | None
     tool_evidence: Dict[str, Any] = field(default_factory=dict)
     context_bundle: Dict[str, Any] | None = None
@@ -28,6 +23,7 @@ class ACAOutput:
             response=state.response,
             selected_program=state.selected_program,
             mission=state.active_mission,
+            intent_match=state.intent_match,
             policy_result=state.policy_result,
             tool_evidence=state.tool_evidence,
             context_bundle=state.context_bundle,
@@ -40,6 +36,7 @@ class ACAOutput:
             "response": self.response,
             "selected_program": self.selected_program,
             "mission": self.mission,
+            "intent_match": self.intent_match,
             "policy_result": self.policy_result,
             "tool_evidence": self.tool_evidence,
             "context_bundle": self.context_bundle,
