@@ -17,6 +17,7 @@ from aca_os.component_registry import ComponentRegistry, build_registry_from_run
 from aca_os.plugin_lifecycle import PluginLifecycleManager
 from aca_os.plugin_loader import PluginLoader
 from aca_os.domain_pack_loader import DomainPackLoader
+from aca_os.domain_pack_validator import DomainPackValidator
 from aca_os.plugin_validator import PluginValidator
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
@@ -52,6 +53,7 @@ class ACAOSRuntime:
         plugin_validator: PluginValidator | None = None,
         plugin_lifecycle: PluginLifecycleManager | None = None,
         domain_pack_loader: DomainPackLoader | None = None,
+        domain_pack_validator: DomainPackValidator | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -72,7 +74,8 @@ class ACAOSRuntime:
         self.plugin_validator = plugin_validator or PluginValidator()
         self.plugin_loader = plugin_loader or PluginLoader(plugin_validator=self.plugin_validator)
         self.plugin_lifecycle = plugin_lifecycle
-        self.domain_pack_loader = domain_pack_loader or DomainPackLoader()
+        self.domain_pack_validator = domain_pack_validator or DomainPackValidator()
+        self.domain_pack_loader = domain_pack_loader or DomainPackLoader(validator=self.domain_pack_validator)
         self.component_registry = component_registry or build_registry_from_runtime(self)
         self.plugin_validator.bind_registry(self.component_registry)
         self.plugin_loader.bind_registry(self.component_registry)
@@ -103,6 +106,17 @@ class ACAOSRuntime:
             )
             self.component_registry.initialize("plugin_lifecycle")
             self.component_registry.activate("plugin_lifecycle")
+        if self.component_registry.get("domain_pack_validator") is None:
+            self.component_registry.register_instance(
+                name="domain_pack_validator",
+                instance=self.domain_pack_validator,
+                role="domain pack validator",
+                capabilities=("domain_pack.validate", "domain_pack.validator.export"),
+                tags=("domain-pack", "runtime", "validator"),
+                metadata={"runtime_owned": True},
+            )
+            self.component_registry.initialize("domain_pack_validator")
+            self.component_registry.activate("domain_pack_validator")
         if self.component_registry.get("domain_pack_loader") is None:
             self.component_registry.register_instance(
                 name="domain_pack_loader",
@@ -355,6 +369,9 @@ class ACAOSRuntime:
 
     def export_domain_packs(self, *, format: str = "dict") -> Dict[str, Any] | str:
         return self.domain_pack_loader.export(format=format)
+
+    def export_domain_pack_validation(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        return self.domain_pack_validator.export(format=format)
 
     def studio_view(self):
         return build_studio_view(self.inspect_runtime())

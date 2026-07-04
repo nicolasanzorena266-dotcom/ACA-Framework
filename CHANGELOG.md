@@ -1,5 +1,14 @@
 # Changelog
 
+## Sprint 47 — Domain Pack Validator
+
+- Added deterministic `DomainPackValidator` boundary.
+- Added structured validation issues, results and snapshots.
+- Validated runtime compatibility, dependency declarations, asset formats, required assets and JSON assets.
+- Integrated Domain Pack Loader with validation before registration.
+- Registered `domain_pack_validator` as an observable runtime-owned component.
+- Added Sprint 47 documentation and tests.
+
 ## Sprint 46 — Domain Pack Loader
 
 - Added manifest-first Domain Pack loader.

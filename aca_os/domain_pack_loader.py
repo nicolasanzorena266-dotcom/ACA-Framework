@@ -12,6 +12,7 @@ from aca_os.domain_pack_manifest import (
     DomainPackManifest,
     build_domain_pack_contract,
 )
+from aca_os.domain_pack_validator import DomainPackValidator
 
 
 DEFAULT_DOMAIN_PACK_MANIFEST = "domain_pack.json"
@@ -96,11 +97,13 @@ class DomainPackLoader:
         *,
         manifest_filename: str = DEFAULT_DOMAIN_PACK_MANIFEST,
         component_registry: ComponentRegistry | None = None,
+        validator: DomainPackValidator | None = None,
     ) -> None:
         if not manifest_filename or not manifest_filename.strip():
             raise ValueError("Domain Pack manifest filename is required.")
         self.manifest_filename = manifest_filename
         self.component_registry = component_registry
+        self.validator = validator or DomainPackValidator()
         self._results: List[DomainPackLoadResult] = []
 
     def bind_registry(self, registry: ComponentRegistry) -> None:
@@ -168,9 +171,9 @@ class DomainPackLoader:
                     raise ValueError(result.errors[0])
                 return result
 
-            missing_assets = self._missing_required_assets(manifest, manifest_path.parent)
-            if missing_assets:
-                message = "Missing required Domain Pack assets: " + ", ".join(missing_assets)
+            validation = self.validator.validate_manifest(manifest, pack_root=manifest_path.parent)
+            if not validation.valid:
+                message = self._validation_error_message(validation.errors)
                 if strict:
                     raise ValueError(message)
                 return DomainPackLoadResult(
@@ -180,7 +183,11 @@ class DomainPackLoader:
                     manifest=manifest,
                     contract=contract,
                     errors=(message,),
-                    metadata={"loader_contract": DOMAIN_PACK_LOADER_CONTRACT},
+                    metadata={
+                        "loader_contract": DOMAIN_PACK_LOADER_CONTRACT,
+                        "validator_contract": validation.metadata.get("validator_contract"),
+                        "validation": validation.to_dict(),
+                    },
                 )
 
             descriptor = self._descriptor_for_load(contract, manifest_path)
@@ -247,12 +254,16 @@ class DomainPackLoader:
             metadata=metadata,
         )
 
-    def _missing_required_assets(self, manifest: DomainPackManifest, pack_root: Path) -> tuple[str, ...]:
-        missing: list[str] = []
-        for asset in manifest.assets:
-            if asset.required and not (pack_root / asset.path).exists():
-                missing.append(asset.path)
-        return tuple(missing)
+    def _validation_error_message(self, errors: tuple[str, ...]) -> str:
+        missing_prefix = "Missing required Domain Pack asset: "
+        missing_assets = [
+            error.removeprefix(missing_prefix).removesuffix(".")
+            for error in errors
+            if error.startswith(missing_prefix)
+        ]
+        if missing_assets and len(missing_assets) == len(errors):
+            return "Missing required Domain Pack assets: " + ", ".join(missing_assets)
+        return "Domain Pack validation failed: " + "; ".join(errors)
 
     def _build_snapshot(self, results: Iterable[DomainPackLoadResult]) -> DomainPackLoaderSnapshot:
         values = tuple(results)
