@@ -1,4 +1,13 @@
 
+## 0.3.0-sprint50 - Local Web Runtime Launcher
+
+- Added local web runtime launch plan contract.
+- Added `tools/aca_web.py` to serve Studio and Runtime REST API from one localhost process.
+- Added stable local Studio, health, status, run and Domain Pack URLs.
+- Added CORS headers and browser-open support for local testing.
+- Added Sprint 50 documentation and tests.
+
+
 ## 0.3.0-sprint49 - Domain Pack Runtime Integration
 
 - Added Runtime Domain Pack integration boundary.
