@@ -15,6 +15,7 @@ from aca_os.memory_engine import MemoryEngine
 from aca_os.metrics_engine import MetricsEngine
 from aca_os.component_registry import ComponentRegistry, build_registry_from_runtime
 from aca_os.plugin_loader import PluginLoader
+from aca_os.plugin_validator import PluginValidator
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.session import ExecutionSession
@@ -46,6 +47,7 @@ class ACAOSRuntime:
         metrics_engine: MetricsEngine | None = None,
         component_registry: ComponentRegistry | None = None,
         plugin_loader: PluginLoader | None = None,
+        plugin_validator: PluginValidator | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -63,8 +65,10 @@ class ACAOSRuntime:
         self.decision_graph_engine = decision_graph_engine or DecisionGraphEngine()
         self.metrics_engine = metrics_engine or MetricsEngine()
         self.event_bus = event_bus or EventBus()
-        self.plugin_loader = plugin_loader or PluginLoader()
+        self.plugin_validator = plugin_validator or PluginValidator()
+        self.plugin_loader = plugin_loader or PluginLoader(plugin_validator=self.plugin_validator)
         self.component_registry = component_registry or build_registry_from_runtime(self)
+        self.plugin_validator.bind_registry(self.component_registry)
         self.plugin_loader.bind_registry(self.component_registry)
         self.domain_context = domain_context or {}
         self.runtime_id = str(uuid4())
@@ -266,6 +270,9 @@ class ACAOSRuntime:
 
     def export_components(self, *, format: str = "dict") -> Dict[str, Any] | str:
         return self.component_registry.export(format=format)
+
+    def validate_plugin(self, source: Any, *, format: str = "dict") -> Dict[str, Any] | str:
+        return self.plugin_validator.export_report(source, registry=self.component_registry, format=format)
 
     def load_plugins(self, root: str, *, strict: bool = False) -> Dict[str, Any]:
         snapshot = self.plugin_loader.load(root, registry=self.component_registry, strict=strict)

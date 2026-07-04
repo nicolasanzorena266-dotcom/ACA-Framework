@@ -1,6 +1,17 @@
 # Changelog
 
 
+## Sprint 37 — Plugin Validator
+
+- Added deterministic Plugin Validator service.
+- Added validation reports with error/warning issues.
+- Added runtime compatibility, safe entrypoint, hook target and permission allowlist checks.
+- Added registry dependency validation before plugin registration.
+- Integrated Plugin Loader with Plugin Validator.
+- Added `ACAOSRuntime.validate_plugin()`.
+- Registered Plugin Validator as a runtime component.
+- Added Sprint 37 Plugin Validator tests.
+
 ## Sprint 36 — Plugin Loader
 
 - Added deterministic Plugin Loader runtime service.

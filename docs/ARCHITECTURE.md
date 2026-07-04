@@ -172,3 +172,21 @@ ComponentRegistry
 ```
 
 Interfaces such as Studio, REST, CLI and MCP must observe loaded plugins through Runtime APIs and registry snapshots, not through plugin implementation modules.
+
+## Sprint 37 — Plugin Validator
+
+ACA validates plugins before they enter the Runtime-visible Component Registry.
+
+```text
+Plugin Manifest
+      │
+Plugin Validator
+      │
+Plugin Loader
+      │
+Component Registry
+      │
+Runtime API
+```
+
+Validation is deterministic and metadata-only. The validator checks runtime compatibility, safe entrypoints, hook targets, permission allowlists and registry dependencies without importing plugin code.

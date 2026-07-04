@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Mapping
 
 from aca_os.component_registry import ComponentDescriptor, ComponentRegistry, ComponentState
 from aca_os.plugin_manifest import PluginContract, PluginManifest, build_plugin_contract
+from aca_os.plugin_validator import PluginValidator
 
 
 DEFAULT_PLUGIN_MANIFEST = "plugin.json"
@@ -93,15 +94,18 @@ class PluginLoader:
         *,
         manifest_filename: str = DEFAULT_PLUGIN_MANIFEST,
         component_registry: ComponentRegistry | None = None,
+        plugin_validator: PluginValidator | None = None,
     ) -> None:
         if not manifest_filename or not manifest_filename.strip():
             raise ValueError("Plugin manifest filename is required.")
         self.manifest_filename = manifest_filename
         self.component_registry = component_registry
+        self.plugin_validator = plugin_validator or PluginValidator(component_registry=component_registry)
         self._results: List[PluginLoadResult] = []
 
     def bind_registry(self, registry: ComponentRegistry) -> None:
         self.component_registry = registry
+        self.plugin_validator.bind_registry(registry)
 
     def discover(self, root: str | Path) -> list[Path]:
         base = Path(root)
@@ -163,6 +167,24 @@ class PluginLoader:
                 if strict:
                     raise ValueError(result.errors[0])
                 return result
+
+            validation = self.plugin_validator.validate(manifest, registry=target_registry)
+            if not validation.valid:
+                message = "; ".join(validation.messages(severity="error"))
+                if strict:
+                    raise ValueError(message)
+                return PluginLoadResult(
+                    status=PluginLoadStatus.FAILED,
+                    manifest_path=manifest_path.as_posix(),
+                    plugin_root=manifest_path.parent.as_posix(),
+                    manifest=manifest,
+                    contract=contract,
+                    errors=validation.messages(severity="error"),
+                    metadata={
+                        "loader_contract": PLUGIN_LOADER_CONTRACT,
+                        "validation": validation.to_dict(),
+                    },
+                )
 
             descriptor = self._descriptor_for_load(contract, manifest_path)
             registered = target_registry.register(descriptor)
