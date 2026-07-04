@@ -24,6 +24,7 @@ def _add_message_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
     parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
     parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
+    parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
 
 
 def _handle_message(args: argparse.Namespace) -> int:
@@ -32,6 +33,7 @@ def _handle_message(args: argparse.Namespace) -> int:
         conversation_id=args.conversation_id,
         memory_path=args.memory,
         include_runtime_events=args.events,
+        include_introspection=args.introspection,
     )
     if not args.trace:
         result.pop("execution_trace", None)
@@ -40,7 +42,7 @@ def _handle_message(args: argparse.Namespace) -> int:
 
 
 
-def _handle_trace(args: argparse.Namespace) -> int:
+def _run_runtime_for_inspection(args: argparse.Namespace):
     runtime = build_galicia_runtime(memory_path=args.memory)
     output = runtime.process_output(
         Event(
@@ -49,6 +51,11 @@ def _handle_trace(args: argparse.Namespace) -> int:
             metadata={"conversation_id": args.conversation_id},
         )
     )
+    return runtime, output
+
+
+def _handle_trace(args: argparse.Namespace) -> int:
+    runtime, output = _run_runtime_for_inspection(args)
     trace = runtime.last_trace()
     if trace is None:
         raise RuntimeError("No execution trace available.")
@@ -58,6 +65,12 @@ def _handle_trace(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0
+
+def _handle_inspect_session(args: argparse.Namespace) -> int:
+    runtime, output = _run_runtime_for_inspection(args)
+    print_json(runtime.inspect_runtime().to_dict())
+    return 0
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run ACA Framework from the command line.")
@@ -73,6 +86,12 @@ def main() -> None:
     inspect_subparsers = inspect_parser.add_subparsers(dest="inspect_target", required=True)
     runtime_parser = inspect_subparsers.add_parser("runtime", help="Inspect the runtime pipeline.")
     runtime_parser.set_defaults(handler=lambda _args: print_json(inspect_runtime().to_dict()) or 0)
+
+    session_parser = inspect_subparsers.add_parser("session", help="Run a message and inspect the runtime session.")
+    session_parser.add_argument("--message", required=True, help="User message to inspect.")
+    session_parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
+    session_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    session_parser.set_defaults(handler=_handle_inspect_session)
 
     test_parser = subparsers.add_parser("test", help="Run the ACA test suite.")
     test_parser.set_defaults(handler=lambda _args: run_pytest())

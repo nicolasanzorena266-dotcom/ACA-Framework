@@ -9,6 +9,7 @@ from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
 from aca_os.conversation_manager import ConversationManager
 from aca_os.event_bus import EventBus
+from aca_os.introspection import RuntimeIntrospectionAPI, RuntimeIntrospectionSnapshot
 from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
@@ -54,6 +55,8 @@ class ACAOSRuntime:
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
         self._traces: Dict[str, ExecutionTrace] = {}
+        self._last_state: CognitiveState | None = None
+        self.introspection = RuntimeIntrospectionAPI(self)
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
         if policy_result.decision != PolicyDecision.USE_TOOL:
@@ -194,6 +197,7 @@ class ACAOSRuntime:
         )
         self._last_trace = trace
         self._traces[trace.trace_id] = trace
+        self._last_state = state
         return trace
 
     def last_trace(self) -> ExecutionTrace | None:
@@ -201,6 +205,19 @@ class ACAOSRuntime:
 
     def trace(self, trace_id: str) -> ExecutionTrace | None:
         return self._traces.get(trace_id)
+
+    def inspect_runtime(self) -> RuntimeIntrospectionSnapshot:
+        return self.introspection.snapshot(state=self._last_state)
+
+    def export_introspection(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        snapshot = self.inspect_runtime().to_dict()
+        if format == "json":
+            import json
+
+            return json.dumps(snapshot, ensure_ascii=False, indent=2)
+        if format == "dict":
+            return snapshot
+        raise ValueError(f"Unsupported introspection export format: {format}")
 
     def export_trace(self, trace_id: str | None = None, *, format: str = "dict") -> Dict[str, Any] | str:
         trace = self._last_trace if trace_id is None else self.trace(trace_id)
