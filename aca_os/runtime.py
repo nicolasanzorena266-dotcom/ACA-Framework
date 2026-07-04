@@ -14,6 +14,7 @@ from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
+from aca_os.session import ExecutionSession
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.studio import build_studio_view, export_studio_view
 from aca_os.tool_engine import ToolEngine, ToolRequest
@@ -57,6 +58,9 @@ class ACAOSRuntime:
         self._last_trace: ExecutionTrace | None = None
         self._traces: Dict[str, ExecutionTrace] = {}
         self._last_state: CognitiveState | None = None
+        self._last_event: Event | None = None
+        self._last_output: ACAOutput | None = None
+        self._last_session: ExecutionSession | None = None
         self.introspection = RuntimeIntrospectionAPI(self)
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
@@ -199,6 +203,7 @@ class ACAOSRuntime:
         self._last_trace = trace
         self._traces[trace.trace_id] = trace
         self._last_state = state
+        self._last_event = event
         return trace
 
     def last_trace(self) -> ExecutionTrace | None:
@@ -240,4 +245,34 @@ class ACAOSRuntime:
     def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
         self.event_bus.clear()
         final_state = self.process(event, state)
-        return ACAOutput.from_state(final_state, self.event_bus.events(), self.last_trace())
+        output = ACAOutput.from_state(final_state, self.event_bus.events(), self.last_trace())
+        self._last_output = output
+        self._last_session = ExecutionSession.from_runtime(
+            runtime_id=self.runtime_id,
+            event=event,
+            state=final_state,
+            output=output.to_dict(),
+            trace=self.export_trace(),
+            introspection=self.inspect_runtime().to_dict(),
+        )
+        return output
+
+    def last_session(self) -> ExecutionSession | None:
+        return self._last_session
+
+    def save_last_session(self, path: str) -> str:
+        if self._last_session is None:
+            raise ValueError("No execution session available.")
+        return str(self._last_session.save(path))
+
+    def load_session(self, path: str) -> ExecutionSession:
+        return ExecutionSession.load(path)
+
+    def replay_session(self, session: ExecutionSession | str) -> ACAOutput:
+        loaded = self.load_session(session) if isinstance(session, str) else session
+        return self.process_output(loaded.replay_event())
+
+    def compare_sessions(self, left: ExecutionSession | str, right: ExecutionSession | str) -> Dict[str, Any]:
+        left_session = self.load_session(left) if isinstance(left, str) else left
+        right_session = self.load_session(right) if isinstance(right, str) else right
+        return left_session.compare(right_session)

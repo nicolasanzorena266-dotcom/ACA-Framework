@@ -16,6 +16,7 @@ for path in [ROOT, KERNEL_PATH]:
 from aca_os.dx import inspect_runtime, print_json, read_project_version, run_doctor, run_pytest
 from sdk.factory import build_galicia_runtime, process_message
 from aca_kernel.core.events import Event
+from aca_os.session import ExecutionSession
 
 
 def _add_message_args(parser: argparse.ArgumentParser) -> None:
@@ -26,6 +27,7 @@ def _add_message_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
     parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
     parser.add_argument("--studio", action="store_true", help="Include ACA Studio MVP view.")
+    parser.add_argument("--save-session", default=None, help="Optional path to persist the execution session.")
 
 
 def _handle_message(args: argparse.Namespace) -> int:
@@ -36,6 +38,7 @@ def _handle_message(args: argparse.Namespace) -> int:
         include_runtime_events=args.events,
         include_introspection=args.introspection,
         include_studio=args.studio,
+        save_session_path=args.save_session,
     )
     if not args.trace:
         result.pop("execution_trace", None)
@@ -87,6 +90,32 @@ def _handle_studio(args: argparse.Namespace) -> int:
         print_json(data)
     return 0
 
+
+def _handle_session_save(args: argparse.Namespace) -> int:
+    runtime, output = _run_runtime_for_inspection(args)
+    path = runtime.save_last_session(args.output)
+    print_json({"status": "written", "path": path, "session": runtime.last_session().summary()})
+    return 0
+
+
+def _handle_session_replay(args: argparse.Namespace) -> int:
+    runtime = build_galicia_runtime(memory_path=args.memory)
+    output = runtime.replay_session(args.path)
+    print_json(output.to_dict())
+    return 0
+
+
+def _handle_session_compare(args: argparse.Namespace) -> int:
+    runtime = build_galicia_runtime()
+    print_json(runtime.compare_sessions(args.left, args.right))
+    return 0
+
+
+def _handle_session_show(args: argparse.Namespace) -> int:
+    session = ExecutionSession.load(args.path)
+    print_json(session.summary() if args.summary else session.to_dict())
+    return 0
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run ACA Framework from the command line.")
     subparsers = parser.add_subparsers(dest="command")
@@ -126,6 +155,31 @@ def main() -> None:
     studio_parser.add_argument("--format", choices=["dict", "json", "html"], default="dict", help="Studio export format.")
     studio_parser.add_argument("--output", default=None, help="Optional file path for Studio export.")
     studio_parser.set_defaults(handler=_handle_studio)
+
+    session_parser = subparsers.add_parser("session", help="Persist, replay and compare execution sessions.")
+    session_subparsers = session_parser.add_subparsers(dest="session_command", required=True)
+
+    session_save = session_subparsers.add_parser("save", help="Run a message and save its execution session.")
+    session_save.add_argument("--message", required=True, help="User message to execute.")
+    session_save.add_argument("--conversation-id", default="cli", help="Conversation id.")
+    session_save.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    session_save.add_argument("--output", required=True, help="Destination .aca.json session file.")
+    session_save.set_defaults(handler=_handle_session_save)
+
+    session_show = session_subparsers.add_parser("show", help="Show a saved execution session.")
+    session_show.add_argument("path", help="Session file path.")
+    session_show.add_argument("--summary", action="store_true", help="Print only the session summary.")
+    session_show.set_defaults(handler=_handle_session_show)
+
+    session_replay = session_subparsers.add_parser("replay", help="Replay a saved execution session.")
+    session_replay.add_argument("path", help="Session file path.")
+    session_replay.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    session_replay.set_defaults(handler=_handle_session_replay)
+
+    session_compare = session_subparsers.add_parser("compare", help="Compare two saved execution sessions.")
+    session_compare.add_argument("left", help="Left session file path.")
+    session_compare.add_argument("right", help="Right session file path.")
+    session_compare.set_defaults(handler=_handle_session_compare)
 
     _add_message_args(parser)
     parser.set_defaults(handler=_handle_message)
