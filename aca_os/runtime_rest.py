@@ -112,6 +112,30 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.introspection(memory_path=memory_path))
             if method == "GET" and clean_path == "/runtime/studio":
                 return self.ok(self.runtime_api.studio(memory_path=memory_path))
+            if method == "GET" and clean_path == "/studio/bootstrap":
+                return self.ok(
+                    self.runtime_api.studio_bootstrap(
+                        base_url=_first(params, "base_url") or "/",
+                        memory_path=memory_path,
+                    )
+                )
+            if method == "GET" and clean_path == "/studio/state":
+                return self.ok(self.runtime_api.studio_state(memory_path=memory_path))
+            if method == "POST" and clean_path == "/studio/run":
+                return self.ok(
+                    self.runtime_api.studio_run(
+                        message=payload.get("message"),
+                        conversation_id=payload.get("conversation_id") or "studio",
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
+            if method == "POST" and clean_path == "/studio/replay":
+                return self.ok(
+                    self.runtime_api.studio_replay(
+                        path=payload.get("path"),
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
             if method == "POST" and clean_path == "/runtime/run":
                 return self.ok(self.runtime_api.run_message(**payload))
             if method == "POST" and clean_path == "/runtime/events":
@@ -172,6 +196,15 @@ class RuntimeRESTAPI:
 
     def introspection(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
         return self.runtime_api.introspection(memory_path=memory_path)
+
+    def studio_bootstrap(self, *, base_url: str = "/", memory_path: str | Path | None = None) -> Dict[str, Any]:
+        return self.runtime_api.studio_bootstrap(base_url=base_url, memory_path=memory_path)
+
+    def studio_state(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
+        return self.runtime_api.studio_state(memory_path=memory_path)
+
+    def studio_run(self, **payload: Any) -> Dict[str, Any]:
+        return self.runtime_api.studio_run(**payload)
 
     def run(self, **payload: Any) -> Dict[str, Any]:
         return self.runtime_api.run_message(**payload)

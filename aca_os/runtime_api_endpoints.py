@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
 from aca_kernel.core.events import Event
+from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from sdk.factory import build_galicia_runtime, process_message
 
 RuntimeFactory = Callable[..., Any]
@@ -48,6 +49,10 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/runtime/metrics", "Return current Runtime metrics.", "metrics.read"),
         RuntimeEndpoint("GET", "/runtime/introspection", "Return Runtime introspection snapshot.", "introspection.read"),
         RuntimeEndpoint("GET", "/runtime/studio", "Return Studio-ready Runtime view.", "studio.read"),
+        RuntimeEndpoint("GET", "/studio/bootstrap", "Return Studio API bootstrap contract.", "studio.bootstrap"),
+        RuntimeEndpoint("GET", "/studio/state", "Return Studio state assembled from Runtime APIs.", "studio.state.read"),
+        RuntimeEndpoint("POST", "/studio/run", "Run one Studio message through Runtime APIs.", "studio.runtime.run"),
+        RuntimeEndpoint("POST", "/studio/replay", "Replay a session through Studio API.", "studio.session.replay"),
         RuntimeEndpoint("POST", "/runtime/run", "Execute one Runtime message.", "runtime.run"),
         RuntimeEndpoint("POST", "/runtime/events", "Process one generic Runtime event.", "runtime.event.process"),
         RuntimeEndpoint("POST", "/runtime/trace", "Execute one Runtime message or event and return trace.", "trace.read"),
@@ -176,6 +181,75 @@ class RuntimeEndpointAPI:
     def studio(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
         runtime = self.runtime_factory(memory_path=memory_path)
         return runtime.export_studio(format="dict")
+
+
+    def studio_bootstrap(self, *, base_url: str = "/", memory_path: str | Path | None = None) -> Dict[str, Any]:
+        return build_studio_bootstrap(
+            base_url=base_url,
+            runtime_health=self.health(memory_path=memory_path),
+            studio_view=self.studio(memory_path=memory_path),
+        )
+
+    def studio_state(self, *, memory_path: str | Path | None = None) -> Dict[str, Any]:
+        client = StudioAPIClient(requester=self._local_requester)
+        return client.read_state(memory_path=str(memory_path) if memory_path else None)
+
+    def studio_run(
+        self,
+        *,
+        message: str,
+        conversation_id: str = "studio",
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        client = StudioAPIClient(requester=self._local_requester)
+        return client.run_message(
+            message=message,
+            conversation_id=conversation_id,
+            memory_path=str(memory_path) if memory_path else None,
+        )
+
+    def studio_replay(self, *, path: str | Path, memory_path: str | Path | None = None) -> Dict[str, Any]:
+        client = StudioAPIClient(requester=self._local_requester)
+        return client.replay_session(path=str(path), memory_path=str(memory_path) if memory_path else None)
+
+    def _local_requester(
+        self,
+        method: str,
+        path: str,
+        *,
+        query: Mapping[str, Any] | str | None = None,
+        body: Mapping[str, Any] | bytes | str | None = None,
+    ) -> Dict[str, Any]:
+        method = method.upper()
+        params = dict(query or {}) if isinstance(query, Mapping) else {}
+        payload = dict(body or {}) if isinstance(body, Mapping) else {}
+        memory_path = payload.get("memory_path") or params.get("memory_path")
+
+        if method == "GET" and path == "/health":
+            return self.health(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/status":
+            return self.status(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/studio":
+            return self.studio(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/metrics":
+            return self.metrics(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/components":
+            return self.components(memory_path=memory_path)
+        if method == "GET" and path == "/runtime/plugins":
+            return self.plugins(memory_path=memory_path)
+        if method == "POST" and path == "/runtime/events":
+            return self.process_event(
+                event_type=payload.get("event_type") or payload.get("type"),
+                payload=payload.get("payload"),
+                metadata=payload.get("metadata"),
+                memory_path=memory_path,
+                include_trace=bool(payload.get("include_trace")),
+                include_introspection=bool(payload.get("include_introspection")),
+                include_studio=bool(payload.get("include_studio")),
+            )
+        if method == "POST" and path == "/sessions/replay":
+            return self.replay_session(path=payload.get("path"), memory_path=memory_path)
+        raise ValueError(f"Unsupported local Studio API request: {method} {path}.")
 
     def run_message(
         self,

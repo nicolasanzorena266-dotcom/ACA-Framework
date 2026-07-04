@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ACA Studio</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #101114; color: #eeeeee; }
+    header { padding: 24px 32px; border-bottom: 1px solid #2b2d34; }
+    main { padding: 24px 32px; display: grid; gap: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    section { background: #181a20; border: 1px solid #30323a; border-radius: 14px; padding: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0b0c10; padding: 12px; border-radius: 8px; overflow: auto; }
+    input, button { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid #3a3d46; }
+    input { width: min(720px, 100%); background: #0b0c10; color: #eeeeee; }
+    button { cursor: pointer; background: #eeeeee; color: #101114; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ACA Studio</h1>
+    <p id="status">Loading Runtime API…</p>
+  </header>
+  <main>
+    <section>
+      <h2>Run through Runtime API</h2>
+      <input id="message" value="Que es CLEAS?" />
+      <button id="run">Run</button>
+    </section>
+    <div class="grid">
+      <section><h2>Bootstrap</h2><pre id="bootstrap">{}</pre></section>
+      <section><h2>State</h2><pre id="state">{}</pre></section>
+      <section><h2>Output</h2><pre id="output">{}</pre></section>
+    </div>
+  </main>
+  <script>
+    const api = {
+      async get(path) {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      },
+      async post(path, body) {
+        const response = await fetch(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+    };
+
+    const write = (id, value) => document.getElementById(id).textContent = JSON.stringify(value, null, 2);
+
+    async function refresh() {
+      const bootstrap = await api.get('/studio/bootstrap');
+      const state = await api.get('/studio/state');
+      document.getElementById('status').textContent = `Runtime ${bootstrap.runtime_status} · ${bootstrap.runtime_id}`;
+      write('bootstrap', bootstrap);
+      write('state', state);
+    }
+
+    document.getElementById('run').addEventListener('click', async () => {
+      const message = document.getElementById('message').value;
+      const output = await api.post('/studio/run', { message, conversation_id: 'studio-browser' });
+      write('output', output);
+      await refresh();
+    });
+
+    refresh().catch(error => {
+      document.getElementById('status').textContent = error.message;
+    });
+  </script>
+</body>
+</html>

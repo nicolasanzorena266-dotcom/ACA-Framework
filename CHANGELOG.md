@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 43 — Studio API Integration
+
+- Added Studio API client contract that consumes Runtime Interface responses only.
+- Added Studio bootstrap/state/run/replay API integration surfaces.
+- Added REST routes for `/studio/bootstrap`, `/studio/state`, `/studio/run` and `/studio/replay`.
+- Added static Studio shell wired to real Runtime API endpoints.
+- Added tests proving Studio has no direct Runtime/component dependency.
+
 ## Sprint 42 — Runtime API Endpoints
 
 - Added transport-neutral RuntimeEndpointAPI.
