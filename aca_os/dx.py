@@ -31,6 +31,7 @@ RUNTIME_PIPELINE = [
     "flow_router",
     "execution_plan",
     "event_bus",
+    "runtime_timeline",
     "mission_manager",
     "policy_manager",
     "tool_engine",
@@ -180,7 +181,7 @@ def inspect_runtime() -> RuntimeInspection:
             "FlowRouter",
             "ExecutionPlan",
         ],
-        observability_components=["EventBus", "RuntimeEvent"],
+        observability_components=["EventBus", "RuntimeEvent", "RuntimeTimeline"],
     )
 
 

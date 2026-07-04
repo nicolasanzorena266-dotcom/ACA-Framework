@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 from aca_kernel.core.state import CognitiveState
+from aca_os.event_bus import RuntimeEvent
+from aca_os.runtime_timeline import RuntimeTimeline
 
 
 @dataclass(frozen=True)
@@ -15,9 +17,14 @@ class ACAOutput:
     tool_evidence: Dict[str, Any] = field(default_factory=dict)
     context_bundle: Dict[str, Any] | None = None
     trace: List[Dict[str, Any]] = field(default_factory=list)
+    runtime_timeline: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_state(cls, state: CognitiveState) -> "ACAOutput":
+    def from_state(
+        cls,
+        state: CognitiveState,
+        runtime_events: List[RuntimeEvent] | None = None,
+    ) -> "ACAOutput":
         return cls(
             conversation_id=state.conversation_id,
             response=state.response,
@@ -28,6 +35,7 @@ class ACAOutput:
             tool_evidence=state.tool_evidence,
             context_bundle=state.context_bundle,
             trace=list(state.timeline),
+            runtime_timeline=RuntimeTimeline.from_state(state, runtime_events).to_dict(),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -41,4 +49,5 @@ class ACAOutput:
             "tool_evidence": self.tool_evidence,
             "context_bundle": self.context_bundle,
             "trace": self.trace,
+            "runtime_timeline": self.runtime_timeline,
         }

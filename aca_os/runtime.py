@@ -161,4 +161,6 @@ class ACAOSRuntime:
         return final_state
 
     def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
-        return ACAOutput.from_state(self.process(event, state))
+        self.event_bus.clear()
+        final_state = self.process(event, state)
+        return ACAOutput.from_state(final_state, self.event_bus.events())
