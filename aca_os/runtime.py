@@ -1,4 +1,6 @@
 from typing import Any, Dict
+from uuid import uuid4
+from time import perf_counter
 
 from aca_kernel.core.state import CognitiveState
 from aca_kernel.core.events import Event
@@ -7,6 +9,7 @@ from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
 from aca_os.conversation_manager import ConversationManager
 from aca_os.event_bus import EventBus
+from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
@@ -48,6 +51,9 @@ class ACAOSRuntime:
         self.flow_router = flow_router or FlowRouter()
         self.event_bus = event_bus or EventBus()
         self.domain_context = domain_context or {}
+        self.runtime_id = str(uuid4())
+        self._last_trace: ExecutionTrace | None = None
+        self._traces: Dict[str, ExecutionTrace] = {}
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
         if policy_result.decision != PolicyDecision.USE_TOOL:
@@ -97,7 +103,10 @@ class ACAOSRuntime:
         self.event_bus.publish(event_type, payload, source="aca_os.runtime")
 
     def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
-        self._emit("runtime.process.started", input_event_type=event.type)
+        started_perf = perf_counter()
+        started_at = utc_now_iso()
+        trace_id = str(uuid4())
+        self._emit("runtime.process.started", trace_id=trace_id, input_event_type=event.type)
         conversation_state = self.conversation_manager.before_process(event, state)
         intent_match = self.intent_matcher.match(event.payload)
         with_intent = conversation_state.evolve("INTENT_MATCH", intent_match=intent_match.to_dict())
@@ -138,7 +147,8 @@ class ACAOSRuntime:
                 response="No tengo acceso al expediente ni puedo confirmar estados reales. Puedo orientarte con informacion general o ayudarte a hablar con una persona.",
             )
             final_state = self._finalize_state(escalated, policy_result, tool_evidence)
-            self._emit("runtime.process.completed", final_version=final_state.version)
+            self._emit("runtime.process.completed", trace_id=trace_id, final_version=final_state.version)
+            self._record_trace(final_state, trace_id, started_at, started_perf, event)
             return final_state
 
         graph = self.compiler.compile(event, prepared)
@@ -157,10 +167,52 @@ class ACAOSRuntime:
         )
 
         final_state = self._finalize_state(processed, policy_result, tool_evidence)
-        self._emit("runtime.process.completed", final_version=final_state.version)
+        self._emit("runtime.process.completed", trace_id=trace_id, final_version=final_state.version)
+        self._record_trace(final_state, trace_id, started_at, started_perf, event)
         return final_state
+
+    def _record_trace(
+        self,
+        state: CognitiveState,
+        trace_id: str,
+        started_at: str,
+        started_perf: float,
+        event: Event,
+    ) -> ExecutionTrace:
+        trace = ExecutionTrace.from_state(
+            state,
+            self.event_bus.events(),
+            trace_id=trace_id,
+            runtime_id=self.runtime_id,
+            started_at=started_at,
+            finished_at=utc_now_iso(),
+            duration_ms=monotonic_ms(started_perf),
+            metadata={
+                "input_event_id": event.id,
+                "input_event_type": event.type,
+            },
+        )
+        self._last_trace = trace
+        self._traces[trace.trace_id] = trace
+        return trace
+
+    def last_trace(self) -> ExecutionTrace | None:
+        return self._last_trace
+
+    def trace(self, trace_id: str) -> ExecutionTrace | None:
+        return self._traces.get(trace_id)
+
+    def export_trace(self, trace_id: str | None = None, *, format: str = "dict") -> Dict[str, Any] | str:
+        trace = self._last_trace if trace_id is None else self.trace(trace_id)
+        if trace is None:
+            raise ValueError("No execution trace available.")
+        if format == "json":
+            return trace.to_json()
+        if format == "dict":
+            return trace.to_dict()
+        raise ValueError(f"Unsupported trace export format: {format}")
 
     def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
         self.event_bus.clear()
         final_state = self.process(event, state)
-        return ACAOutput.from_state(final_state, self.event_bus.events())
+        return ACAOutput.from_state(final_state, self.event_bus.events(), self.last_trace())

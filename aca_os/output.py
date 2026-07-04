@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 from aca_kernel.core.state import CognitiveState
 from aca_os.event_bus import RuntimeEvent
+from aca_os.execution_trace import ExecutionTrace
 from aca_os.runtime_timeline import RuntimeTimeline
 
 
@@ -18,12 +19,14 @@ class ACAOutput:
     context_bundle: Dict[str, Any] | None = None
     trace: List[Dict[str, Any]] = field(default_factory=list)
     runtime_timeline: Dict[str, Any] = field(default_factory=dict)
+    execution_trace: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_state(
         cls,
         state: CognitiveState,
         runtime_events: List[RuntimeEvent] | None = None,
+        execution_trace: ExecutionTrace | None = None,
     ) -> "ACAOutput":
         return cls(
             conversation_id=state.conversation_id,
@@ -36,6 +39,7 @@ class ACAOutput:
             context_bundle=state.context_bundle,
             trace=list(state.timeline),
             runtime_timeline=RuntimeTimeline.from_state(state, runtime_events).to_dict(),
+            execution_trace=execution_trace.to_dict() if execution_trace else {},
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -50,4 +54,5 @@ class ACAOutput:
             "context_bundle": self.context_bundle,
             "trace": self.trace,
             "runtime_timeline": self.runtime_timeline,
+            "execution_trace": self.execution_trace,
         }
