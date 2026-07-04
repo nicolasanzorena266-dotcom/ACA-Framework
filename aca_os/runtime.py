@@ -11,6 +11,7 @@ from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolRequest
+from zero_cost.action_planner import ActionPlanner
 from zero_cost.intent_matcher import IntentMatcher
 
 
@@ -26,6 +27,7 @@ class ACAOSRuntime:
         memory_engine: MemoryEngine | None = None,
         conversation_manager: ConversationManager | None = None,
         intent_matcher: IntentMatcher | None = None,
+        action_planner: ActionPlanner | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
         self.kernel = kernel
@@ -37,6 +39,7 @@ class ACAOSRuntime:
         self.memory_engine = memory_engine or MemoryEngine()
         self.conversation_manager = conversation_manager or ConversationManager()
         self.intent_matcher = intent_matcher or IntentMatcher()
+        self.action_planner = action_planner or ActionPlanner()
         self.domain_context = domain_context or {}
 
     def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
@@ -87,7 +90,13 @@ class ACAOSRuntime:
         conversation_state = self.conversation_manager.before_process(event, state)
         intent_match = self.intent_matcher.match(event.payload)
         with_intent = conversation_state.evolve("INTENT_MATCH", intent_match=intent_match.to_dict())
-        prepared = self.mission_manager.before_kernel(event, with_intent)
+
+        action_plan = self.action_planner.plan(intent_match)
+        facts = dict(with_intent.facts)
+        facts["zero_cost_action_plan"] = action_plan.to_dict()
+        with_action_plan = with_intent.evolve("ACTION_PLAN", facts=facts)
+
+        prepared = self.mission_manager.before_kernel(event, with_action_plan)
 
         policy_result = self.policy_manager.evaluate(
             prepared,
@@ -110,6 +119,7 @@ class ACAOSRuntime:
             prepared,
             context={
                 "intent_match": intent_match.to_dict(),
+                "action_plan": action_plan.to_dict(),
                 "policy_result": policy_result.to_dict(),
                 "tool_evidence": tool_evidence,
             },
