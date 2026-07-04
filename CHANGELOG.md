@@ -1,4 +1,12 @@
 
+## Sprint 51 — Studio Runtime Binding
+
+- Added Studio Runtime Binding contract for Runtime/API-backed Studio dashboard state.
+- Added `/studio/binding` and `/studio/binding/run` endpoints.
+- Updated local Studio UI to show runtime status, domain packs, metrics and last execution trace projection.
+- Added tests covering binding projection, REST routing and local web server integration.
+
+
 ## 0.3.0-sprint50 - Local Web Runtime Launcher
 
 - Added local web runtime launch plan contract.

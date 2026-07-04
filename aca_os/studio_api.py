@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Mapping, Protocol
 
 from aca_os.execution_trace import sanitize
+from aca_os.studio_runtime_binding import build_studio_runtime_binding
 
 
 class StudioRequester(Protocol):
@@ -50,6 +51,9 @@ class StudioAPIState:
     metrics: Dict[str, Any]
     components: Dict[str, Any]
     plugins: Dict[str, Any]
+    domain_packs: Dict[str, Any]
+    domain_context: Dict[str, Any]
+    binding: Dict[str, Any]
     resources: list[StudioAPIResource] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -62,6 +66,9 @@ class StudioAPIState:
                 "metrics": self.metrics,
                 "components": self.components,
                 "plugins": self.plugins,
+                "domain_packs": self.domain_packs,
+                "domain_context": self.domain_context,
+                "binding": self.binding,
                 "resources": [resource.to_dict() for resource in self.resources],
                 "metadata": self.metadata,
             }
@@ -76,6 +83,10 @@ STUDIO_API_RESOURCES: tuple[StudioAPIResource, ...] = (
     StudioAPIResource("metrics", "GET", "/runtime/metrics", "metrics.read", "Read Runtime metrics."),
     StudioAPIResource("components", "GET", "/runtime/components", "component.list", "Read Component Registry."),
     StudioAPIResource("plugins", "GET", "/runtime/plugins", "plugin.list", "Read Plugin Registry."),
+    StudioAPIResource("domain_packs", "GET", "/runtime/domain-packs", "domain_pack.list", "Read loaded Domain Packs."),
+    StudioAPIResource("domain_context", "GET", "/runtime/domain-context", "domain_pack.context.read", "Read active Domain Pack context."),
+    StudioAPIResource("binding", "GET", "/studio/binding", "studio.runtime.binding", "Read bound Studio Runtime dashboard."),
+    StudioAPIResource("binding_run", "POST", "/studio/binding/run", "studio.runtime.binding.run", "Run one message and return refreshed binding.", False),
     StudioAPIResource("run", "POST", "/studio/run", "studio.runtime.run", "Run one message and refresh Studio state.", False),
     StudioAPIResource("replay", "POST", "/studio/replay", "studio.session.replay", "Replay one saved session into Studio.", False),
 )
@@ -103,13 +114,33 @@ class StudioAPIClient:
 
     def read_state(self, *, memory_path: str | None = None) -> Dict[str, Any]:
         query = {"memory_path": memory_path} if memory_path else None
+        status = self._request("GET", "/runtime/status", query=query)
+        studio = self._request("GET", "/runtime/studio", query=query)
+        metrics = self._request("GET", "/runtime/metrics", query=query)
+        components = self._request("GET", "/runtime/components", query=query)
+        plugins = self._request("GET", "/runtime/plugins", query=query)
+        domain_packs = self._request("GET", "/runtime/domain-packs", query=query)
+        domain_context = self._request("GET", "/runtime/domain-context", query=query)
+        binding = build_studio_runtime_binding(
+            status=status,
+            metrics=metrics,
+            components=components,
+            plugins=plugins,
+            domain_packs=domain_packs,
+            domain_context=domain_context,
+            endpoints={"resources": [resource.to_dict() for resource in STUDIO_API_RESOURCES]},
+            studio=studio,
+        )
         state = StudioAPIState(
             contract="studio_api_state.v1",
-            status=self._request("GET", "/runtime/status", query=query),
-            studio=self._request("GET", "/runtime/studio", query=query),
-            metrics=self._request("GET", "/runtime/metrics", query=query),
-            components=self._request("GET", "/runtime/components", query=query),
-            plugins=self._request("GET", "/runtime/plugins", query=query),
+            status=status,
+            studio=studio,
+            metrics=metrics,
+            components=components,
+            plugins=plugins,
+            domain_packs=domain_packs,
+            domain_context=domain_context,
+            binding=binding,
             resources=list(STUDIO_API_RESOURCES),
             metadata={"source": "runtime_rest_api", "read_only_projection": True},
         )

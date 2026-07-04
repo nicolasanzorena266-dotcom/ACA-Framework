@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Mapping
 from aca_kernel.core.events import Event
 from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
+from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from sdk.factory import build_galicia_runtime, process_message
 
 RuntimeFactory = Callable[..., Any]
@@ -56,7 +57,9 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/runtime/studio", "Return Studio-ready Runtime view.", "studio.read"),
         RuntimeEndpoint("GET", "/studio/bootstrap", "Return Studio API bootstrap contract.", "studio.bootstrap"),
         RuntimeEndpoint("GET", "/studio/state", "Return Studio state assembled from Runtime APIs.", "studio.state.read"),
+        RuntimeEndpoint("GET", "/studio/binding", "Return bound Studio Runtime dashboard state.", "studio.runtime.binding"),
         RuntimeEndpoint("POST", "/studio/run", "Run one Studio message through Runtime APIs.", "studio.runtime.run"),
+        RuntimeEndpoint("POST", "/studio/binding/run", "Run one Studio message and return refreshed binding.", "studio.runtime.binding.run"),
         RuntimeEndpoint("POST", "/studio/replay", "Replay a session through Studio API.", "studio.session.replay"),
         RuntimeEndpoint("POST", "/runtime/run", "Execute one Runtime message.", "runtime.run"),
         RuntimeEndpoint("POST", "/runtime/events", "Process one generic Runtime event.", "runtime.event.process"),
@@ -253,6 +256,42 @@ class RuntimeEndpointAPI:
         client = StudioAPIClient(requester=self._local_requester)
         return client.read_state(memory_path=str(memory_path) if memory_path else None)
 
+
+    def studio_binding(
+        self,
+        *,
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        return build_studio_runtime_binding(
+            status=self.status(memory_path=memory_path),
+            metrics=self.metrics(memory_path=memory_path),
+            components=self.components(memory_path=memory_path),
+            plugins=self.plugins(memory_path=memory_path),
+            domain_packs=self.domain_packs(root=root, strict=strict, memory_path=memory_path),
+            domain_context=self.domain_context(root=root, strict=strict, memory_path=memory_path),
+            endpoints=self.catalog(),
+            studio=self.studio(memory_path=memory_path),
+        )
+
+    def studio_binding_run(
+        self,
+        *,
+        message: str,
+        conversation_id: str = "studio",
+        root: str | Path | None = None,
+        strict: bool = False,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        execution = self.studio_run(
+            message=message,
+            conversation_id=conversation_id,
+            memory_path=memory_path,
+        )
+        refreshed = self.studio_binding(root=root, strict=strict, memory_path=memory_path)
+        return build_studio_runtime_run_binding(execution=execution, refreshed_binding=refreshed)
+
     def studio_run(
         self,
         *,
@@ -313,6 +352,8 @@ class RuntimeEndpointAPI:
             return self.status(memory_path=memory_path)
         if method == "GET" and path == "/studio/state":
             return self.studio_state(memory_path=memory_path)
+        if method == "GET" and path == "/studio/binding":
+            return self.studio_binding(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
         if method == "GET" and path == "/runtime/studio":
             return self.studio(memory_path=memory_path)
         if method == "GET" and path == "/runtime/metrics":
@@ -325,6 +366,14 @@ class RuntimeEndpointAPI:
             return self.domain_packs(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
         if method == "GET" and path == "/runtime/domain-context":
             return self.domain_context(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
+        if method == "POST" and path == "/studio/binding/run":
+            return self.studio_binding_run(
+                message=payload.get("message"),
+                conversation_id=payload.get("conversation_id") or "studio",
+                root=payload.get("root") or params.get("root"),
+                strict=bool(payload.get("strict") or params.get("strict")),
+                memory_path=memory_path,
+            )
         if method == "POST" and path == "/runtime/events":
             return self.process_event(
                 event_type=payload.get("event_type") or payload.get("type"),

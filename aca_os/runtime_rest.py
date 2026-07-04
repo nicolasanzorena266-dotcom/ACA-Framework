@@ -154,11 +154,29 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/studio/state":
                 return self.ok(self.runtime_api.studio_state(memory_path=memory_path))
+            if method == "GET" and clean_path == "/studio/binding":
+                return self.ok(
+                    self.runtime_api.studio_binding(
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
             if method == "POST" and clean_path == "/studio/run":
                 return self.ok(
                     self.runtime_api.studio_run(
                         message=payload.get("message"),
                         conversation_id=payload.get("conversation_id") or "studio",
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
+            if method == "POST" and clean_path == "/studio/binding/run":
+                return self.ok(
+                    self.runtime_api.studio_binding_run(
+                        message=payload.get("message"),
+                        conversation_id=payload.get("conversation_id") or "studio",
+                        root=payload.get("root"),
+                        strict=_as_bool(payload.get("strict")),
                         memory_path=payload.get("memory_path") or memory_path,
                     )
                 )
