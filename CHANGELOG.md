@@ -1,3 +1,14 @@
+## Sprint 38 — Plugin Lifecycle
+
+- Added deterministic Plugin Lifecycle Manager.
+- Added plugin lifecycle records, snapshots and events.
+- Added lifecycle states: registered, initialized, active, paused, stopped, unloaded and failed.
+- Synchronized plugin lifecycle transitions with Component Registry state.
+- Added runtime APIs for initialize, activate, pause, stop, unload and lifecycle export.
+- Extended Component Registry with paused state and unregister support.
+- Added Sprint 38 Plugin Lifecycle tests.
+
+
 # Changelog
 
 

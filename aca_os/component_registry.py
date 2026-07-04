@@ -10,13 +10,15 @@ class ComponentState(str, Enum):
     REGISTERED = "registered"
     INITIALIZED = "initialized"
     ACTIVE = "active"
+    PAUSED = "paused"
     STOPPED = "stopped"
 
 
 _ALLOWED_TRANSITIONS = {
     ComponentState.REGISTERED: {ComponentState.INITIALIZED, ComponentState.STOPPED},
     ComponentState.INITIALIZED: {ComponentState.ACTIVE, ComponentState.STOPPED},
-    ComponentState.ACTIVE: {ComponentState.STOPPED},
+    ComponentState.ACTIVE: {ComponentState.PAUSED, ComponentState.STOPPED},
+    ComponentState.PAUSED: {ComponentState.ACTIVE, ComponentState.STOPPED},
     ComponentState.STOPPED: {ComponentState.REGISTERED},
 }
 
@@ -145,8 +147,17 @@ class ComponentRegistry:
     def activate(self, name: str) -> ComponentDescriptor:
         return self.set_state(name, ComponentState.ACTIVE)
 
+    def pause(self, name: str) -> ComponentDescriptor:
+        return self.set_state(name, ComponentState.PAUSED)
+
     def stop(self, name: str) -> ComponentDescriptor:
         return self.set_state(name, ComponentState.STOPPED)
+
+    def unregister(self, name: str) -> ComponentDescriptor:
+        descriptor = self.require(name)
+        if descriptor.state == ComponentState.ACTIVE:
+            raise ValueError(f"Active component must be stopped before unregistering: {name}")
+        return self._components.pop(name)
 
     def list(self) -> list[ComponentDescriptor]:
         return [self._components[name] for name in sorted(self._components)]
@@ -266,5 +277,17 @@ def _runtime_component_specs() -> Dict[str, Dict[str, Any]]:
             "role": "plugin manifest loader",
             "capabilities": ("plugin.discover", "plugin.load", "plugin.export"),
             "tags": ("plugin-sdk", "runtime"),
+        },
+        "plugin_lifecycle": {
+            "role": "plugin lifecycle manager",
+            "capabilities": (
+                "plugin.initialize",
+                "plugin.activate",
+                "plugin.pause",
+                "plugin.stop",
+                "plugin.unload",
+                "plugin.lifecycle.export",
+            ),
+            "tags": ("plugin-sdk", "runtime", "governance"),
         },
     }

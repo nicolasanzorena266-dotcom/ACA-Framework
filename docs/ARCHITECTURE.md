@@ -190,3 +190,25 @@ Runtime API
 ```
 
 Validation is deterministic and metadata-only. The validator checks runtime compatibility, safe entrypoints, hook targets, permission allowlists and registry dependencies without importing plugin code.
+
+
+## Sprint 38 — Plugin Lifecycle
+
+The Plugin Lifecycle Manager owns Runtime-visible plugin state after manifests are loaded and validated. It does not import or execute plugin entrypoints. It only coordinates deterministic lifecycle transitions and mirrors safe states into the Component Registry.
+
+```text
+Plugin Loader
+      │
+      ▼
+Plugin Lifecycle Manager
+      │
+      ▼
+Component Registry
+      │
+      ▼
+Runtime API
+```
+
+Supported lifecycle states are `registered`, `initialized`, `active`, `paused`, `stopped`, `unloaded` and `failed`. Invalid transitions are rejected and recorded as lifecycle events.
+
+This gives future Plugin SDK execution hooks a stable control plane without moving plugin behavior into the Runtime Core.

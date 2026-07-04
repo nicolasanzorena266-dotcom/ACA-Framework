@@ -68,7 +68,7 @@ Status: active.
 - Sprint 35 — Plugin Manifest & Contract: completed
 - Sprint 36 — Plugin Loader: completed
 - Sprint 37 — Plugin Validator: completed
-- Sprint 38 — Plugin Lifecycle: planned
+- Sprint 38 — Plugin Lifecycle: completed
 - Sprint 39 — Example Plugins: planned
 
 ## Platform Expansion

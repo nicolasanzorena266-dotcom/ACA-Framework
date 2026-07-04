@@ -14,6 +14,7 @@ from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.metrics_engine import MetricsEngine
 from aca_os.component_registry import ComponentRegistry, build_registry_from_runtime
+from aca_os.plugin_lifecycle import PluginLifecycleManager
 from aca_os.plugin_loader import PluginLoader
 from aca_os.plugin_validator import PluginValidator
 from aca_os.mission_manager import MissionManager
@@ -48,6 +49,7 @@ class ACAOSRuntime:
         component_registry: ComponentRegistry | None = None,
         plugin_loader: PluginLoader | None = None,
         plugin_validator: PluginValidator | None = None,
+        plugin_lifecycle: PluginLifecycleManager | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -67,9 +69,36 @@ class ACAOSRuntime:
         self.event_bus = event_bus or EventBus()
         self.plugin_validator = plugin_validator or PluginValidator()
         self.plugin_loader = plugin_loader or PluginLoader(plugin_validator=self.plugin_validator)
+        self.plugin_lifecycle = plugin_lifecycle
         self.component_registry = component_registry or build_registry_from_runtime(self)
         self.plugin_validator.bind_registry(self.component_registry)
         self.plugin_loader.bind_registry(self.component_registry)
+        if self.plugin_lifecycle is None:
+            self.plugin_lifecycle = PluginLifecycleManager(
+                component_registry=self.component_registry,
+                plugin_loader=self.plugin_loader,
+            )
+        else:
+            self.plugin_lifecycle.bind_registry(self.component_registry)
+            self.plugin_lifecycle.bind_loader(self.plugin_loader)
+        if self.component_registry.get("plugin_lifecycle") is None:
+            self.component_registry.register_instance(
+                name="plugin_lifecycle",
+                instance=self.plugin_lifecycle,
+                role="plugin lifecycle manager",
+                capabilities=(
+                    "plugin.initialize",
+                    "plugin.activate",
+                    "plugin.pause",
+                    "plugin.stop",
+                    "plugin.unload",
+                    "plugin.lifecycle.export",
+                ),
+                tags=("plugin-sdk", "runtime", "governance"),
+                metadata={"runtime_owned": True},
+            )
+            self.component_registry.initialize("plugin_lifecycle")
+            self.component_registry.activate("plugin_lifecycle")
         self.domain_context = domain_context or {}
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
@@ -275,11 +304,36 @@ class ACAOSRuntime:
         return self.plugin_validator.export_report(source, registry=self.component_registry, format=format)
 
     def load_plugins(self, root: str, *, strict: bool = False) -> Dict[str, Any]:
-        snapshot = self.plugin_loader.load(root, registry=self.component_registry, strict=strict)
-        return snapshot.to_dict()
+        return self.plugin_lifecycle.load_plugins(root, strict=strict)
+
+    def initialize_plugin(self, plugin_name: str) -> Dict[str, Any]:
+        return self.plugin_lifecycle.initialize(plugin_name).to_dict()
+
+    def activate_plugin(self, plugin_name: str) -> Dict[str, Any]:
+        return self.plugin_lifecycle.activate(plugin_name).to_dict()
+
+    def pause_plugin(self, plugin_name: str) -> Dict[str, Any]:
+        return self.plugin_lifecycle.pause(plugin_name).to_dict()
+
+    def stop_plugin(self, plugin_name: str) -> Dict[str, Any]:
+        return self.plugin_lifecycle.stop(plugin_name).to_dict()
+
+    def unload_plugin(self, plugin_name: str) -> Dict[str, Any]:
+        return self.plugin_lifecycle.unload(plugin_name).to_dict()
 
     def export_plugins(self, *, format: str = "dict") -> Dict[str, Any] | str:
-        return self.plugin_loader.export(format=format)
+        snapshot = self.plugin_loader.export(format="dict")
+        snapshot["lifecycle"] = self.plugin_lifecycle.export(format="dict")
+        if format == "dict":
+            return snapshot
+        if format == "json":
+            import json
+
+            return json.dumps(snapshot, ensure_ascii=False, indent=2)
+        raise ValueError(f"Unsupported plugin export format: {format}")
+
+    def export_plugin_lifecycle(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        return self.plugin_lifecycle.export(format=format)
 
     def studio_view(self):
         return build_studio_view(self.inspect_runtime())
