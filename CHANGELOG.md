@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-sprint44 — Human Test Demo
+
+- Added deterministic human test demo runner over Runtime APIs.
+- Added `/demo/human-test` scenario and run endpoints.
+- Added REST and CLI access to the human demo.
+- Added markdown output for human-readable manual validation.
+- Added tests for Runtime API, REST, CLI and standalone demo tool.
+
 ## Sprint 43 — Studio API Integration
 
 - Added Studio API client contract that consumes Runtime Interface responses only.

@@ -157,6 +157,16 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.save_session(**payload))
             if method == "POST" and clean_path == "/sessions/replay":
                 return self.ok(self.runtime_api.replay_session(**payload))
+            if method == "GET" and clean_path == "/demo/human-test":
+                return self.ok(self.runtime_api.human_demo_scenario())
+            if method == "POST" and clean_path == "/demo/human-test":
+                return self.ok(
+                    self.runtime_api.run_human_demo(
+                        conversation_id=payload.get("conversation_id") or "human-demo",
+                        memory_path=payload.get("memory_path") or memory_path,
+                        format=payload.get("format") or "dict",
+                    )
+                )
             return self.error(404, "not_found", f"No REST endpoint for {method} {clean_path}.")
         except KeyError as exc:
             return self.error(404, "not_found", str(exc).strip("'"))
@@ -214,6 +224,12 @@ class RuntimeRESTAPI:
 
     def replay_session(self, *, path: str | Path, memory_path: str | Path | None = None) -> Dict[str, Any]:
         return self.runtime_api.replay_session(path=path, memory_path=memory_path)
+
+    def human_demo_scenario(self) -> Dict[str, Any]:
+        return self.runtime_api.human_demo_scenario()
+
+    def run_human_demo(self, **payload: Any) -> Dict[str, Any] | str:
+        return self.runtime_api.run_human_demo(**payload)
 
 
 def _normalize_query(query: Mapping[str, Any] | str | None) -> Dict[str, Any]:

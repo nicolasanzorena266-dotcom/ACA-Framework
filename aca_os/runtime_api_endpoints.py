@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
 from aca_kernel.core.events import Event
+from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from sdk.factory import build_galicia_runtime, process_message
 
@@ -58,6 +59,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("POST", "/runtime/trace", "Execute one Runtime message or event and return trace.", "trace.read"),
         RuntimeEndpoint("POST", "/sessions/save", "Execute one message and save the execution session.", "session.save"),
         RuntimeEndpoint("POST", "/sessions/replay", "Replay a persisted execution session.", "session.replay"),
+        RuntimeEndpoint("GET", "/demo/human-test", "Return the human test demo scenario contract.", "demo.human_test.read"),
+        RuntimeEndpoint("POST", "/demo/human-test", "Run the deterministic human test demo.", "demo.human_test.run"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -212,6 +215,29 @@ class RuntimeEndpointAPI:
         client = StudioAPIClient(requester=self._local_requester)
         return client.replay_session(path=str(path), memory_path=str(memory_path) if memory_path else None)
 
+    def human_demo_scenario(self) -> Dict[str, Any]:
+        return HumanTestDemoRunner(requester=self._local_requester).scenario_contract()
+
+    def run_human_demo(
+        self,
+        *,
+        conversation_id: str = "human-demo",
+        memory_path: str | Path | None = None,
+        format: str = "dict",
+    ) -> Dict[str, Any] | str:
+        runner = HumanTestDemoRunner(requester=self._local_requester)
+        if format == "markdown":
+            return runner.run_markdown(
+                conversation_id=conversation_id,
+                memory_path=str(memory_path) if memory_path else None,
+            )
+        if format != "dict":
+            raise ValueError(f"Unsupported human demo format: {format}.")
+        return runner.run(
+            conversation_id=conversation_id,
+            memory_path=str(memory_path) if memory_path else None,
+        )
+
     def _local_requester(
         self,
         method: str,
@@ -229,6 +255,8 @@ class RuntimeEndpointAPI:
             return self.health(memory_path=memory_path)
         if method == "GET" and path == "/runtime/status":
             return self.status(memory_path=memory_path)
+        if method == "GET" and path == "/studio/state":
+            return self.studio_state(memory_path=memory_path)
         if method == "GET" and path == "/runtime/studio":
             return self.studio(memory_path=memory_path)
         if method == "GET" and path == "/runtime/metrics":
@@ -249,6 +277,14 @@ class RuntimeEndpointAPI:
             )
         if method == "POST" and path == "/sessions/replay":
             return self.replay_session(path=payload.get("path"), memory_path=memory_path)
+        if method == "GET" and path == "/demo/human-test":
+            return self.human_demo_scenario()
+        if method == "POST" and path == "/demo/human-test":
+            return self.run_human_demo(
+                conversation_id=payload.get("conversation_id") or "human-demo",
+                memory_path=payload.get("memory_path") or memory_path,
+                format=payload.get("format") or "dict",
+            )
         raise ValueError(f"Unsupported local Studio API request: {method} {path}.")
 
     def run_message(
