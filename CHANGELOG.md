@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-sprint45 — Domain Pack Contract
+
+- Added deterministic Domain Pack manifest contract.
+- Added domain runtime compatibility, capabilities and structured asset declarations.
+- Added Domain Pack Contract projection into Component Registry descriptors.
+- Added safe relative asset path validation and duplicate declaration checks.
+- Added Sprint 45 contract tests without loading or executing domain code.
+
 ## 0.3.0-sprint44 — Human Test Demo
 
 - Added deterministic human test demo runner over Runtime APIs.
