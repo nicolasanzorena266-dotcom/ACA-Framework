@@ -182,6 +182,7 @@ def _component_for_operation(operation: str, kind: str) -> str:
         "ACTION_PLAN": "action_planner",
         "FLOW_ROUTE": "flow_router",
         "EXECUTION_PLAN": "execution_plan",
+        "DECISION_GRAPH": "decision_graph_engine",
         "MISSION_CREATE": "mission_manager",
         "MISSION_UPDATE": "mission_manager",
         "POLICY_ESCALATE": "policy_manager",

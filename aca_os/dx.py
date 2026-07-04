@@ -22,6 +22,7 @@ REQUIRED_PROJECT_PATHS = [
     "zero_cost/action_planner.py",
     "zero_cost/flow_router.py",
     "zero_cost/execution_plan.py",
+    "zero_cost/decision_graph.py",
 ]
 
 RUNTIME_PIPELINE = [
@@ -30,6 +31,7 @@ RUNTIME_PIPELINE = [
     "action_planner",
     "flow_router",
     "execution_plan",
+    "decision_graph_engine",
     "event_bus",
     "runtime_timeline",
     "execution_trace",
@@ -181,6 +183,7 @@ def inspect_runtime() -> RuntimeInspection:
             "ActionPlanner",
             "FlowRouter",
             "ExecutionPlan",
+            "DecisionGraphEngine",
         ],
         observability_components=["EventBus", "RuntimeEvent", "RuntimeTimeline", "ExecutionTrace", "TraceEvent"],
     )

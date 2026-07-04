@@ -1,5 +1,16 @@
 # Changelog
 
+
+## Sprint 31 — Decision Graph Engine
+
+- Added deterministic Decision Graph Engine.
+- Persisted `zero_cost_decision_graph` in runtime facts.
+- Added `DECISION_GRAPH` operation to execution trace.
+- Added `runtime.decision_graph_created` event bus event.
+- Updated runtime introspection and DX inventory.
+- Added Sprint 31 documentation.
+- Full suite: 89 passing tests.
+
 ## RC1 Core Closed
 
 - Added ACA Kernel reference implementation.

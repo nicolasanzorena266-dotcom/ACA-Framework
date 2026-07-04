@@ -1,7 +1,7 @@
 [project]
 name = "aca-framework"
-version = "0.1.0rc1-sprint24"
-description = "ACA Framework RC1 Core"
+version = "0.3.0-sprint31"
+description = "ACA deterministic cognitive runtime"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

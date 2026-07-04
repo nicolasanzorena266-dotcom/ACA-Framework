@@ -68,6 +68,7 @@ class RuntimeIntrospectionAPI:
             "intent_matcher": "zero-cost intent detection",
             "action_planner": "zero-cost action selection",
             "flow_router": "zero-cost flow routing",
+            "decision_graph_engine": "zero-cost decision graph construction",
             "policy_manager": "policy decisioning",
             "tool_engine": "tool execution",
             "memory_engine": "memory consolidation",

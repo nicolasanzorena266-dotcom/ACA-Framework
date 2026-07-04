@@ -22,6 +22,7 @@ from zero_cost.action_planner import ActionPlanner
 from zero_cost.execution_plan import ExecutionPlan
 from zero_cost.flow_router import FlowRouter
 from zero_cost.intent_matcher import IntentMatcher
+from zero_cost.decision_graph import DecisionGraphEngine
 
 
 class ACAOSRuntime:
@@ -38,6 +39,7 @@ class ACAOSRuntime:
         intent_matcher: IntentMatcher | None = None,
         action_planner: ActionPlanner | None = None,
         flow_router: FlowRouter | None = None,
+        decision_graph_engine: DecisionGraphEngine | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -52,6 +54,7 @@ class ACAOSRuntime:
         self.intent_matcher = intent_matcher or IntentMatcher()
         self.action_planner = action_planner or ActionPlanner()
         self.flow_router = flow_router or FlowRouter()
+        self.decision_graph_engine = decision_graph_engine or DecisionGraphEngine()
         self.event_bus = event_bus or EventBus()
         self.domain_context = domain_context or {}
         self.runtime_id = str(uuid4())
@@ -139,7 +142,18 @@ class ACAOSRuntime:
         with_execution_plan = with_execution_flow.evolve("EXECUTION_PLAN", facts=facts)
         self._emit("runtime.execution_plan_created", execution_plan=execution_plan.to_dict())
 
-        prepared = self.mission_manager.before_kernel(event, with_execution_plan)
+        decision_graph = self.decision_graph_engine.build(
+            intent_match=intent_match,
+            action_plan=action_plan,
+            execution_flow=execution_flow,
+            execution_plan=execution_plan,
+        )
+        facts = dict(with_execution_plan.facts)
+        facts["zero_cost_decision_graph"] = decision_graph.to_dict()
+        with_decision_graph = with_execution_plan.evolve("DECISION_GRAPH", facts=facts)
+        self._emit("runtime.decision_graph_created", decision_graph=decision_graph.to_dict())
+
+        prepared = self.mission_manager.before_kernel(event, with_decision_graph)
 
         policy_result = self.policy_manager.evaluate(
             prepared,
