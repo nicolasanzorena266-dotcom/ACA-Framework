@@ -38,6 +38,15 @@
 - Added reference Kernel skeleton.
 - Added Mission, Policy and Memory OS contracts.
 
+## Sprint 33 — Component Registry
+
+- Added typed Component Registry service.
+- Added component descriptors with metadata, capabilities, dependencies and lifecycle state.
+- Added runtime component auto-registration.
+- Added `ACAOSRuntime.export_components()`.
+- Updated introspection to consume Component Registry snapshots.
+- Added registry lifecycle and runtime integration tests.
+
 ## Sprint 32 — Metrics Engine
 
 - Added deterministic Metrics Engine.

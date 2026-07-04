@@ -7,6 +7,7 @@ from aca_kernel.core.state import CognitiveState
 from aca_os.event_bus import EventBus
 from aca_os.execution_trace import ExecutionTrace, sanitize
 from aca_os.runtime_timeline import RuntimeTimeline
+from aca_os.component_registry import ComponentDescriptor
 
 
 @dataclass(frozen=True)
@@ -16,12 +17,32 @@ class RuntimeComponentSnapshot:
     name: str
     class_name: str
     role: str
+    version: str = "0.1.0"
+    provider: str = "aca"
+    capabilities: List[str] = field(default_factory=list)
+    state: str = "registered"
+
+    @classmethod
+    def from_descriptor(cls, descriptor: ComponentDescriptor) -> "RuntimeComponentSnapshot":
+        return cls(
+            name=descriptor.name,
+            class_name=descriptor.class_name,
+            role=descriptor.role,
+            version=descriptor.version,
+            provider=descriptor.provider,
+            capabilities=list(descriptor.capabilities),
+            state=descriptor.state.value,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "class_name": self.class_name,
             "role": self.role,
+            "version": self.version,
+            "provider": self.provider,
+            "capabilities": list(self.capabilities),
+            "state": self.state,
         }
 
 
@@ -37,6 +58,7 @@ class RuntimeIntrospectionSnapshot:
     timeline: Dict[str, Any] = field(default_factory=dict)
     event_bus: Dict[str, Any] = field(default_factory=dict)
     metrics: Dict[str, Any] = field(default_factory=dict)
+    component_registry: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -48,6 +70,7 @@ class RuntimeIntrospectionSnapshot:
             "timeline": sanitize(self.timeline),
             "event_bus": sanitize(self.event_bus),
             "metrics": sanitize(self.metrics),
+            "component_registry": sanitize(self.component_registry),
         }
 
 
@@ -63,26 +86,9 @@ class RuntimeIntrospectionAPI:
         self.runtime = runtime
 
     def component_inventory(self) -> List[RuntimeComponentSnapshot]:
-        roles = {
-            "conversation_manager": "conversation lifecycle",
-            "intent_matcher": "zero-cost intent detection",
-            "action_planner": "zero-cost action selection",
-            "flow_router": "zero-cost flow routing",
-            "decision_graph_engine": "zero-cost decision graph construction",
-            "policy_manager": "policy decisioning",
-            "tool_engine": "tool execution",
-            "memory_engine": "memory consolidation",
-            "context_manager": "context assembly",
-            "metrics_engine": "runtime metrics aggregation",
-            "event_bus": "internal event publication",
-        }
         return [
-            RuntimeComponentSnapshot(
-                name=name,
-                class_name=getattr(getattr(self.runtime, name), "__class__").__name__,
-                role=role,
-            )
-            for name, role in roles.items()
+            RuntimeComponentSnapshot.from_descriptor(descriptor)
+            for descriptor in self.runtime.component_registry.list()
         ]
 
     def snapshot(
@@ -118,6 +124,7 @@ class RuntimeIntrospectionAPI:
                 "events": [event.to_dict() for event in events],
             },
             metrics=metrics,
+            component_registry=self.runtime.component_registry.snapshot(),
         )
 
     def inspect_trace(self, trace_id: str | None = None) -> Dict[str, Any]:

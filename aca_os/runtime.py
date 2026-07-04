@@ -13,6 +13,7 @@ from aca_os.introspection import RuntimeIntrospectionAPI, RuntimeIntrospectionSn
 from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.metrics_engine import MetricsEngine
+from aca_os.component_registry import ComponentRegistry, build_registry_from_runtime
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.session import ExecutionSession
@@ -42,6 +43,7 @@ class ACAOSRuntime:
         flow_router: FlowRouter | None = None,
         decision_graph_engine: DecisionGraphEngine | None = None,
         metrics_engine: MetricsEngine | None = None,
+        component_registry: ComponentRegistry | None = None,
         event_bus: EventBus | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
@@ -59,6 +61,7 @@ class ACAOSRuntime:
         self.decision_graph_engine = decision_graph_engine or DecisionGraphEngine()
         self.metrics_engine = metrics_engine or MetricsEngine()
         self.event_bus = event_bus or EventBus()
+        self.component_registry = component_registry or build_registry_from_runtime(self)
         self.domain_context = domain_context or {}
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
@@ -256,6 +259,9 @@ class ACAOSRuntime:
 
     def export_metrics(self, *, format: str = "dict") -> Dict[str, Any] | str:
         return self.metrics_engine.export(runtime_id=self.runtime_id, format=format)
+
+    def export_components(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        return self.component_registry.export(format=format)
 
     def studio_view(self):
         return build_studio_view(self.inspect_runtime())
