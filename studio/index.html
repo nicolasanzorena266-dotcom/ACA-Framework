@@ -30,8 +30,9 @@
     <section>
       <h2>Run through Runtime API</h2>
       <div class="row">
-        <input id="message" value="Que es CLEAS?" />
+        <input id="message" value="Check ticket 12345 status" />
         <button id="run">Run</button>
+        <button id="run-domain">Run Demo Domain Flow</button>
         <button id="refresh">Refresh</button>
       </div>
     </section>
@@ -42,6 +43,7 @@
     </div>
     <div class="grid">
       <section><h2>Trace / Last Run</h2><pre id="output">{}</pre></section>
+      <section><h2>Demo Domain Flow</h2><pre id="domainFlow">{}</pre></section>
       <section><h2>State</h2><pre id="state">{}</pre></section>
       <section><h2>Bootstrap</h2><pre id="bootstrap">{}</pre></section>
     </div>
@@ -83,7 +85,7 @@
     async function refresh() {
       const bootstrap = await api.get('/studio/bootstrap');
       const state = await api.get('/studio/state');
-      const binding = await api.get('/studio/binding');
+      const binding = await api.get('/studio/binding?root=examples/domain_packs');
       summarize(binding);
       write('bootstrap', bootstrap);
       write('state', state);
@@ -94,12 +96,23 @@
 
     document.getElementById('run').addEventListener('click', async () => {
       const message = document.getElementById('message').value;
-      const output = await api.post('/studio/binding/run', { message, conversation_id: 'studio-browser' });
+      const output = await api.post('/studio/binding/run', { message, conversation_id: 'studio-browser', root: 'examples/domain_packs' });
       write('output', output);
       summarize(output.binding || {});
       write('binding', output.binding || {});
       write('domain', (output.binding || {}).domain || {});
       write('metrics', (output.binding || {}).metrics || {});
+    });
+
+    document.getElementById('run-domain').addEventListener('click', async () => {
+      const message = document.getElementById('message').value;
+      const result = await api.post('/demo/domain-flow', { message, conversation_id: 'studio-domain-flow', root: 'examples/domain_packs' });
+      write('domainFlow', result);
+      write('output', result.runtime_execution || result);
+      summarize(result.binding || {});
+      write('binding', result.binding || {});
+      write('domain', (result.binding || {}).domain || result.domain || {});
+      write('metrics', (result.binding || {}).metrics || {});
     });
 
     document.getElementById('refresh').addEventListener('click', refresh);

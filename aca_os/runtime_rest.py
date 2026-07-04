@@ -218,6 +218,18 @@ class RuntimeRESTAPI:
                         format=payload.get("format") or "dict",
                     )
                 )
+            if method == "GET" and clean_path == "/demo/domain-flow":
+                return self.ok(self.runtime_api.domain_flow_scenario())
+            if method == "POST" and clean_path == "/demo/domain-flow":
+                return self.ok(
+                    self.runtime_api.run_domain_flow(
+                        message=payload.get("message"),
+                        conversation_id=payload.get("conversation_id") or "demo-domain-flow",
+                        root=payload.get("root") or _first(params, "root") or "examples/domain_packs",
+                        pack_name=payload.get("pack_name") or _first(params, "pack_name"),
+                        memory_path=payload.get("memory_path") or memory_path,
+                    )
+                )
             return self.error(404, "not_found", f"No REST endpoint for {method} {clean_path}.")
         except KeyError as exc:
             return self.error(404, "not_found", str(exc).strip("'"))

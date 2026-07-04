@@ -1,4 +1,12 @@
 
+## Sprint 52 — Demo Domain Runtime Flow
+
+- Added deterministic Domain Pack-backed demo flow runner.
+- Exposed `/demo/domain-flow` through Runtime Endpoint API and REST.
+- Wired Studio to run the demo domain flow from the local browser.
+- Added tests for runner, Runtime API, REST, and web serving behavior.
+
+
 ## Sprint 51 — Studio Runtime Binding
 
 - Added Studio Runtime Binding contract for Runtime/API-backed Studio dashboard state.

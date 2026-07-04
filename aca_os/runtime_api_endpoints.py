@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
 from aca_kernel.core.events import Event
+from aca_os.demo_domain_flow import DemoDomainRuntimeFlowRunner
 from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
@@ -68,6 +69,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("POST", "/sessions/replay", "Replay a persisted execution session.", "session.replay"),
         RuntimeEndpoint("GET", "/demo/human-test", "Return the human test demo scenario contract.", "demo.human_test.read"),
         RuntimeEndpoint("POST", "/demo/human-test", "Run the deterministic human test demo.", "demo.human_test.run"),
+        RuntimeEndpoint("GET", "/demo/domain-flow", "Return the demo Domain Pack runtime flow scenario.", "demo.domain_flow.read"),
+        RuntimeEndpoint("POST", "/demo/domain-flow", "Run one message through a loaded Domain Pack demo flow.", "demo.domain_flow.run"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -313,6 +316,26 @@ class RuntimeEndpointAPI:
     def human_demo_scenario(self) -> Dict[str, Any]:
         return HumanTestDemoRunner(requester=self._local_requester).scenario_contract()
 
+    def domain_flow_scenario(self) -> Dict[str, Any]:
+        return DemoDomainRuntimeFlowRunner(api=self).scenario_contract()
+
+    def run_domain_flow(
+        self,
+        *,
+        message: str,
+        conversation_id: str = "demo-domain-flow",
+        root: str | Path = "examples/domain_packs",
+        pack_name: str | None = None,
+        memory_path: str | Path | None = None,
+    ) -> Dict[str, Any]:
+        return DemoDomainRuntimeFlowRunner(api=self).run(
+            message=message,
+            conversation_id=conversation_id,
+            root=root,
+            pack_name=pack_name,
+            memory_path=memory_path,
+        )
+
     def run_human_demo(
         self,
         *,
@@ -393,6 +416,16 @@ class RuntimeEndpointAPI:
                 conversation_id=payload.get("conversation_id") or "human-demo",
                 memory_path=payload.get("memory_path") or memory_path,
                 format=payload.get("format") or "dict",
+            )
+        if method == "GET" and path == "/demo/domain-flow":
+            return self.domain_flow_scenario()
+        if method == "POST" and path == "/demo/domain-flow":
+            return self.run_domain_flow(
+                message=payload.get("message"),
+                conversation_id=payload.get("conversation_id") or "demo-domain-flow",
+                root=payload.get("root") or params.get("root") or "examples/domain_packs",
+                pack_name=payload.get("pack_name") or params.get("pack_name"),
+                memory_path=payload.get("memory_path") or memory_path,
             )
         raise ValueError(f"Unsupported local Studio API request: {method} {path}.")
 
