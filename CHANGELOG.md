@@ -1,5 +1,14 @@
 # Changelog
 
+## Sprint 46 — Domain Pack Loader
+
+- Added manifest-first Domain Pack loader.
+- Added deterministic Domain Pack discovery and observable load snapshots.
+- Added required asset checks at the load boundary.
+- Added runtime facade methods for loading/exporting Domain Packs.
+- Added tests for discovery, loading, duplicate handling, dependency validation, asset checks and runtime integration.
+
+
 ## 0.3.0-sprint45 — Domain Pack Contract
 
 - Added deterministic Domain Pack manifest contract.
