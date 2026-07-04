@@ -24,7 +24,7 @@ def test_cli_studio_outputs_json_view():
 
     data = json.loads(result.stdout)
     assert data["title"] == "ACA Studio MVP"
-    assert [panel["id"] for panel in data["panels"]][0] == "session"
+    assert [panel["id"] for panel in data["panels"]][:3] == ["session", "runtime_health", "decision_graph"]
 
 
 def test_cli_studio_writes_html_file(tmp_path):
@@ -50,4 +50,6 @@ def test_cli_studio_writes_html_file(tmp_path):
 
     status = json.loads(result.stdout)
     assert status["status"] == "written"
-    assert "ACA Studio MVP" in output.read_text(encoding="utf-8")
+    html = output.read_text(encoding="utf-8")
+    assert "ACA Studio MVP" in html
+    assert "Runtime Health" in html

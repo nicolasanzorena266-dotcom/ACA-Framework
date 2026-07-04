@@ -148,6 +148,10 @@ def _state_summary(state: CognitiveState | None) -> Dict[str, Any]:
         "selected_program": state.selected_program,
         "intent": (state.intent_match or {}).get("intent"),
         "policy_decision": (state.policy_result or {}).get("decision"),
+        "decision_graph": state.facts.get("zero_cost_decision_graph", {}),
+        "action_plan": state.facts.get("zero_cost_action_plan", {}),
+        "execution_flow": state.facts.get("zero_cost_execution_flow", {}),
+        "execution_plan": state.facts.get("zero_cost_execution_plan", {}),
         "fact_keys": sorted(state.facts.keys()),
     }
 

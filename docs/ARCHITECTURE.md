@@ -113,3 +113,10 @@ It does not execute the runtime and does not control the Kernel.
 ## Metrics Engine
 
 Metrics Engine is a passive runtime service. It derives counters, gauges, histograms and component metrics from Execution Trace. Execution Trace remains the source of truth; Timeline remains a simplified view. Interfaces must consume metrics through the Runtime API and must not calculate observability state themselves.
+
+
+## Studio Evolution
+
+ACA Studio is a read-only Runtime Intelligence interface. It consumes the Runtime Introspection API and renders normalized panels for Runtime Health, Decision Graph, Metrics, Component Registry, Timeline, Trace and Event Bus.
+
+Studio is not allowed to own runtime behavior. It only projects already-observed runtime contracts.

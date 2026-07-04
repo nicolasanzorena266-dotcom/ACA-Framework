@@ -1,6 +1,16 @@
 # Changelog
 
 
+## Sprint 34 — Studio Evolution
+
+- Evolved ACA Studio from MVP panels into a Runtime Intelligence view model.
+- Added Runtime Health, Decision Graph and Component Registry Studio panels.
+- Added `build_studio_intelligence()` as a read-only projection over Runtime Introspection.
+- Exposed decision graph, action plan, execution flow and execution plan summaries through introspection state summaries.
+- Updated Studio HTML export for richer Runtime Intelligence rendering.
+- Added Studio Evolution tests and kept the existing Studio export contract compatible.
+
+
 ## Sprint 31 — Decision Graph Engine
 
 - Added deterministic Decision Graph Engine.
