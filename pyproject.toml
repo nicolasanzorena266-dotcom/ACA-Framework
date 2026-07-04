@@ -1,6 +1,6 @@
 [project]
 name = "aca-framework"
-version = "0.1.0rc1"
+version = "0.1.0rc1-sprint24"
 description = "ACA Framework RC1 Core"
 requires-python = ">=3.10"
 

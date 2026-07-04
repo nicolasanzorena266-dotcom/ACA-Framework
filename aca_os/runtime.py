@@ -12,6 +12,7 @@ from aca_os.output import ACAOutput
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolRequest
 from zero_cost.action_planner import ActionPlanner
+from zero_cost.execution_plan import ExecutionPlan
 from zero_cost.flow_router import FlowRouter
 from zero_cost.intent_matcher import IntentMatcher
 
@@ -96,14 +97,21 @@ class ACAOSRuntime:
 
         action_plan = self.action_planner.plan(intent_match)
         execution_flow = self.flow_router.route(action_plan)
+        execution_plan = ExecutionPlan.from_flow(execution_flow)
 
         facts = dict(with_intent.facts)
         facts["zero_cost_action_plan"] = action_plan.to_dict()
-        facts["zero_cost_execution_flow"] = execution_flow.to_dict()
         with_action_plan = with_intent.evolve("ACTION_PLAN", facts=facts)
+
+        facts = dict(with_action_plan.facts)
+        facts["zero_cost_execution_flow"] = execution_flow.to_dict()
         with_execution_flow = with_action_plan.evolve("FLOW_ROUTE", facts=facts)
 
-        prepared = self.mission_manager.before_kernel(event, with_execution_flow)
+        facts = dict(with_execution_flow.facts)
+        facts["zero_cost_execution_plan"] = execution_plan.to_dict()
+        with_execution_plan = with_execution_flow.evolve("EXECUTION_PLAN", facts=facts)
+
+        prepared = self.mission_manager.before_kernel(event, with_execution_plan)
 
         policy_result = self.policy_manager.evaluate(
             prepared,
@@ -128,6 +136,7 @@ class ACAOSRuntime:
                 "intent_match": intent_match.to_dict(),
                 "action_plan": action_plan.to_dict(),
                 "execution_flow": execution_flow.to_dict(),
+                "execution_plan": execution_plan.to_dict(),
                 "policy_result": policy_result.to_dict(),
                 "tool_evidence": tool_evidence,
             },
