@@ -1,0 +1,66 @@
+{
+  "manifest_version": "1",
+  "name": "example.operations_basic",
+  "version": "0.1.0",
+  "domain": "operations.basic",
+  "description": "Reference domain pack for deterministic operational review workflows.",
+  "provider": "aca.examples",
+  "runtime": {
+    "min_version": "0.3.0"
+  },
+  "capabilities": [
+    {
+      "name": "domain.operations.intent_catalog",
+      "kind": "intent_catalog",
+      "description": "Expose operations intents for deterministic routing tests."
+    },
+    {
+      "name": "domain.operations.flow_catalog",
+      "kind": "flow_catalog",
+      "description": "Expose operational review flows as data."
+    },
+    {
+      "name": "domain.operations.metric_catalog",
+      "kind": "metric_catalog",
+      "description": "Expose operations metric definitions without runtime coupling."
+    }
+  ],
+  "assets": [
+    {
+      "name": "intents",
+      "kind": "intents",
+      "path": "intents.json",
+      "format": "json",
+      "description": "Operations intent catalog."
+    },
+    {
+      "name": "flows",
+      "kind": "flows",
+      "path": "flows.json",
+      "format": "json",
+      "description": "Operations flow catalog."
+    },
+    {
+      "name": "metrics",
+      "kind": "metrics",
+      "path": "metrics.json",
+      "format": "json",
+      "description": "Metric definitions used by operations review flows."
+    },
+    {
+      "name": "glossary",
+      "kind": "glossary",
+      "path": "glossary.md",
+      "format": "markdown",
+      "description": "Human-readable domain vocabulary."
+    }
+  ],
+  "dependencies": ["metrics_engine"],
+  "tags": ["example", "operations", "deterministic"],
+  "metadata": {
+    "example": true,
+    "domain_code_imported": false,
+    "executes_on_load": false,
+    "human_demo_safe": true
+  }
+}

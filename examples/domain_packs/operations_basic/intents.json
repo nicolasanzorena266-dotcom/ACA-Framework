@@ -1,0 +1,19 @@
+{
+  "schema": "aca.domain_pack.intents.v1",
+  "intents": [
+    {
+      "name": "operations.process_review",
+      "description": "The user asks to review or summarize a process.",
+      "utterances": ["review this process", "summarize the workflow", "where is the bottleneck"],
+      "required_entities": ["process_name"],
+      "default_flow": "operations.review_process"
+    },
+    {
+      "name": "operations.metric_check",
+      "description": "The user asks for operational metric status.",
+      "utterances": ["check the KPI", "show the metric", "how is the operation performing"],
+      "required_entities": ["metric_name"],
+      "default_flow": "operations.metric_snapshot"
+    }
+  ]
+}

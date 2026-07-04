@@ -1,0 +1,26 @@
+{
+  "schema": "aca.domain_pack.intents.v1",
+  "intents": [
+    {
+      "name": "support.status_request",
+      "description": "The user asks for the current status of a case, ticket or request.",
+      "utterances": ["what is the status", "check my ticket", "where is my request"],
+      "required_entities": ["case_id"],
+      "default_flow": "support.case_status"
+    },
+    {
+      "name": "support.missing_documentation",
+      "description": "The user needs to know which documents are pending.",
+      "utterances": ["what documents are missing", "what do I need to send"],
+      "required_entities": ["case_id"],
+      "default_flow": "support.documentation_review"
+    },
+    {
+      "name": "support.escalation_request",
+      "description": "The user asks to escalate or prioritize an unresolved case.",
+      "utterances": ["escalate this", "I need priority", "this is urgent"],
+      "required_entities": ["case_id", "reason"],
+      "default_flow": "support.escalation_triage"
+    }
+  ]
+}

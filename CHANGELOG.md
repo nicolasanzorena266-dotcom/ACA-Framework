@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-sprint48 — Example Domain Packs
+
+- Added bundled data-only example Domain Packs for customer support and basic operations.
+- Added deterministic example Domain Pack catalog helpers.
+- Added tests proving bundled examples validate, load and register through runtime boundaries.
+- Bumped package version to `0.3.0-sprint48`.
+
+
 ## Sprint 47 — Domain Pack Validator
 
 - Added deterministic `DomainPackValidator` boundary.

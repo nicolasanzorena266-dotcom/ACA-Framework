@@ -1,0 +1,17 @@
+{
+  "schema": "aca.domain_pack.flows.v1",
+  "flows": [
+    {
+      "name": "operations.review_process",
+      "description": "Build a deterministic process review from declared process evidence.",
+      "steps": ["identify_process", "list_steps", "detect_wait_states", "summarize_improvement_candidates"],
+      "output_contract": "process_review_summary"
+    },
+    {
+      "name": "operations.metric_snapshot",
+      "description": "Produce a deterministic metric readout using registered metric definitions.",
+      "steps": ["identify_metric", "read_definition", "read_value", "explain_variation"],
+      "output_contract": "metric_snapshot"
+    }
+  ]
+}

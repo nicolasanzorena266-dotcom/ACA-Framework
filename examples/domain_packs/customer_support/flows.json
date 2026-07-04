@@ -1,0 +1,23 @@
+{
+  "schema": "aca.domain_pack.flows.v1",
+  "flows": [
+    {
+      "name": "support.case_status",
+      "description": "Resolve a case status request using runtime-visible case state.",
+      "steps": ["identify_case", "read_status", "explain_current_state", "offer_next_step"],
+      "output_contract": "status_summary"
+    },
+    {
+      "name": "support.documentation_review",
+      "description": "List pending documentation and explain acceptable evidence.",
+      "steps": ["identify_case", "read_required_documents", "compare_received_documents", "summarize_pending_items"],
+      "output_contract": "documentation_gap_summary"
+    },
+    {
+      "name": "support.escalation_triage",
+      "description": "Check escalation criteria before creating an escalation event.",
+      "steps": ["identify_case", "classify_reason", "check_policy", "emit_escalation_recommendation"],
+      "output_contract": "escalation_recommendation"
+    }
+  ]
+}

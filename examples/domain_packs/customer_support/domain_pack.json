@@ -1,0 +1,66 @@
+{
+  "manifest_version": "1",
+  "name": "example.customer_support",
+  "version": "0.1.0",
+  "domain": "customer.support",
+  "description": "Reference domain pack for deterministic customer support workflows.",
+  "provider": "aca.examples",
+  "runtime": {
+    "min_version": "0.3.0"
+  },
+  "capabilities": [
+    {
+      "name": "domain.customer_support.intent_catalog",
+      "kind": "intent_catalog",
+      "description": "Expose deterministic support intents to Runtime API consumers."
+    },
+    {
+      "name": "domain.customer_support.flow_catalog",
+      "kind": "flow_catalog",
+      "description": "Expose support flow names and routing hints as data."
+    },
+    {
+      "name": "domain.customer_support.policy_context",
+      "kind": "policy_context",
+      "description": "Provide support escalation policy context without runtime coupling."
+    }
+  ],
+  "assets": [
+    {
+      "name": "intents",
+      "kind": "intents",
+      "path": "intents.json",
+      "format": "json",
+      "description": "Deterministic customer support intent catalog."
+    },
+    {
+      "name": "flows",
+      "kind": "flows",
+      "path": "flows.json",
+      "format": "json",
+      "description": "Customer support flow catalog."
+    },
+    {
+      "name": "examples",
+      "kind": "examples",
+      "path": "examples.json",
+      "format": "json",
+      "description": "Small deterministic input examples for smoke tests."
+    },
+    {
+      "name": "policies",
+      "kind": "policies",
+      "path": "policies.md",
+      "format": "markdown",
+      "description": "Human-readable policy notes for the domain."
+    }
+  ],
+  "dependencies": ["policy_manager"],
+  "tags": ["example", "support", "deterministic"],
+  "metadata": {
+    "example": true,
+    "domain_code_imported": false,
+    "executes_on_load": false,
+    "human_demo_safe": true
+  }
+}

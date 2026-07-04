@@ -1,0 +1,23 @@
+{
+  "schema": "aca.domain_pack.metrics.v1",
+  "metrics": [
+    {
+      "name": "cycle_time",
+      "description": "Elapsed time between process start and completion.",
+      "unit": "duration",
+      "direction": "lower_is_better"
+    },
+    {
+      "name": "recontact_rate",
+      "description": "Share of cases that require an additional contact for the same need.",
+      "unit": "percentage",
+      "direction": "lower_is_better"
+    },
+    {
+      "name": "first_contact_resolution",
+      "description": "Share of cases solved in the first interaction.",
+      "unit": "percentage",
+      "direction": "higher_is_better"
+    }
+  ]
+}

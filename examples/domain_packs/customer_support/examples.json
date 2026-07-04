@@ -1,0 +1,15 @@
+{
+  "schema": "aca.domain_pack.examples.v1",
+  "examples": [
+    {
+      "input": "Can you check ticket 12345?",
+      "expected_intent": "support.status_request",
+      "entities": {"case_id": "12345"}
+    },
+    {
+      "input": "What docs are still missing for case ABC?",
+      "expected_intent": "support.missing_documentation",
+      "entities": {"case_id": "ABC"}
+    }
+  ]
+}
