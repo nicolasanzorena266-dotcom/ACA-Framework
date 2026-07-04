@@ -14,110 +14,150 @@ for path in [ROOT, KERNEL_PATH]:
         sys.path.insert(0, value)
 
 from aca_os.dx import inspect_runtime, print_json, read_project_version, run_doctor, run_pytest
-from sdk.factory import build_galicia_runtime, process_message
-from aca_kernel.core.events import Event
-from aca_os.session import ExecutionSession
+from aca_os.runtime_cli import RuntimeCLI
 
 
-def _add_message_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--message", required=False, help="User message to process.")
+def _write_or_print(data, *, output: str | None = None) -> None:
+    if isinstance(data, str):
+        rendered = data
+    else:
+        rendered = json.dumps(data, ensure_ascii=False, indent=2)
+    if output:
+        Path(output).write_text(rendered, encoding="utf-8")
+        print_json({"status": "written", "path": output})
+        return
+    print(rendered)
+
+
+def _message_args(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
+    parser.add_argument("--message", required=required, help="User message to process.")
     parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
     parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
-    parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
-    parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
-    parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
-    parser.add_argument("--studio", action="store_true", help="Include ACA Studio MVP view.")
-    parser.add_argument("--save-session", default=None, help="Optional path to persist the execution session.")
 
 
-def _handle_message(args: argparse.Namespace) -> int:
-    result = process_message(
+def _format_arg(parser: argparse.ArgumentParser, values=("dict", "json"), default="dict") -> None:
+    parser.add_argument("--format", choices=values, default=default, help="Output format.")
+
+
+def _handle_run(args: argparse.Namespace) -> int:
+    cli = RuntimeCLI()
+    result = cli.run(
         message=args.message,
         conversation_id=args.conversation_id,
         memory_path=args.memory,
-        include_runtime_events=args.events,
+        include_events=args.events,
+        include_trace=args.trace,
         include_introspection=args.introspection,
         include_studio=args.studio,
         save_session_path=args.save_session,
     )
-    if not args.trace:
-        result.pop("execution_trace", None)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    _write_or_print(result)
     return 0
 
 
+def _handle_status(args: argparse.Namespace) -> int:
+    _write_or_print(RuntimeCLI().status(memory_path=args.memory))
+    return 0
 
-def _run_runtime_for_inspection(args: argparse.Namespace):
-    runtime = build_galicia_runtime(memory_path=args.memory)
-    output = runtime.process_output(
-        Event(
-            type="user_message",
-            payload=args.message,
-            metadata={"conversation_id": args.conversation_id},
+
+def _handle_components(args: argparse.Namespace) -> int:
+    _write_or_print(RuntimeCLI().components(format=args.format, memory_path=args.memory))
+    return 0
+
+
+def _handle_plugins(args: argparse.Namespace) -> int:
+    _write_or_print(
+        RuntimeCLI().plugins(
+            root=args.root,
+            strict=args.strict,
+            format=args.format,
+            memory_path=args.memory,
         )
     )
-    return runtime, output
+    return 0
+
+
+def _handle_metrics(args: argparse.Namespace) -> int:
+    _write_or_print(
+        RuntimeCLI().metrics(
+            message=args.message,
+            conversation_id=args.conversation_id,
+            memory_path=args.memory,
+            format=args.format,
+        )
+    )
+    return 0
 
 
 def _handle_trace(args: argparse.Namespace) -> int:
-    runtime, output = _run_runtime_for_inspection(args)
-    trace = runtime.last_trace()
-    if trace is None:
-        raise RuntimeError("No execution trace available.")
-    data = trace.to_json() if args.format == "json" else trace.to_dict()
-    if args.format == "json":
-        print(data)
-    else:
-        print(json.dumps(data, ensure_ascii=False, indent=2))
+    _write_or_print(
+        RuntimeCLI().trace(
+            message=args.message,
+            conversation_id=args.conversation_id,
+            memory_path=args.memory,
+            format=args.format,
+        )
+    )
     return 0
 
+
 def _handle_inspect_session(args: argparse.Namespace) -> int:
-    runtime, output = _run_runtime_for_inspection(args)
-    print_json(runtime.inspect_runtime().to_dict())
+    _write_or_print(
+        RuntimeCLI().introspection(
+            message=args.message,
+            conversation_id=args.conversation_id,
+            memory_path=args.memory,
+            format="dict",
+        )
+    )
+    return 0
+
+
+def _handle_inspect_runtime(args: argparse.Namespace) -> int:
+    print_json(inspect_runtime().to_dict())
     return 0
 
 
 def _handle_studio(args: argparse.Namespace) -> int:
-    runtime, output = _run_runtime_for_inspection(args)
-    data = runtime.export_studio(format=args.format)
-    if args.output:
-        Path(args.output).write_text(data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        print_json({"status": "written", "path": args.output, "format": args.format})
-        return 0
-    if isinstance(data, str):
-        print(data)
-    else:
-        print_json(data)
+    data = RuntimeCLI().studio(
+        message=args.message,
+        conversation_id=args.conversation_id,
+        memory_path=args.memory,
+        format=args.format,
+    )
+    _write_or_print(data, output=args.output)
     return 0
 
 
 def _handle_session_save(args: argparse.Namespace) -> int:
-    runtime, output = _run_runtime_for_inspection(args)
-    path = runtime.save_last_session(args.output)
-    print_json({"status": "written", "path": path, "session": runtime.last_session().summary()})
-    return 0
-
-
-def _handle_session_replay(args: argparse.Namespace) -> int:
-    runtime = build_galicia_runtime(memory_path=args.memory)
-    output = runtime.replay_session(args.path)
-    print_json(output.to_dict())
-    return 0
-
-
-def _handle_session_compare(args: argparse.Namespace) -> int:
-    runtime = build_galicia_runtime()
-    print_json(runtime.compare_sessions(args.left, args.right))
+    _write_or_print(
+        RuntimeCLI().save_session(
+            message=args.message,
+            conversation_id=args.conversation_id,
+            memory_path=args.memory,
+            output=args.output,
+        )
+    )
     return 0
 
 
 def _handle_session_show(args: argparse.Namespace) -> int:
-    session = ExecutionSession.load(args.path)
-    print_json(session.summary() if args.summary else session.to_dict())
+    _write_or_print(RuntimeCLI().show_session(path=args.path, summary=args.summary))
     return 0
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run ACA Framework from the command line.")
+
+def _handle_session_replay(args: argparse.Namespace) -> int:
+    _write_or_print(RuntimeCLI().replay_session(path=args.path, memory_path=args.memory))
+    return 0
+
+
+def _handle_session_compare(args: argparse.Namespace) -> int:
+    _write_or_print(RuntimeCLI().compare_sessions(left=args.left, right=args.right))
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="ACA Runtime CLI")
     subparsers = parser.add_subparsers(dest="command")
 
     doctor_parser = subparsers.add_parser("doctor", help="Validate the local ACA project.")
@@ -126,33 +166,57 @@ def main() -> None:
     version_parser = subparsers.add_parser("version", help="Print ACA project version metadata.")
     version_parser.set_defaults(handler=lambda _args: print_json(read_project_version().to_dict()) or 0)
 
-    inspect_parser = subparsers.add_parser("inspect", help="Inspect ACA runtime components.")
-    inspect_subparsers = inspect_parser.add_subparsers(dest="inspect_target", required=True)
-    runtime_parser = inspect_subparsers.add_parser("runtime", help="Inspect the runtime pipeline.")
-    runtime_parser.set_defaults(handler=lambda _args: print_json(inspect_runtime().to_dict()) or 0)
+    status_parser = subparsers.add_parser("status", help="Show Runtime health summary.")
+    status_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    status_parser.set_defaults(handler=_handle_status)
 
-    session_parser = inspect_subparsers.add_parser("session", help="Run a message and inspect the runtime session.")
-    session_parser.add_argument("--message", required=True, help="User message to inspect.")
-    session_parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
-    session_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
-    session_parser.set_defaults(handler=_handle_inspect_session)
+    components_parser = subparsers.add_parser("components", help="List registered Runtime components.")
+    components_sub = components_parser.add_subparsers(dest="components_command", required=True)
+    components_list = components_sub.add_parser("list", help="List registered components.")
+    components_list.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    _format_arg(components_list)
+    components_list.set_defaults(handler=_handle_components)
 
-    test_parser = subparsers.add_parser("test", help="Run the ACA test suite.")
-    test_parser.set_defaults(handler=lambda _args: run_pytest())
+    plugins_parser = subparsers.add_parser("plugins", help="List or load Plugin SDK manifests.")
+    plugins_sub = plugins_parser.add_subparsers(dest="plugins_command", required=True)
+    plugins_list = plugins_sub.add_parser("list", help="List loaded plugins.")
+    plugins_list.add_argument("--root", default=None, help="Optional plugin root to load before listing.")
+    plugins_list.add_argument("--strict", action="store_true", help="Fail on first plugin load error.")
+    plugins_list.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    _format_arg(plugins_list)
+    plugins_list.set_defaults(handler=_handle_plugins)
+
+    run_parser = subparsers.add_parser("run", help="Execute a simple Runtime flow.")
+    _message_args(run_parser)
+    run_parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
+    run_parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
+    run_parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
+    run_parser.add_argument("--studio", action="store_true", help="Include ACA Studio view.")
+    run_parser.add_argument("--save-session", default=None, help="Optional path to persist the execution session.")
+    run_parser.set_defaults(handler=_handle_run)
+
+    metrics_parser = subparsers.add_parser("metrics", help="Show Runtime metrics.")
+    _message_args(metrics_parser, required=False)
+    _format_arg(metrics_parser)
+    metrics_parser.set_defaults(handler=_handle_metrics)
 
     trace_parser = subparsers.add_parser("trace", help="Run a message and print its execution trace.")
     trace_parser.add_argument("mode", nargs="?", default="last", choices=["last", "export"], help="Trace action.")
-    trace_parser.add_argument("--message", required=True, help="User message to trace.")
-    trace_parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
-    trace_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
-    trace_parser.add_argument("--format", choices=["dict", "json"], default="dict", help="Trace export format.")
+    _message_args(trace_parser)
+    _format_arg(trace_parser)
     trace_parser.set_defaults(handler=_handle_trace)
 
-    studio_parser = subparsers.add_parser("studio", help="Run a message and print the ACA Studio MVP view.")
-    studio_parser.add_argument("--message", required=True, help="User message to inspect.")
-    studio_parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
-    studio_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
-    studio_parser.add_argument("--format", choices=["dict", "json", "html"], default="dict", help="Studio export format.")
+    inspect_parser = subparsers.add_parser("inspect", help="Inspect ACA Runtime data.")
+    inspect_subparsers = inspect_parser.add_subparsers(dest="inspect_target", required=True)
+    inspect_runtime_parser = inspect_subparsers.add_parser("runtime", help="Inspect the static runtime pipeline.")
+    inspect_runtime_parser.set_defaults(handler=_handle_inspect_runtime)
+    inspect_session_parser = inspect_subparsers.add_parser("session", help="Run a message and inspect runtime snapshot.")
+    _message_args(inspect_session_parser)
+    inspect_session_parser.set_defaults(handler=_handle_inspect_session)
+
+    studio_parser = subparsers.add_parser("studio", help="Run a message and export the ACA Studio view.")
+    _message_args(studio_parser)
+    _format_arg(studio_parser, values=("dict", "json", "html"), default="dict")
     studio_parser.add_argument("--output", default=None, help="Optional file path for Studio export.")
     studio_parser.set_defaults(handler=_handle_studio)
 
@@ -160,9 +224,7 @@ def main() -> None:
     session_subparsers = session_parser.add_subparsers(dest="session_command", required=True)
 
     session_save = session_subparsers.add_parser("save", help="Run a message and save its execution session.")
-    session_save.add_argument("--message", required=True, help="User message to execute.")
-    session_save.add_argument("--conversation-id", default="cli", help="Conversation id.")
-    session_save.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    _message_args(session_save)
     session_save.add_argument("--output", required=True, help="Destination .aca.json session file.")
     session_save.set_defaults(handler=_handle_session_save)
 
@@ -181,9 +243,18 @@ def main() -> None:
     session_compare.add_argument("right", help="Right session file path.")
     session_compare.set_defaults(handler=_handle_session_compare)
 
-    _add_message_args(parser)
-    parser.set_defaults(handler=_handle_message)
+    _message_args(parser, required=False)
+    parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
+    parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
+    parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
+    parser.add_argument("--studio", action="store_true", help="Include ACA Studio view.")
+    parser.add_argument("--save-session", default=None, help="Optional path to persist the execution session.")
+    parser.set_defaults(handler=_handle_run)
+    return parser
 
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
     if args.command is None and not args.message:
         parser.error("the following arguments are required: --message")

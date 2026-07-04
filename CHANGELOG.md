@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 40 — Stable CLI
+
+- Added Runtime-backed Stable CLI facade.
+- Added stable commands for status, components, plugins, run, trace, metrics, Studio and sessions.
+- Kept CLI as an input/output interface with Runtime API delegation.
+- Added CLI facade and subprocess command contract tests.
+
 ## Sprint 39 — Example Plugins
 
 - Added repository-hosted Plugin SDK example plugins.
