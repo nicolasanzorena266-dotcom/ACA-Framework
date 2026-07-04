@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0-sprint41
+
+- Added REST API Foundation as a thin Runtime Interface.
+- Added stable transport-neutral REST response contracts.
+- Added stdlib HTTP server adapter for local/offline usage.
+- Added REST endpoints for health, status, components, plugins, metrics, introspection, run, trace and session replay.
+- Added tests for REST service routing, error envelopes and HTTP serving.
+
+
 ## Sprint 40 — Stable CLI
 
 - Added Runtime-backed Stable CLI facade.
