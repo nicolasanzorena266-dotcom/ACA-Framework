@@ -25,6 +25,7 @@ def _add_message_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
     parser.add_argument("--trace", action="store_true", help="Include execution trace in output.")
     parser.add_argument("--introspection", action="store_true", help="Include runtime introspection snapshot.")
+    parser.add_argument("--studio", action="store_true", help="Include ACA Studio MVP view.")
 
 
 def _handle_message(args: argparse.Namespace) -> int:
@@ -34,6 +35,7 @@ def _handle_message(args: argparse.Namespace) -> int:
         memory_path=args.memory,
         include_runtime_events=args.events,
         include_introspection=args.introspection,
+        include_studio=args.studio,
     )
     if not args.trace:
         result.pop("execution_trace", None)
@@ -72,6 +74,19 @@ def _handle_inspect_session(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_studio(args: argparse.Namespace) -> int:
+    runtime, output = _run_runtime_for_inspection(args)
+    data = runtime.export_studio(format=args.format)
+    if args.output:
+        Path(args.output).write_text(data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        print_json({"status": "written", "path": args.output, "format": args.format})
+        return 0
+    if isinstance(data, str):
+        print(data)
+    else:
+        print_json(data)
+    return 0
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run ACA Framework from the command line.")
     subparsers = parser.add_subparsers(dest="command")
@@ -103,6 +118,14 @@ def main() -> None:
     trace_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
     trace_parser.add_argument("--format", choices=["dict", "json"], default="dict", help="Trace export format.")
     trace_parser.set_defaults(handler=_handle_trace)
+
+    studio_parser = subparsers.add_parser("studio", help="Run a message and print the ACA Studio MVP view.")
+    studio_parser.add_argument("--message", required=True, help="User message to inspect.")
+    studio_parser.add_argument("--conversation-id", default="cli", help="Conversation id.")
+    studio_parser.add_argument("--memory", default=None, help="Optional JSON memory file path.")
+    studio_parser.add_argument("--format", choices=["dict", "json", "html"], default="dict", help="Studio export format.")
+    studio_parser.add_argument("--output", default=None, help="Optional file path for Studio export.")
+    studio_parser.set_defaults(handler=_handle_studio)
 
     _add_message_args(parser)
     parser.set_defaults(handler=_handle_message)

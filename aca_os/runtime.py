@@ -15,6 +15,7 @@ from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
+from aca_os.studio import build_studio_view, export_studio_view
 from aca_os.tool_engine import ToolEngine, ToolRequest
 from zero_cost.action_planner import ActionPlanner
 from zero_cost.execution_plan import ExecutionPlan
@@ -228,6 +229,13 @@ class ACAOSRuntime:
         if format == "dict":
             return trace.to_dict()
         raise ValueError(f"Unsupported trace export format: {format}")
+
+
+    def studio_view(self):
+        return build_studio_view(self.inspect_runtime())
+
+    def export_studio(self, *, format: str = "dict") -> Dict[str, Any] | str:
+        return export_studio_view(self.studio_view(), format=format)
 
     def process_output(self, event: Event, state: CognitiveState | None = None) -> ACAOutput:
         self.event_bus.clear()

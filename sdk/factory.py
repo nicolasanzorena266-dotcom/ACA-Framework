@@ -56,6 +56,7 @@ def process_message(
     memory_path: str | Path | None = None,
     include_runtime_events: bool = False,
     include_introspection: bool = False,
+    include_studio: bool = False,
 ) -> Dict[str, Any]:
     event_bus = EventBus() if include_runtime_events else None
     runtime = build_galicia_runtime(memory_path=memory_path, event_bus=event_bus)
@@ -73,4 +74,6 @@ def process_message(
         result["runtime_events"] = [event.to_dict() for event in event_bus.events()]
     if include_introspection:
         result["introspection"] = runtime.inspect_runtime().to_dict()
+    if include_studio:
+        result["studio"] = runtime.studio_view().to_dict()
     return result
