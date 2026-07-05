@@ -276,6 +276,18 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.public_demo_polish())
             if method == "GET" and clean_path == "/public-demo/polish/validate":
                 return self.ok(self.runtime_api.validate_public_demo_polish())
+            if method == "GET" and clean_path == "/hosting/target":
+                return self.ok(
+                    self.runtime_api.hosting_target_contract(
+                        app_name=_first(params, "app_name") or "aca-public-web-demo",
+                        platform=_first(params, "platform") or "generic-python-web-service",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-demo.example.com",
+                        port_env=_first(params, "port_env") or "PORT",
+                        fallback_port=int(_first(params, "fallback_port") or 8765),
+                    )
+                )
+            if method == "GET" and clean_path == "/hosting/target/validate":
+                return self.ok(self.runtime_api.validate_hosting_target_contract(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

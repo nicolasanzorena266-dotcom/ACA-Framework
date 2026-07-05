@@ -104,7 +104,9 @@
     "/deploy/package",
     "/public-demo/manifest",
     "/public-demo/readiness",
-    "/public-demo/runtime-adapter"
+    "/public-demo/runtime-adapter",
+    "/hosting/target",
+    "/hosting/target/validate"
   ],
   "assets": {
     "studio_html": "studio/index.html",
@@ -131,7 +133,8 @@
     "examples/domain_packs",
     "deploy/aca-web-package.json",
     "deploy/public-web-demo.json",
-    "pyproject.toml"
+    "pyproject.toml",
+    "deploy/hosting-target-contract.json"
   ],
   "smoke_checks": [
     {
@@ -514,5 +517,192 @@
     "GET /public-demo/runtime-adapter returns public_demo_runtime_adapter.v1",
     "POST /demo/domain-flow returns deterministic demo output without external AI",
     "No web adapter contains domain business logic"
-  ]
+  ],
+  "hosting_target_contract": {
+    "contract": "hosting_target_contract.v1",
+    "app": {
+      "name": "aca-public-web-demo",
+      "surface": "ACA Studio",
+      "mode": "hosted-public-demo",
+      "platform": "generic-python-web-service",
+      "public_base_url": "https://aca-demo.example.com"
+    },
+    "runtime": {
+      "type": "python-web-runtime",
+      "python_version": ">=3.10",
+      "external_ai_required": false,
+      "offline_core_supported": true,
+      "business_logic_location": "runtime",
+      "interface_logic_location": "web_adapter"
+    },
+    "process": {
+      "type": "web",
+      "startup_command": "python tools/aca_web.py --host 0.0.0.0",
+      "local_command": "python tools/aca_web.py --host 127.0.0.1 --port 8765 --open",
+      "host": "0.0.0.0",
+      "port_env": "PORT",
+      "fallback_port": 8765,
+      "shutdown": "SIGTERM or Ctrl+C"
+    },
+    "healthcheck": {
+      "method": "GET",
+      "path": "/health",
+      "expected_status_code": 200,
+      "expected_json": {
+        "status": "ok"
+      },
+      "timeout_seconds": 10
+    },
+    "routes": [
+      {
+        "id": "health",
+        "method": "GET",
+        "path": "/health",
+        "purpose": "Runtime and adapter health.",
+        "required": true
+      },
+      {
+        "id": "studio",
+        "method": "GET",
+        "path": "/studio",
+        "purpose": "ACA Studio web shell.",
+        "required": true
+      },
+      {
+        "id": "runtime_status",
+        "method": "GET",
+        "path": "/runtime/status",
+        "purpose": "Runtime status summary.",
+        "required": true
+      },
+      {
+        "id": "studio_binding",
+        "method": "GET",
+        "path": "/studio/binding",
+        "purpose": "Studio Runtime binding state.",
+        "required": true
+      },
+      {
+        "id": "demo_domain_flow",
+        "method": "POST",
+        "path": "/demo/domain-flow",
+        "purpose": "Deterministic Domain Pack demo flow.",
+        "required": true
+      },
+      {
+        "id": "public_demo_runtime_adapter",
+        "method": "GET",
+        "path": "/public-demo/runtime-adapter",
+        "purpose": "Public demo runtime adapter contract.",
+        "required": true
+      },
+      {
+        "id": "public_demo_polish",
+        "method": "GET",
+        "path": "/public-demo/polish",
+        "purpose": "Public demo copy and presentation contract.",
+        "required": true
+      },
+      {
+        "id": "hosting_target",
+        "method": "GET",
+        "path": "/hosting/target",
+        "purpose": "Platform-neutral hosting target contract.",
+        "required": true
+      },
+      {
+        "id": "hosting_target_validate",
+        "method": "GET",
+        "path": "/hosting/target/validate",
+        "purpose": "Hosting target contract validation.",
+        "required": true
+      }
+    ],
+    "public_routes": {
+      "health": "https://aca-demo.example.com/health",
+      "studio": "https://aca-demo.example.com/studio",
+      "runtime_status": "https://aca-demo.example.com/runtime/status",
+      "studio_binding": "https://aca-demo.example.com/studio/binding",
+      "demo_domain_flow": "https://aca-demo.example.com/demo/domain-flow",
+      "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter",
+      "public_demo_polish": "https://aca-demo.example.com/public-demo/polish",
+      "hosting_target": "https://aca-demo.example.com/hosting/target",
+      "hosting_target_validate": "https://aca-demo.example.com/hosting/target/validate"
+    },
+    "assets": {
+      "studio_html": "studio/index.html",
+      "domain_pack_root": "examples/domain_packs",
+      "default_domain_pack": "customer_support",
+      "deploy_config": "deploy/public-web-demo.json",
+      "hosting_contract": "deploy/hosting-target-contract.json"
+    },
+    "environment": {
+      "PORT": "8765",
+      "ACA_HOST": "0.0.0.0",
+      "ACA_PORT": "8765",
+      "ACA_PUBLIC_BASE_URL": "https://aca-demo.example.com",
+      "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs",
+      "ACA_DEFAULT_DOMAIN_PACK": "customer_support",
+      "ACA_STUDIO_PATH": "studio/index.html"
+    },
+    "required_files": [
+      "tools/aca_web.py",
+      "tools/aca_public_demo.py",
+      "aca_os/runtime_rest.py",
+      "aca_os/runtime_api_endpoints.py",
+      "aca_os/public_demo_runtime_adapter.py",
+      "aca_os/public_demo_polish.py",
+      "studio/index.html",
+      "examples/domain_packs",
+      "deploy/public-web-demo.json",
+      "deploy/hosting-target-contract.json",
+      "pyproject.toml"
+    ],
+    "platform_requirements": [
+      "must run a Python 3.10+ web process",
+      "must provide an HTTP port through the configured port environment variable",
+      "must route public HTTP traffic to the ACA web process",
+      "must call GET /health for service health",
+      "must preserve project files required by the runtime and Studio shell"
+    ],
+    "compatible_targets": [
+      {
+        "id": "render-web-service",
+        "label": "Render Web Service",
+        "start_command": "python tools/aca_web.py --host 0.0.0.0",
+        "port_strategy": "PORT environment variable"
+      },
+      {
+        "id": "railway-service",
+        "label": "Railway Service",
+        "start_command": "python tools/aca_web.py --host 0.0.0.0",
+        "port_strategy": "PORT environment variable"
+      },
+      {
+        "id": "generic-python-host",
+        "label": "Generic Python HTTP Host",
+        "start_command": "python tools/aca_web.py --host 0.0.0.0",
+        "port_strategy": "PORT with 8765 fallback"
+      }
+    ],
+    "acceptance_criteria": [
+      "GET /health returns status ok",
+      "GET /studio serves ACA Studio",
+      "GET /hosting/target returns hosting_target_contract.v1",
+      "POST /demo/domain-flow runs without external AI",
+      "runtime and domain behavior remain outside the hosting adapter"
+    ],
+    "non_goals": [
+      "no platform-specific deployment in this sprint",
+      "no visual redesign",
+      "no external LLM dependency",
+      "no business logic in hosting configuration"
+    ],
+    "metadata": {
+      "sprint": 60,
+      "epic": "Hosted Demo Path",
+      "business_logic": "runtime_only",
+      "platform_lock_in": false
+    }
+  }
 }

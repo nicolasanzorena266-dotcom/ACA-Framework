@@ -287,3 +287,10 @@
 - Documented environment variables, routes, healthcheck and smoke checks.
 - Extended `deploy/public-web-demo.json` with guide metadata, deployment steps and acceptance criteria.
 - Added tests for deployment guide/config alignment.
+
+## Sprint 60 — Hosting Target Contract
+
+- Added platform-neutral hosting target contract.
+- Exposed hosting target and validation endpoints through Runtime API and REST.
+- Added deploy/hosting-target-contract.json for hosted demo preparation.
+- Added tests covering contract validation and endpoint routing.
