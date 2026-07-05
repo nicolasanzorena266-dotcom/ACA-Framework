@@ -25,7 +25,7 @@ def _fake_transport(method, url, headers, body, timeout_seconds):
     if url.endswith("/studio"):
         return 200, {"content-type": "text/html"}, {"raw": "<html>ACA Studio</html>"}
     if url.endswith("/public-demo/manifest"):
-        return 200, {"content-type": "application/json"}, {"contract": "public_web_demo.v1"}
+        return 200, {"content-type": "application/json"}, {"contract": "public_web_demo_prep.v1"}
     if url.endswith("/demo/domain-flow"):
         assert method == "POST"
         assert body is not None

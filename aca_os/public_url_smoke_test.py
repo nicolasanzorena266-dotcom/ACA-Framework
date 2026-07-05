@@ -85,7 +85,7 @@ def default_public_url_checks() -> tuple[PublicURLCheck, ...]:
             "GET",
             "/public-demo/manifest",
             "Public demo manifest remains reachable after deployment.",
-            expected_contract="public_web_demo.v1",
+            expected_contract="public_web_demo_prep.v1",
         ),
         PublicURLCheck(
             "public_demo_flow",
