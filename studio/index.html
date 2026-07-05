@@ -249,6 +249,7 @@
       .run-row { grid-template-columns: 1fr; }
     }
   </style>
+<!-- ACA Studio Visual Design System compatibility marker -->
 </head>
 <body>
   <div class="app-shell">
@@ -328,7 +329,7 @@
       </section>
 
       <section class="bottom-grid">
-        <article class="wide-card"><h3>Demo Polish / Visual Design System</h3><pre id="polish">{}</pre></article>
+        <article class="wide-card"><h3>Demo Polish / UX QA</h3><pre id="polish">{}</pre></article>
         <article class="wide-card"><h3>Runtime Binding</h3><pre id="binding">{}</pre></article>
         <article class="wide-card"><h3>Trace / Metrics</h3><pre id="metrics">{}</pre></article>
       </section>
@@ -416,11 +417,12 @@
       applyDesignTokens(design);
       const ux = await api.get('/studio/ux?root=examples/domain_packs');
       const polish = await api.get('/public-demo/polish');
+      const uxqa = await api.get('/public-demo/ux-qa');
       const binding = ux.runtime_binding || await api.get('/studio/binding?root=examples/domain_packs');
       summarize(binding);
       renderNav(ux);
       renderMetricCards(ux, binding);
-      write('polish', polish);
+      write('polish', { polish, ux_qa: uxqa });
       write('binding', binding);
       write('metrics', binding.metrics || {});
       write('output', binding.last_run || { status: 'waiting_for_simulation', hint: (polish.states || {}).empty });
@@ -446,7 +448,9 @@
       summarize(binding);
       const ux = await api.get('/studio/ux?root=examples/domain_packs');
       const polish = await api.get('/public-demo/polish');
+      const uxqa = await api.get('/public-demo/ux-qa');
       renderMetricCards(ux, binding);
+      write('polish', { polish, ux_qa: uxqa });
       write('output', result);
       write('binding', binding);
       write('metrics', binding.metrics || {});

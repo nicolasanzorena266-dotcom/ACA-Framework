@@ -277,6 +277,10 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.public_demo_polish())
             if method == "GET" and clean_path == "/public-demo/polish/validate":
                 return self.ok(self.runtime_api.validate_public_demo_polish())
+            if method == "GET" and clean_path == "/public-demo/ux-qa":
+                return self.ok(self.runtime_api.public_demo_ux_qa(public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com"))
+            if method == "GET" and clean_path == "/public-demo/ux-qa/validate":
+                return self.ok(self.runtime_api.validate_public_demo_ux_qa(project_root=_first(params, "project_root") or "."))
             if method == "GET" and clean_path == "/hosting/target":
                 return self.ok(
                     self.runtime_api.hosting_target_contract(

@@ -345,6 +345,14 @@
 
 
 
+## Sprint 68 — Public Demo UX QA
+
+- Added deterministic public demo UX QA contract.
+- Added validation for first-user public demo experience criteria.
+- Exposed `/public-demo/ux-qa` and `/public-demo/ux-qa/validate`.
+- Surfaced UX QA in ACA Studio without moving business logic into the interface.
+
+
 ## Sprint 67 — Hosted Runtime Hardening
 
 - Added hosted Runtime hardening contract.
@@ -352,3 +360,5 @@
 - Added stable hosted error envelope.
 - Added hosted response headers for public deployment surfaces.
 - Added tests and deployment hardening config.
+
+- Sprint 68 patch: preserve Visual Design System compatibility marker for existing Studio shell tests on Windows.
