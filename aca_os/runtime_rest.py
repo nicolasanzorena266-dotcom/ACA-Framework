@@ -351,6 +351,23 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/hosted-demo/first/validate":
                 return self.ok(self.runtime_api.validate_first_public_hosted_demo(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/deploy/render":
+                return self.ok(
+                    self.runtime_api.render_deployment_config(
+                        service_name=_first(params, "service_name") or "aca-public-web-demo",
+                        repo_branch=_first(params, "repo_branch") or "main",
+                        region=_first(params, "region") or "oregon",
+                        plan=_first(params, "plan") or "free",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com",
+                        port_env=_first(params, "port_env") or "PORT",
+                        fallback_port=int(_first(params, "fallback_port") or 8765),
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                        default_domain_pack=_first(params, "default_domain_pack") or "example.customer_support",
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                    )
+                )
+            if method == "GET" and clean_path == "/deploy/render/validate":
+                return self.ok(self.runtime_api.validate_render_deployment_config(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

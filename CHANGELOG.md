@@ -1,3 +1,11 @@
+## Sprint 65 — Render Deployment Config
+
+- Added Render deployment configuration contract.
+- Added repository-root `render.yaml` blueprint for ACA Studio public demo.
+- Added Render deployment guide and deterministic config JSON.
+- Added tests for Render start command, healthcheck, environment and required files.
+
+
 
 ## Sprint 64 — First Public Hosted Demo
 

@@ -16,6 +16,7 @@ from aca_os.hosted_runtime_healthcheck import build_hosted_runtime_healthcheck, 
 from aca_os.hosted_studio_assets import build_hosted_studio_assets, validate_hosted_studio_assets
 from aca_os.deployment_smoke_tests import build_deployment_smoke_test_plan, run_deployment_smoke_tests, validate_deployment_smoke_tests
 from aca_os.first_public_hosted_demo import build_first_public_hosted_demo, validate_first_public_hosted_demo
+from aca_os.render_deployment_config import build_render_deployment_config, validate_render_deployment_config
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -103,6 +104,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/deploy/smoke-tests/validate", "Validate deployment smoke test results.", "deploy.smoke_tests.validate"),
         RuntimeEndpoint("GET", "/hosted-demo/first", "Return first public hosted demo deployment contract.", "hosted_demo.first.read"),
         RuntimeEndpoint("GET", "/hosted-demo/first/validate", "Validate first public hosted demo deployment readiness.", "hosted_demo.first.validate"),
+        RuntimeEndpoint("GET", "/deploy/render", "Return Render deployment configuration contract.", "deploy.render.read"),
+        RuntimeEndpoint("GET", "/deploy/render/validate", "Validate Render deployment configuration.", "deploy.render.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -626,6 +629,43 @@ class RuntimeEndpointAPI:
         demo: Mapping[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return validate_first_public_hosted_demo(project_root=project_root, demo=demo)
+
+
+
+    def render_deployment_config(
+        self,
+        *,
+        service_name: str = "aca-public-web-demo",
+        repo_branch: str = "main",
+        region: str = "oregon",
+        plan: str = "free",
+        public_base_url: str = "https://aca-public-web-demo.onrender.com",
+        port_env: str = "PORT",
+        fallback_port: int = 8765,
+        domain_pack_root: str | Path = "examples/domain_packs",
+        default_domain_pack: str = "example.customer_support",
+        studio_path: str | Path = "studio/index.html",
+    ) -> Dict[str, Any]:
+        return build_render_deployment_config(
+            service_name=service_name,
+            repo_branch=repo_branch,
+            region=region,
+            plan=plan,
+            public_base_url=public_base_url,
+            port_env=port_env,
+            fallback_port=fallback_port,
+            domain_pack_root=str(domain_pack_root),
+            default_domain_pack=default_domain_pack,
+            studio_path=str(studio_path),
+        )
+
+    def validate_render_deployment_config(
+        self,
+        *,
+        project_root: str | Path = ".",
+        config: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_render_deployment_config(project_root=project_root, config=config)
 
     def run_human_demo(
         self,

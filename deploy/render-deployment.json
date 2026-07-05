@@ -1,0 +1,329 @@
+{
+  "contract": "render_deployment_config.v1",
+  "status": "ready",
+  "platform": "render",
+  "service": {
+    "name": "aca-public-web-demo",
+    "type": "web",
+    "runtime": "python",
+    "region": "oregon",
+    "plan": "free",
+    "branch": "main"
+  },
+  "process": {
+    "build_command": "python -m pytest -q",
+    "start_command": "python tools/aca_web.py --host 0.0.0.0",
+    "healthcheck_path": "/health",
+    "host": "0.0.0.0",
+    "port_env": "PORT",
+    "fallback_port": 8765
+  },
+  "environment": {
+    "ACA_HOST": "0.0.0.0",
+    "ACA_PUBLIC_BASE_URL": "https://aca-public-web-demo.onrender.com",
+    "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs",
+    "ACA_DEFAULT_DOMAIN_PACK": "example.customer_support",
+    "ACA_STUDIO_PATH": "studio/index.html"
+  },
+  "public_urls": {
+    "root": "https://aca-public-web-demo.onrender.com",
+    "studio": "https://aca-public-web-demo.onrender.com/studio",
+    "health": "https://aca-public-web-demo.onrender.com/health",
+    "runtime_status": "https://aca-public-web-demo.onrender.com/runtime/status",
+    "first_demo": "https://aca-public-web-demo.onrender.com/hosted-demo/first",
+    "smoke_tests": "https://aca-public-web-demo.onrender.com/deploy/smoke-tests"
+  },
+  "required_files": [
+    "render.yaml",
+    "tools/aca_web.py",
+    "studio/index.html",
+    "deploy/render-deployment.json",
+    "deploy/first-public-hosted-demo.json",
+    "deploy/hosting-target-contract.json",
+    "aca_os/runtime_rest.py",
+    "aca_os/runtime_api_endpoints.py",
+    "aca_os/first_public_hosted_demo.py",
+    "pyproject.toml"
+  ],
+  "render_blueprint": {
+    "schema_file": "render.yaml",
+    "service_type": "web",
+    "env": "python",
+    "auto_deploy": true,
+    "health_check_path": "/health",
+    "start_command": "python tools/aca_web.py --host 0.0.0.0",
+    "build_command": "python -m pytest -q"
+  },
+  "deploy_steps": [
+    "create a new Render Blueprint from the GitHub repository",
+    "select the main branch",
+    "let Render read render.yaml",
+    "wait for build command to finish",
+    "wait for /health to become healthy",
+    "open /studio",
+    "run /deploy/smoke-tests/run after the service is reachable"
+  ],
+  "readiness_refs": {
+    "hosting_target_contract": {
+      "contract": "hosting_target_contract.v1",
+      "app": {
+        "name": "<max-depth>",
+        "surface": "<max-depth>",
+        "mode": "<max-depth>",
+        "platform": "<max-depth>",
+        "public_base_url": "<max-depth>"
+      },
+      "runtime": {
+        "type": "<max-depth>",
+        "python_version": "<max-depth>",
+        "external_ai_required": "<max-depth>",
+        "offline_core_supported": "<max-depth>",
+        "business_logic_location": "<max-depth>",
+        "interface_logic_location": "<max-depth>"
+      },
+      "process": {
+        "type": "<max-depth>",
+        "startup_command": "<max-depth>",
+        "local_command": "<max-depth>",
+        "host": "<max-depth>",
+        "port_env": "<max-depth>",
+        "fallback_port": "<max-depth>",
+        "shutdown": "<max-depth>"
+      },
+      "healthcheck": {
+        "method": "<max-depth>",
+        "path": "<max-depth>",
+        "expected_status_code": "<max-depth>",
+        "expected_json": "<max-depth>",
+        "timeout_seconds": "<max-depth>"
+      },
+      "routes": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "public_routes": {
+        "health": "<max-depth>",
+        "studio": "<max-depth>",
+        "runtime_status": "<max-depth>",
+        "studio_binding": "<max-depth>",
+        "demo_domain_flow": "<max-depth>",
+        "public_demo_runtime_adapter": "<max-depth>",
+        "public_demo_polish": "<max-depth>",
+        "hosting_target": "<max-depth>",
+        "hosting_target_validate": "<max-depth>",
+        "hosted_runtime_healthcheck": "<max-depth>",
+        "hosted_runtime_healthcheck_validate": "<max-depth>",
+        "hosted_studio_assets": "<max-depth>",
+        "hosted_studio_assets_validate": "<max-depth>",
+        "deployment_smoke_tests": "<max-depth>",
+        "deployment_smoke_tests_run": "<max-depth>",
+        "deployment_smoke_tests_validate": "<max-depth>",
+        "first_public_hosted_demo": "<max-depth>",
+        "first_public_hosted_demo_validate": "<max-depth>"
+      },
+      "assets": {
+        "studio_html": "<max-depth>",
+        "domain_pack_root": "<max-depth>",
+        "default_domain_pack": "<max-depth>",
+        "deploy_config": "<max-depth>",
+        "hosting_contract": "<max-depth>"
+      },
+      "environment": {
+        "PORT": "<max-depth>",
+        "ACA_HOST": "<max-depth>",
+        "ACA_PORT": "<max-depth>",
+        "ACA_PUBLIC_BASE_URL": "<max-depth>",
+        "ACA_DOMAIN_PACK_ROOT": "<max-depth>",
+        "ACA_DEFAULT_DOMAIN_PACK": "<max-depth>",
+        "ACA_STUDIO_PATH": "<max-depth>"
+      },
+      "required_files": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "platform_requirements": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "compatible_targets": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "acceptance_criteria": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "non_goals": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "metadata": {
+        "sprint": "<max-depth>",
+        "epic": "<max-depth>",
+        "business_logic": "<max-depth>",
+        "platform_lock_in": "<max-depth>"
+      }
+    },
+    "first_public_hosted_demo": {
+      "contract": "first_public_hosted_demo.v1",
+      "status": "ready",
+      "app": {
+        "name": "<max-depth>",
+        "surface": "<max-depth>",
+        "platform": "<max-depth>",
+        "public_base_url": "<max-depth>",
+        "mode": "<max-depth>"
+      },
+      "runtime": {
+        "start_command": "<max-depth>",
+        "healthcheck_path": "<max-depth>",
+        "studio_path": "<max-depth>",
+        "external_ai_required": "<max-depth>",
+        "business_logic_location": "<max-depth>",
+        "interface_logic_location": "<max-depth>"
+      },
+      "environment": {
+        "PORT": "<max-depth>",
+        "ACA_HOST": "<max-depth>",
+        "ACA_PUBLIC_BASE_URL": "<max-depth>",
+        "ACA_DOMAIN_PACK_ROOT": "<max-depth>",
+        "ACA_DEFAULT_DOMAIN_PACK": "<max-depth>",
+        "ACA_STUDIO_PATH": "<max-depth>"
+      },
+      "public_urls": {
+        "root": "<max-depth>",
+        "studio": "<max-depth>",
+        "health": "<max-depth>",
+        "runtime_status": "<max-depth>",
+        "hosted_healthcheck": "<max-depth>",
+        "studio_assets": "<max-depth>",
+        "smoke_tests": "<max-depth>",
+        "first_demo_contract": "<max-depth>"
+      },
+      "platform_targets": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "required_routes": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "deploy_checklist": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "local_verification": {
+        "command": "<max-depth>",
+        "studio_url": "<max-depth>",
+        "health_url": "<max-depth>"
+      },
+      "smoke_test": {
+        "contract": "<max-depth>",
+        "mode": "<max-depth>",
+        "test_count": "<max-depth>",
+        "public_base_url": "<max-depth>",
+        "run_endpoint": "<max-depth>",
+        "validate_endpoint": "<max-depth>"
+      },
+      "readiness_refs": {
+        "hosting_target_contract": "<max-depth>",
+        "hosted_runtime_healthcheck": "<max-depth>",
+        "hosted_studio_assets": "<max-depth>"
+      },
+      "acceptance_criteria": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "non_goals": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "metadata": {
+        "sprint": "<max-depth>",
+        "epic": "<max-depth>"
+      }
+    }
+  },
+  "acceptance_criteria": [
+    "render.yaml exists at repository root",
+    "Render start command binds to 0.0.0.0 and uses the host-provided PORT",
+    "GET /health remains the healthcheck path",
+    "ACA Studio is served at /studio",
+    "no external AI or paid dependency is required for the demo runtime"
+  ],
+  "non_goals": [
+    "no Render API call",
+    "no secret management",
+    "no provider lock-in beyond the blueprint file",
+    "no business logic in render.yaml"
+  ],
+  "metadata": {
+    "sprint": 65,
+    "epic": "Public Deployment Execution"
+  }
+}

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: aca-public-web-demo
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    buildCommand: python -m pytest -q
+    startCommand: python tools/aca_web.py --host 0.0.0.0
+    healthCheckPath: /health
+    envVars:
+      - key: ACA_HOST
+        value: 0.0.0.0
+      - key: ACA_PUBLIC_BASE_URL
+        value: https://aca-public-web-demo.onrender.com
+      - key: ACA_DOMAIN_PACK_ROOT
+        value: examples/domain_packs
+      - key: ACA_DEFAULT_DOMAIN_PACK
+        value: example.customer_support
+      - key: ACA_STUDIO_PATH
+        value: studio/index.html
