@@ -47,3 +47,18 @@ User validation showed that the UI still had too much dashboard weight and that 
 - Kept runtime interpretation and trace detail behind **Ver proceso** instead of leaking it into the chat response.
 
 Acceptance target: ACA should feel like a constrained representative simulation, not a classifier dashboard with a chat box.
+
+## RC5 correction — Adaptive representative conversation
+
+User validation found the remaining core defect: the public chat still treated each message as an isolated request. That broke the ACA premise of cognitive continuity and caused short follow-ups such as "Bueno", "bue..." or "Qué podés hacer?" to fall back instead of continuing the active context.
+
+RC5 adds a lightweight public conversation state for the hosted demo and routes responses through an adaptive reply policy:
+
+- Tracks active goal, active topic, ticket number, claim type, last category and fallback/confusion signals per conversation.
+- Keeps ticket context across turns, so follow-ups after `ticket 12345` continue from that ticket instead of restarting.
+- Keeps claim context across turns, so `Qué documentación necesito?` after `Tuve un choque` answers about choque documentation.
+- Handles greetings, capabilities, identity, AI-limit and frustration/confusion without generic fallback.
+- Reformulates when the user is confused instead of repeating the same answer.
+- Moves the public Studio closer to a chat-first 9:16 conversation surface and prevents the previous dashboard layout from cutting the phone shell.
+
+Architectural note: this is still not a free LLM chatbot. The deterministic runtime continues to interpret the request, while the new public state and representative policy preserve continuity and communicate the next step in human language.

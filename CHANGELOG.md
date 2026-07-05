@@ -2,6 +2,11 @@
 
 ## 0.3.0-sprint71 — Public Studio Runtime Interaction QA
 
+- Added RC5 adaptive public conversation state: active ticket, active claim type, goal, topic and fallback/confusion counters.
+- Preserved context across turns so short follow-ups continue the active ticket or siniestro instead of restarting.
+- Added adaptive representative replies for greetings, capabilities, AI-limit questions, confusion and Galicia-style documentation follow-ups.
+- Adjusted Studio layout toward a chat-first story-sized conversation surface without visible dashboard cards.
+
 - Added RC3 conversation-quality correction: identity/capability questions now receive direct human-readable answers.
 - Enlarged the phone conversation shell to real cellphone proportions with internal chat scrolling.
 - Removed visible `<max-depth>` leaks from module names and replaced the public demo action with **Probar ejemplo**.

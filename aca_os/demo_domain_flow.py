@@ -7,6 +7,10 @@ from typing import Any, Dict, Iterable, Mapping
 
 from aca_os.execution_trace import sanitize
 from aca_os.representative_answer_composer import RepresentativeAnswerComposer
+from aca_os.public_conversation_state import (
+    get_public_conversation_state,
+    update_public_conversation_state,
+)
 DEMO_DOMAIN_RUNTIME_FLOW_CONTRACT = "demo_domain_runtime_flow.v1"
 DEMO_DOMAIN_RUNTIME_SCENARIO_CONTRACT = "demo_domain_runtime_flow.scenario.v1"
 DEFAULT_DOMAIN_PACK_ROOT = "examples/domain_packs"
@@ -56,6 +60,7 @@ class DemoDomainRuntimeFlowResult:
     response: str
     runtime_execution: Mapping[str, Any]
     binding: Mapping[str, Any] = field(default_factory=dict)
+    conversation_state: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         trace = self.runtime_execution.get("execution_trace", {})
@@ -81,6 +86,7 @@ class DemoDomainRuntimeFlowResult:
                 },
                 "runtime_execution": self.runtime_execution,
                 "binding": self.binding,
+                "conversation_state": dict(self.conversation_state),
                 "metadata": {
                     "source": "runtime_api",
                     "domain_pack_used": True,
@@ -126,11 +132,28 @@ class DemoDomainRuntimeFlowRunner:
         if not packs:
             raise ValueError(f"No Domain Packs loaded from root: {root}")
 
+        state_before = get_public_conversation_state(conversation_id)
         pack = _select_pack(packs, pack_name=pack_name, message=message)
         intent = _match_intent(pack, message)
         flow = _match_flow(pack, intent)
-        entities = _extract_entities(message=message, intent=intent, pack=pack)
-        response = _render_response(message=message, pack=pack, intent=intent, flow=flow, entities=entities)
+        entities = _extract_entities(message=message, intent=intent, pack=pack, state=state_before)
+        answer = RepresentativeAnswerComposer().compose(
+            message=message,
+            pack=pack,
+            intent=intent,
+            flow=flow,
+            entities=entities,
+            state=state_before,
+        )
+        state_after = update_public_conversation_state(
+            state_before,
+            message=message,
+            pack=pack,
+            intent=intent,
+            entities=entities,
+            answer_category=answer.category,
+        )
+        response = answer.text
 
         runtime_execution = self.api.process_event(
             event_type="demo_domain_flow",
@@ -162,6 +185,7 @@ class DemoDomainRuntimeFlowRunner:
             response=response,
             runtime_execution=runtime_execution,
             binding=binding,
+            conversation_state=state_after.to_dict(),
         ).to_dict()
 
 
@@ -238,12 +262,14 @@ def _match_flow(pack: Mapping[str, Any], intent: Mapping[str, Any]) -> Mapping[s
     raise ValueError(f"No flows asset found for pack: {pack.get('name')}")
 
 
-def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[str, Any]) -> Dict[str, Any]:
+def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[str, Any], state: Any | None = None) -> Dict[str, Any]:
     normalized = _norm(message)
     entities: Dict[str, Any] = {}
     match = re.search(r"\b(?:case|ticket|request)?\s*#?\s*(\d{3,})\b", normalized)
     if match:
         entities["case_id"] = match.group(1)
+    elif state is not None and getattr(state, "active_case_id", None):
+        entities["case_id"] = state.active_case_id
     if "process_name" in intent.get("required_entities", []) or pack.get("domain") == "operations.basic":
         process = re.search(r"(?:process|workflow)\s+([a-z0-9 _-]{3,40})", normalized)
         if process:

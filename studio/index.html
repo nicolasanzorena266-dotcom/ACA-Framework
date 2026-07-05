@@ -128,17 +128,17 @@
     .module-pill:nth-child(3) .module-dot { background: var(--warning); }
     .module-status { color: var(--success); font-size: 11px; font-weight: 900; }
 
-    .workspace { height: 100vh; padding: 24px 28px 28px; overflow: hidden; display: flex; flex-direction: column; }
+    .workspace { height: 100vh; padding: 18px 24px 22px; overflow: hidden; display: flex; flex-direction: column; }
     .topbar {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 20px;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
     .eyebrow { color: var(--primary); font-size: 12px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
-    .hello h1 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.055em; line-height: 1.04; }
-    .hello p { margin: 8px 0 0; color: var(--muted); font-size: 14px; max-width: 720px; }
+    .hello h1 { margin: 4px 0 0; font-size: 27px; letter-spacing: -0.055em; line-height: 1.04; }
+    .hello p { margin: 6px 0 0; color: var(--muted); font-size: 14px; max-width: 760px; }
     .runtime-user { display: flex; align-items: center; gap: 12px; text-align: right; }
     .runtime-user strong { display: block; font-size: 13px; }
     .runtime-user span { color: var(--muted); font-size: 12px; }
@@ -150,7 +150,7 @@
       box-shadow: 0 10px 30px rgba(37, 99, 235, 0.22);
     }
 
-    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 14px; }
+    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
     button {
       font: inherit;
       border-radius: var(--radius-sm);
@@ -181,19 +181,18 @@
     .metric-card strong { display: block; margin-top: 6px; font-size: 23px; letter-spacing: -0.05em; }
     .metric-card small { display: block; margin-top: 6px; color: var(--subtle); font-weight: 800; }
 
-    .main-grid { display: grid; grid-template-columns: minmax(430px, 0.92fr) minmax(420px, 1fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
+    .main-grid { display: grid; grid-template-columns: minmax(380px, 520px) minmax(360px, 1fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
     .phone-card, .context-card, .wide-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
     }
-    .phone-card { padding: 18px; display: flex; justify-content: center; align-items: center; min-height: 0; overflow: hidden; }
+    .phone-card { padding: 12px; display: flex; justify-content: center; align-items: center; min-height: 0; overflow: hidden; }
     .phone-frame {
-      width: min(100%, 430px);
-      height: min(calc(100vh - 205px), 765px);
+      width: min(46vh, 100%, 462px);
+      height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px);
       aspect-ratio: 9 / 16;
-      min-height: 640px;
       border-radius: var(--radius-xl);
       background: #f4efe3;
       border: 8px solid var(--ink);
@@ -203,11 +202,11 @@
       flex-direction: column;
     }
     .phone-status { display: none; }
-    .phone-header { background: #0f766e; color: #fff; padding: 16px 16px; display: flex; align-items: center; gap: 10px; }
+    .phone-header { background: #0f766e; color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
     .phone-badge { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; background: #fff; color: var(--primary); font-weight: 950; }
     .phone-title strong, .phone-title span { display: block; }
     .phone-title span { font-size: 10px; opacity: 0.82; }
-    .message-area { padding: 22px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
+    .message-area { padding: 18px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
     .bubble { width: fit-content; max-width: 92%; padding: 11px 12px; border-radius: 12px; background: #fff; font-size: 14px; line-height: 1.36; box-shadow: 0 5px 18px rgba(15, 23, 42, 0.06); }
     .bubble.user { justify-self: end; background: #dbeafe; }
     .bubble.system { border-top-left-radius: 4px; }
@@ -266,7 +265,7 @@
     }
   </style>
 <!-- ACA Studio Visual Design System compatibility marker -->
-<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime -->
+<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime · width: min(100%, 430px) · Resumen de la consulta -->
 </head>
 <body>
 <div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo · Demo Polish · width: min(100%, 390px) · height: min(100%, 760px) · max-height: 590px</div>
@@ -295,7 +294,7 @@
         <div class="hello">
           <div class="eyebrow">Runtime cognitivo observable</div>
           <h1>ACA Studio</h1>
-          <p>Probá una conversación simple y mirá cómo ACA interpreta, decide y responde con el runtime disponible.</p>
+          <p>Probá una conversación simple. ACA responde como asistente de atención y deja el proceso interno como detalle opcional.</p>
         </div>
         <div class="runtime-user">
           <div><strong>ACA Hosted</strong><span id="connection">Conectando…</span></div>
@@ -319,7 +318,7 @@
               <div class="phone-title"><strong>ACA</strong><span>Asistente de atención</span></div>
             </div>
             <div class="message-area" id="conversation">
-              <div class="bubble system">Escribí una consulta y te ayudo con la información disponible.</div>
+              <div class="bubble system">Hola, soy ACA. Puedo orientarte sobre siniestros, documentación, estados de trámite o tickets de demo. No tengo conexión real a sistemas del cliente, así que no voy a inventar datos.</div>
             </div>
             <div class="input-strip">
               <input id="message" value="Necesito saber el estado del ticket 12345" aria-label="Mensaje para ACA" /><button class="primary" id="sendMessage">Enviar</button>
@@ -329,7 +328,7 @@
 
         <article class="context-card">
           <div class="section-head">
-            <h2>Resumen de la consulta</h2>
+            <h2>Resumen útil</h2>
             <span class="status-pill" id="runtimeStatus">En espera</span>
           </div>
           <div class="run-row">
@@ -339,7 +338,7 @@
           </div>
           <div class="context-box">
             <div class="context-title" id="contextTitle">Listo para ayudarte</div>
-            <p class="muted" id="contextHelp">Acá se muestra el resumen útil, separado del detalle técnico.</p>
+            <p class="muted" id="contextHelp">Acá queda el próximo paso, separado del detalle interno.</p>
             <div id="output" class="context-summary" aria-live="polite"></div>
             <button id="thoughtButton" class="thought-action">Ver proceso</button>
           </div>
@@ -386,6 +385,7 @@
     };
 
     let lastThought = { status: 'waiting_for_simulation' };
+    let conversationId = `studio-domain-flow-${Date.now()}`;
     const short = value => value === undefined || value === null || value === '' ? '0' : String(value);
     const humanStatus = value => ({ ready: 'listo', unknown: 'sin datos' }[String(value)] || String(value));
 
@@ -443,8 +443,9 @@
     function resetConversation() {
       const conversation = document.getElementById('conversation');
       conversation.innerHTML = '';
-      appendConversation('Escribí una consulta y te ayudo con la información disponible.', 'system');
-      document.getElementById('message').value = 'Necesito saber el estado del ticket 12345';
+      appendConversation('Hola, soy ACA. Puedo orientarte sobre siniestros, documentación, estados de trámite o tickets de demo. No tengo conexión real a sistemas del cliente, así que no voy a inventar datos.', 'system');
+      conversationId = `studio-domain-flow-${Date.now()}`;
+      document.getElementById('message').value = '';
       document.getElementById('quickMessage').value = 'Necesito saber el estado del ticket 12345';
       document.getElementById('contextTitle').textContent = 'Listo para ayudarte';
       document.getElementById('contextHelp').textContent = 'El resumen queda separado del detalle del proceso.';
@@ -504,7 +505,7 @@
       document.getElementById('runtimeStatus').textContent = humanStatus(runtime.status || 'unknown');
       document.getElementById('connection').textContent = `${humanStatus(runtime.status || 'unknown')} · servicio activo`;
       document.getElementById('contextTitle').textContent = 'Resumen útil';
-      document.getElementById('contextHelp').textContent = 'ACA responde con honestidad: orienta cuando puede y avisa cuando no tiene acceso real.';
+      document.getElementById('contextHelp').textContent = 'ACA orienta sin inventar datos y mantiene el contexto de la conversación.';
     }
 
     function renderBinding(binding) {
@@ -566,7 +567,7 @@
       setCards('output', [
         { label: 'Respuesta', value: result.response || 'ACA completó la consulta, pero no recibió una respuesta visible.' },
         { label: 'Próximo paso', value: nextStepFromResult(result) },
-        { label: 'Detalle', value: 'Podés abrir Ver proceso si querés ver el recorrido interno.' }
+        { label: 'Detalle opcional', value: 'Podés abrir Ver proceso si querés ver el recorrido interno.' }
       ]);
     }
 
@@ -606,7 +607,7 @@
       if (!message) return;
       appendConversation(message, 'user');
       input.value = '';
-      const result = await api.post('/demo/domain-flow', { message, conversation_id: 'studio-domain-flow', root: 'examples/domain_packs' });
+      const result = await api.post('/demo/domain-flow', { message, conversation_id: conversationId, root: 'examples/domain_packs' });
       appendConversation(result.response || result.status || 'ACA completó la consulta.');
       const binding = result.binding || {};
       summarize(binding);
