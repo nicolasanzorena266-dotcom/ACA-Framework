@@ -146,10 +146,10 @@ def build_studio_ux_structure(*, runtime_binding: Mapping[str, Any] | None = Non
     navigation = (
         StudioUXNavItem("studio", "Studio", "⌂", "workspace", "studio.runtime.binding", True),
         StudioUXNavItem("simulation", "Simulación", "▣", "simulation", "demo.domain_flow.run", True),
-        StudioUXNavItem("domain_packs", "Domain Packs", "◇", "domain", "domain_pack.list"),
-        StudioUXNavItem("trace", "Trace", "⌁", "trace", "trace.read"),
+        StudioUXNavItem("domain_packs", "Módulos", "◇", "domain", "domain_pack.list"),
+        StudioUXNavItem("trace", "Proceso", "⌁", "trace", "trace.read"),
         StudioUXNavItem("metrics", "Métricas", "▥", "metrics", "metrics.read"),
-        StudioUXNavItem("deploy", "Deploy", "⇧", "deploy", "public_demo.readiness.read"),
+        StudioUXNavItem("deploy", "Publicación", "⇧", "deploy", "public_demo.readiness.read"),
     )
     panels = (
         StudioUXPanel(
@@ -201,8 +201,8 @@ def build_studio_ux_structure(*, runtime_binding: Mapping[str, Any] | None = Non
     cards = (
         StudioUXMetricCard("runtime_status", "Runtime", "runtime.status", "unknown"),
         StudioUXMetricCard("components", "Componentes", "runtime.component_count", "0"),
-        StudioUXMetricCard("domain_packs", "Domain Packs", "domain.pack_count", "0"),
-        StudioUXMetricCard("traces", "Traces", "runtime.trace_count", "0"),
+        StudioUXMetricCard("domain_packs", "Módulos", "domain.pack_count", "0"),
+        StudioUXMetricCard("traces", "Eventos", "runtime.trace_count", "0"),
     )
     return StudioUXStructure(
         theme=theme,

@@ -262,12 +262,53 @@ def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[
 
 
 def _render_response(*, pack: Mapping[str, Any], intent: Mapping[str, Any], flow: Mapping[str, Any], entities: Mapping[str, Any]) -> str:
-    entity_text = ", ".join(f"{key}={value}" for key, value in entities.items() if key != "missing_required") or "no_entities_detected"
+    domain = str(pack.get("domain") or "").replace(".", " ")
+    intent_name = str(intent.get("name") or "consulta")
+    flow_name = str(flow.get("name") or "seguimiento")
+    case_id = entities.get("case_id")
+    process_name = entities.get("process_name")
     missing = entities.get("missing_required")
-    suffix = f" Missing required data: {', '.join(missing)}." if isinstance(missing, list) and missing else ""
+
+    if isinstance(missing, list) and missing:
+        readable = ", ".join(str(item).replace("_", " ") for item in missing)
+        return (
+            "Puedo avanzar, pero me falta un dato para hacerlo bien: "
+            f"{readable}. Pasame esa información y ACA vuelve a evaluar la consulta sin inventar."
+        )
+
+    if pack.get("domain") == "customer.support" and case_id:
+        if "documentation" in intent_name:
+            return (
+                f"Revisé el ticket {case_id}. ACA lo interpreta como una consulta por documentación pendiente "
+                "y dejó preparada la ruta de revisión documental. En una integración real, acá mostraría qué archivo falta "
+                "y cuál sería el próximo paso."
+            )
+        if "escalation" in intent_name:
+            return (
+                f"Detecté que el ticket {case_id} requiere prioridad. ACA seleccionó la ruta de escalamiento "
+                "para ordenar el caso, identificar el motivo y dejarlo listo para derivación."
+            )
+        return (
+            f"Revisé el ticket {case_id}. ACA lo entiende como una consulta de estado y seleccionó la ruta de seguimiento. "
+            "Con una conexión al sistema del cliente, acá devolvería estado actual, responsable y próximo paso."
+        )
+
+    if pack.get("domain") == "operations.basic":
+        subject = f"el proceso {process_name}" if process_name else "el proceso indicado"
+        return (
+            f"ACA interpreta la consulta como una revisión operativa sobre {subject}. "
+            "La ruta elegida permite ordenar señales, detectar posibles trabas y proponer el próximo punto de análisis."
+        )
+
+    if intent_name == "demo.fallback":
+        return (
+            "Entiendo la consulta, pero no encontré una ruta suficientemente específica dentro de los módulos cargados. "
+            "Probá con un número de ticket, un proceso o una solicitud más concreta para que ACA pueda responder sin inventar."
+        )
+
     return (
-        f"Domain '{pack.get('domain')}' matched intent '{intent.get('name')}' and selected flow "
-        f"'{flow.get('name')}'. Entities: {entity_text}.{suffix}"
+        f"ACA procesó la consulta dentro del módulo {domain or 'activo'} y seleccionó la ruta {flow_name}. "
+        "La respuesta queda resumida para uso humano y el detalle del proceso queda separado."
     )
 
 

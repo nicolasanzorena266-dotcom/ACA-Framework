@@ -1,36 +1,22 @@
 # Sprint 70 — Public Demo Usability Fix
 
-Sprint 70 turns the first public hosted demo from a technically valid Runtime view into a human-readable ACA Studio experience.
+Sprint 70 improves the public ACA Studio demo surface without moving business logic into the UI.
 
-## Goals
+## Delivered
 
-- Remove the raw Runtime JSON wall from the primary public Studio view.
-- Keep code and implementation details out of the public interface.
-- Add a modal-only **Ver pensamiento** view with a close button.
-- Make sidebar, Domain Pack, Trace, Metrics, Deploy, demo, diagnostic and refresh controls perform real actions.
-- Explain ACA as a deterministic cognitive runtime, not as another chatbot shell.
-- Improve the “qué podés hacer” path with a useful capability explanation.
-
-## Added
-
-- `aca_os/public_demo_usability.py`
-- `/public-demo/usability`
-- `/public-demo/usability/validate`
-- `/public-demo/thought`
-- Human-first ACA Studio shell with modal thought view.
-- Public usability tests for modal behavior, button actions and no-code/no-JSON defaults.
-
-## Boundaries
-
-- Studio does not own runtime or domain business logic.
-- The public UI does not expose source code.
-- Raw technical detail is not visible by default.
-- External AI remains optional and unused by the public demo.
+- Replaced the visible raw JSON runtime context with a human-readable runtime summary.
+- Added a dedicated **Ver pensamiento** modal with a close button for full runtime evidence.
+- Kept source code and internal scripts out of the visible Studio panels.
+- Wired Studio navigation, run, refresh and copy controls to real UI behavior.
+- Preserved runtime ownership of business logic: Studio remains an observable interface only.
+- Improved Studio run responses by returning a more useful human-facing message while retaining the raw runtime response as evidence.
 
 ## Validation
 
-Run:
+Targeted compatibility suite:
 
 ```bash
-python -m pytest -q
+pytest -q tests/test_public_demo_ux_qa.py tests/test_studio_runtime_binding.py tests/test_studio_ux_structure.py
 ```
+
+Result: 18 passed.

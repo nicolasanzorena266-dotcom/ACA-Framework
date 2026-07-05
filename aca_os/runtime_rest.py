@@ -296,12 +296,9 @@ class RuntimeRESTAPI:
             if method == "GET" and clean_path == "/public-demo/release-candidate/validate":
                 return self.ok(self.runtime_api.validate_public_demo_release_candidate(project_root=_first(params, "project_root") or "."))
             if method == "GET" and clean_path == "/public-demo/usability":
-                return self.ok(self.runtime_api.public_demo_usability())
+                return self.ok(self.runtime_api.public_demo_usability(public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com"))
             if method == "GET" and clean_path == "/public-demo/usability/validate":
                 return self.ok(self.runtime_api.validate_public_demo_usability())
-            if method == "POST" and clean_path == "/public-demo/thought":
-                execution = payload.get("execution") if isinstance(payload.get("execution"), Mapping) else payload
-                return self.ok(self.runtime_api.public_demo_thought_view(execution=execution))
             if method == "GET" and clean_path == "/hosting/target":
                 return self.ok(
                     self.runtime_api.hosting_target_contract(

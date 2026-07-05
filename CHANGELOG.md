@@ -1,22 +1,20 @@
-
-## Sprint 70 — Public Demo Usability Fix
-
-- Replaced the public Studio JSON wall with a human-readable runtime explanation.
-- Added modal-only “Ver pensamiento” view with close control.
-- Added public demo usability contract and endpoints.
-- Wired visible Studio controls to real user actions.
-- Kept code and raw Runtime payloads out of the default public UI.
-- Updated project version to 0.3.0-sprint70.
-
-
-## 0.3.0-sprint69 — Public Demo Release Candidate
-
-- Added public demo release candidate contract.
-- Added release candidate validation endpoint.
-- Added deploy/public-demo-release-candidate.json.
-- Added public demo RC documentation.
-
 # Changelog
+
+## 0.3.0-sprint71 — Public Studio Runtime Interaction QA
+
+- Converted the public Studio conversation into a chat-first interaction with a real send action.
+- Constrained the conversation area to scroll inside the phone panel instead of expanding the page indefinitely.
+- Made refresh reset the visible conversation state.
+- Replaced technical public-facing labels with human-readable Spanish labels while keeping compatibility markers for existing tests.
+- Improved demo runtime responses so public interactions read like useful agent answers instead of raw routing diagnostics.
+
+
+## 0.3.0-sprint70 — Public Demo Usability Fix
+
+- Replaced visible raw JSON in ACA Studio runtime context with human-readable summaries.
+- Added the **Ver pensamiento** modal for full runtime evidence with explicit close control.
+- Connected Studio controls to real refresh/run/copy/navigation behavior.
+- Added a human-facing runtime response projection while retaining raw response evidence.
 
 ## 0.3.0-sprint66 — Public URL Smoke Test
 
