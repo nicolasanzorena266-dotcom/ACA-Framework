@@ -114,6 +114,7 @@ class HostingTargetContract:
                     "deploy/public-web-demo.json",
                     "deploy/hosting-target-contract.json",
                     "aca_os/hosted_runtime_healthcheck.py",
+                    "aca_os/hosted_studio_assets.py",
                     "pyproject.toml",
                 ],
                 "platform_requirements": [
@@ -148,6 +149,7 @@ class HostingTargetContract:
                     "GET /studio serves ACA Studio",
                     "GET /hosting/target returns hosting_target_contract.v1",
                     "GET /hosting/healthcheck returns hosted_runtime_healthcheck.v1",
+                    "GET /hosting/studio-assets returns hosted_studio_assets.v1",
                     "POST /demo/domain-flow runs without external AI",
                     "runtime and domain behavior remain outside the hosting adapter",
                 ],
@@ -180,6 +182,8 @@ def default_hosting_routes() -> tuple[HostingRoute, ...]:
         HostingRoute("hosting_target_validate", "GET", "/hosting/target/validate", "Hosting target contract validation."),
         HostingRoute("hosted_runtime_healthcheck", "GET", "/hosting/healthcheck", "Hosted runtime healthcheck for public web deployments."),
         HostingRoute("hosted_runtime_healthcheck_validate", "GET", "/hosting/healthcheck/validate", "Hosted runtime healthcheck validation."),
+        HostingRoute("hosted_studio_assets", "GET", "/hosting/studio-assets", "Hosted ACA Studio asset strategy."),
+        HostingRoute("hosted_studio_assets_validate", "GET", "/hosting/studio-assets/validate", "Hosted ACA Studio asset validation."),
     )
 
 
@@ -226,7 +230,7 @@ def validate_hosting_target_contract(
 
     routes = payload.get("routes") or []
     route_paths = {route.get("path") for route in routes if isinstance(route, Mapping)}
-    for required_path in {"/health", "/studio", "/demo/domain-flow", "/hosting/target"}:
+    for required_path in {"/health", "/studio", "/demo/domain-flow", "/hosting/target", "/hosting/studio-assets"}:
         if required_path not in route_paths:
             errors.append(f"missing required route: {required_path}")
 

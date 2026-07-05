@@ -93,7 +93,9 @@
     "deploy_package": "https://aca-demo.example.com/deploy/package",
     "public_demo_manifest": "https://aca-demo.example.com/public-demo/manifest",
     "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness",
-    "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter"
+    "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter",
+    "hosted_studio_assets": "https://aca-demo.example.com/hosting/studio-assets",
+    "hosted_studio_assets_validate": "https://aca-demo.example.com/hosting/studio-assets/validate"
   },
   "required_routes": [
     "/health",
@@ -104,12 +106,15 @@
     "/deploy/package",
     "/public-demo/manifest",
     "/public-demo/readiness",
-    "/public-demo/runtime-adapter"
+    "/public-demo/runtime-adapter",
+    "/hosting/studio-assets",
+    "/hosting/studio-assets/validate"
   ],
   "assets": {
     "studio_html": "studio/index.html",
     "domain_pack_root": "examples/domain_packs",
-    "default_domain_pack": "customer_support"
+    "default_domain_pack": "customer_support",
+    "asset_strategy": "hosted_studio_assets.v1"
   },
   "environment": {
     "PORT": "8765",
@@ -131,7 +136,9 @@
     "examples/domain_packs",
     "deploy/aca-web-package.json",
     "deploy/public-web-demo.json",
-    "pyproject.toml"
+    "pyproject.toml",
+    "aca_os/hosted_studio_assets.py",
+    "deploy/hosting-target-contract.json"
   ],
   "smoke_checks": [
     {
@@ -183,7 +190,8 @@
   ],
   "documentation": {
     "deployment_guide": "docs/WEB_DEMO_DEPLOYMENT.md",
-    "sprint_notes": "docs/SPRINT_56.md"
+    "sprint_notes": "docs/SPRINT_56.md",
+    "asset_strategy": "docs/SPRINT_62.md"
   },
   "recommended_platform_contract": {
     "platform": "generic-python-web-service",

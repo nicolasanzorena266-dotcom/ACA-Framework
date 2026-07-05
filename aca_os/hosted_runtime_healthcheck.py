@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, Mapping
 
 from aca_os.execution_trace import sanitize
 from aca_os.hosting_target_contract import build_hosting_target_contract, validate_hosting_target_contract
+from aca_os.hosted_studio_assets import build_hosted_studio_assets, validate_hosted_studio_assets
 from aca_os.public_web_demo import build_public_web_demo_manifest, validate_public_web_demo_readiness
 
 HOSTED_RUNTIME_HEALTHCHECK = "hosted_runtime_healthcheck.v1"
@@ -59,6 +60,7 @@ class HostedRuntimeHealthcheck:
         "/demo/domain-flow",
         "/hosting/target",
         "/hosting/healthcheck",
+        "/hosting/studio-assets",
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -100,6 +102,7 @@ class HostedRuntimeHealthcheck:
                     "hosted healthcheck returns status ok",
                     "platform /health route remains available",
                     "Studio asset is present",
+                    "hosted Studio asset strategy validates",
                     "default Domain Pack is present",
                     "hosting target contract validates",
                     "public demo readiness validates",
@@ -126,6 +129,12 @@ class HostedRuntimeHealthcheck:
             fallback_port=self.fallback_port,
         )
         public_readiness = validate_public_web_demo_readiness(project_root=root, manifest=public_manifest)
+        studio_asset_strategy = build_hosted_studio_assets(
+            project_root=root,
+            public_base_url=self.public_base_url,
+            studio_path=self.studio_path,
+        )
+        studio_asset_validation = validate_hosted_studio_assets(project_root=root, strategy=studio_asset_strategy)
         route_paths = _route_paths(hosting_contract.get("routes", []))
         missing_routes = sorted(set(self.expected_routes) - route_paths)
         studio_exists = (root / self.studio_path).exists()
@@ -157,6 +166,12 @@ class HostedRuntimeHealthcheck:
                 "ok" if studio_exists else "failed",
                 "ACA Studio asset is present." if studio_exists else "ACA Studio asset is missing.",
                 details={"path": str(self.studio_path)},
+            ),
+            HostedHealthCheckItem(
+                "hosted_studio_assets",
+                "ok" if studio_asset_validation.get("valid") else "failed",
+                "Hosted Studio asset strategy validates." if studio_asset_validation.get("valid") else "Hosted Studio asset strategy has validation errors.",
+                details={"errors": studio_asset_validation.get("errors", [])},
             ),
             HostedHealthCheckItem(
                 "domain_pack_root",

@@ -303,6 +303,18 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/hosting/healthcheck/validate":
                 return self.ok(self.runtime_api.validate_hosted_runtime_healthcheck(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/hosting/studio-assets":
+                return self.ok(
+                    self.runtime_api.hosted_studio_assets(
+                        project_root=_first(params, "project_root") or ".",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-demo.example.com",
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                        fallback_route=_first(params, "fallback_route") or "/studio",
+                        api_base_route=_first(params, "api_base_route") or "/",
+                    )
+                )
+            if method == "GET" and clean_path == "/hosting/studio-assets/validate":
+                return self.ok(self.runtime_api.validate_hosted_studio_assets(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

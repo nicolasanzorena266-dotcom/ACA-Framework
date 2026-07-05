@@ -13,6 +13,7 @@ from aca_os.public_demo_runtime_adapter import build_public_demo_runtime_adapter
 from aca_os.public_demo_polish import build_public_demo_polish, validate_public_demo_polish
 from aca_os.hosting_target_contract import build_hosting_target_contract, validate_hosting_target_contract
 from aca_os.hosted_runtime_healthcheck import build_hosted_runtime_healthcheck, validate_hosted_runtime_healthcheck
+from aca_os.hosted_studio_assets import build_hosted_studio_assets, validate_hosted_studio_assets
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -93,6 +94,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/hosting/target/validate", "Validate platform-neutral hosting target contract.", "hosting.target.validate"),
         RuntimeEndpoint("GET", "/hosting/healthcheck", "Return hosted Runtime healthcheck for public deployment.", "hosting.healthcheck.read"),
         RuntimeEndpoint("GET", "/hosting/healthcheck/validate", "Validate hosted Runtime healthcheck contract.", "hosting.healthcheck.validate"),
+        RuntimeEndpoint("GET", "/hosting/studio-assets", "Return hosted ACA Studio asset strategy.", "hosting.studio_assets.read"),
+        RuntimeEndpoint("GET", "/hosting/studio-assets/validate", "Validate hosted ACA Studio asset strategy.", "hosting.studio_assets.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -523,6 +526,31 @@ class RuntimeEndpointAPI:
         healthcheck: Mapping[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return validate_hosted_runtime_healthcheck(project_root=project_root, healthcheck=healthcheck)
+    def hosted_studio_assets(
+        self,
+        *,
+        project_root: str | Path = ".",
+        public_base_url: str = "https://aca-demo.example.com",
+        studio_path: str | Path = "studio/index.html",
+        fallback_route: str = "/studio",
+        api_base_route: str = "/",
+    ) -> Dict[str, Any]:
+        return build_hosted_studio_assets(
+            project_root=project_root,
+            public_base_url=public_base_url,
+            studio_path=studio_path,
+            fallback_route=fallback_route,
+            api_base_route=api_base_route,
+        )
+
+    def validate_hosted_studio_assets(
+        self,
+        *,
+        project_root: str | Path = ".",
+        strategy: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_hosted_studio_assets(project_root=project_root, strategy=strategy)
+
 
     def run_human_demo(
         self,
@@ -608,6 +636,17 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/hosting/healthcheck/validate":
             return self.validate_hosted_runtime_healthcheck(project_root=params.get("project_root") or ".")
+
+        if method == "GET" and path == "/hosting/studio-assets":
+            return self.hosted_studio_assets(
+                project_root=params.get("project_root") or ".",
+                public_base_url=params.get("public_base_url") or "https://aca-demo.example.com",
+                studio_path=params.get("studio_path") or "studio/index.html",
+                fallback_route=params.get("fallback_route") or "/studio",
+                api_base_route=params.get("api_base_route") or "/",
+            )
+        if method == "GET" and path == "/hosting/studio-assets/validate":
+            return self.validate_hosted_studio_assets(project_root=params.get("project_root") or ".")
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

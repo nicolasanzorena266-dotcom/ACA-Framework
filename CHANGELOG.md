@@ -1,4 +1,12 @@
 
+## 0.3.0-sprint62 — Hosted Studio Asset Strategy
+
+- Added hosted Studio asset strategy contract.
+- Added runtime and REST endpoints for hosted Studio asset validation.
+- Integrated hosted Studio asset checks into hosting contract and healthcheck.
+- Documented Sprint 62 asset strategy.
+
+
 ## 0.3.0-sprint61 — Hosted Runtime Healthcheck
 
 - Added hosted runtime healthcheck contract for public web deployments.
