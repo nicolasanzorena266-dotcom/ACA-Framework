@@ -1,3 +1,11 @@
+
+## 0.3.0-sprint69 — Public Demo Release Candidate
+
+- Added public demo release candidate contract.
+- Added release candidate validation endpoint.
+- Added deploy/public-demo-release-candidate.json.
+- Added public demo RC documentation.
+
 # Changelog
 
 ## 0.3.0-sprint66 — Public URL Smoke Test

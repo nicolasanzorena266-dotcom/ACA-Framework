@@ -19,6 +19,7 @@ from aca_os.first_public_hosted_demo import build_first_public_hosted_demo, vali
 from aca_os.render_deployment_config import build_render_deployment_config, validate_render_deployment_config
 from aca_os.hosted_runtime_hardening import build_hosted_runtime_hardening, validate_hosted_runtime_hardening
 from aca_os.public_demo_ux_qa import build_public_demo_ux_qa, validate_public_demo_ux_qa
+from aca_os.public_demo_release_candidate import build_public_demo_release_candidate, validate_public_demo_release_candidate
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -97,6 +98,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/public-demo/polish/validate", "Validate public ACA Studio demo polish contract.", "public_demo.polish.validate"),
         RuntimeEndpoint("GET", "/public-demo/ux-qa", "Return public ACA Studio UX QA report.", "public_demo.ux_qa.read"),
         RuntimeEndpoint("GET", "/public-demo/ux-qa/validate", "Validate public ACA Studio UX QA report.", "public_demo.ux_qa.validate"),
+        RuntimeEndpoint("GET", "/public-demo/release-candidate", "Return public demo release candidate contract.", "public_demo.release_candidate.read"),
+        RuntimeEndpoint("GET", "/public-demo/release-candidate/validate", "Validate public demo release candidate readiness.", "public_demo.release_candidate.validate"),
         RuntimeEndpoint("GET", "/hosting/target", "Return platform-neutral hosting target contract.", "hosting.target.read"),
         RuntimeEndpoint("GET", "/hosting/target/validate", "Validate platform-neutral hosting target contract.", "hosting.target.validate"),
         RuntimeEndpoint("GET", "/hosting/healthcheck", "Return hosted Runtime healthcheck for public deployment.", "hosting.healthcheck.read"),
@@ -497,6 +500,35 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_public_demo_ux_qa(project_root=project_root, report=report)
 
+    def public_demo_release_candidate(
+        self,
+        *,
+        release_id: str = "public-demo-rc1",
+        public_base_url: str = "https://aca-public-web-demo.onrender.com",
+        platform: str = "render-web-service",
+        project_root: str | Path = ".",
+        default_domain_pack: str = "example.customer_support",
+        domain_pack_root: str | Path = "examples/domain_packs",
+        studio_path: str | Path = "studio/index.html",
+    ) -> Dict[str, Any]:
+        return build_public_demo_release_candidate(
+            release_id=release_id,
+            public_base_url=public_base_url,
+            platform=platform,
+            project_root=project_root,
+            default_domain_pack=default_domain_pack,
+            domain_pack_root=domain_pack_root,
+            studio_path=studio_path,
+        )
+
+    def validate_public_demo_release_candidate(
+        self,
+        *,
+        project_root: str | Path = ".",
+        candidate: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_public_demo_release_candidate(project_root=project_root, candidate=candidate)
+
     def hosting_target_contract(
         self,
         *,
@@ -772,6 +804,18 @@ class RuntimeEndpointAPI:
             return self.public_demo_ux_qa(public_base_url=params.get("public_base_url") or "https://aca-public-web-demo.onrender.com")
         if method == "GET" and path == "/public-demo/ux-qa/validate":
             return self.validate_public_demo_ux_qa(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/public-demo/release-candidate":
+            return self.public_demo_release_candidate(
+                release_id=params.get("release_id") or "public-demo-rc1",
+                public_base_url=params.get("public_base_url") or "https://aca-public-web-demo.onrender.com",
+                platform=params.get("platform") or "render-web-service",
+                project_root=params.get("project_root") or ".",
+                default_domain_pack=params.get("default_domain_pack") or "example.customer_support",
+                domain_pack_root=params.get("domain_pack_root") or "examples/domain_packs",
+                studio_path=params.get("studio_path") or "studio/index.html",
+            )
+        if method == "GET" and path == "/public-demo/release-candidate/validate":
+            return self.validate_public_demo_release_candidate(project_root=params.get("project_root") or ".")
         if method == "GET" and path == "/hosting/target":
             return self.hosting_target_contract(
                 app_name=params.get("app_name") or "aca-public-web-demo",

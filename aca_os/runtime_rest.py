@@ -281,6 +281,20 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.public_demo_ux_qa(public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com"))
             if method == "GET" and clean_path == "/public-demo/ux-qa/validate":
                 return self.ok(self.runtime_api.validate_public_demo_ux_qa(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/public-demo/release-candidate":
+                return self.ok(
+                    self.runtime_api.public_demo_release_candidate(
+                        release_id=_first(params, "release_id") or "public-demo-rc1",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com",
+                        platform=_first(params, "platform") or "render-web-service",
+                        project_root=_first(params, "project_root") or ".",
+                        default_domain_pack=_first(params, "default_domain_pack") or "example.customer_support",
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                    )
+                )
+            if method == "GET" and clean_path == "/public-demo/release-candidate/validate":
+                return self.ok(self.runtime_api.validate_public_demo_release_candidate(project_root=_first(params, "project_root") or "."))
             if method == "GET" and clean_path == "/hosting/target":
                 return self.ok(
                     self.runtime_api.hosting_target_contract(
