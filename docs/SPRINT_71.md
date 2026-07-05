@@ -62,3 +62,20 @@ RC5 adds a lightweight public conversation state for the hosted demo and routes 
 - Moves the public Studio closer to a chat-first 9:16 conversation surface and prevents the previous dashboard layout from cutting the phone shell.
 
 Architectural note: this is still not a free LLM chatbot. The deterministic runtime continues to interpret the request, while the new public state and representative policy preserve continuity and communicate the next step in human language.
+
+
+## RC6 correction — Public Conversation Runtime
+
+User validation rejected the remaining dashboard behavior. RC6 treats Sprint 71 as a structural conversation runtime correction rather than a visual polish pass.
+
+Changes:
+
+- Added `AdaptiveReplyPolicy` as the public conversation policy over deterministic runtime results.
+- Kept `RepresentativeAnswerComposer` as a thin language adapter that delegates public behavior to the policy.
+- Extended public conversation state with next action and response signature metadata.
+- Preserved active ticket and siniestro context across short follow-ups, confusion and frustration.
+- Added typo-tolerant public text compaction so natural noisy messages still route to the correct public policy.
+- Prevented repeated fallback by reformulating when the previous response already failed to help.
+- Reworked ACA Studio into a single chat-first conversation surface. Runtime/process details stay behind **Ver proceso**.
+
+Acceptance rule: the public surface must feel like a constrained representative conversation. The runtime remains observable internally, but the user-facing chat must answer naturally, honestly and contextually.

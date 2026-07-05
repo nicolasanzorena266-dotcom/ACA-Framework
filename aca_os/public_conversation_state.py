@@ -23,6 +23,8 @@ class PublicConversationState:
     fallback_count: int = 0
     confusion_count: int = 0
     frustration_count: int = 0
+    next_action_suggested: str | None = None
+    last_response_signature: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +38,8 @@ class PublicConversationState:
             "fallback_count": self.fallback_count,
             "confusion_count": self.confusion_count,
             "frustration_count": self.frustration_count,
+            "next_action_suggested": self.next_action_suggested,
+            "last_response_signature": self.last_response_signature,
         }
 
 
@@ -66,6 +70,8 @@ def update_public_conversation_state(
     intent: Mapping[str, Any],
     entities: Mapping[str, Any],
     answer_category: str,
+    answer_next_step: str | None = None,
+    answer_text: str | None = None,
 ) -> PublicConversationState:
     normalized = _norm(message)
     case_id = str(entities.get("case_id") or state.active_case_id or "") or None
@@ -73,15 +79,19 @@ def update_public_conversation_state(
     goal = state.active_goal
     claim_type = state.active_claim_type
 
-    if case_id:
+    explicit_case = bool(entities.get("case_id"))
+    if case_id and explicit_case:
         topic = "ticket"
         goal = "consultar_estado_o_seguimiento"
 
     detected_claim = _detect_claim_type(normalized)
-    if detected_claim:
-        claim_type = detected_claim
+    if detected_claim or answer_category.startswith("claim") or answer_category in {"deductible", "upload_issue", "cleas"}:
+        claim_type = detected_claim or claim_type
         topic = "siniestro"
         goal = "orientar_siniestro"
+    elif case_id and not topic:
+        topic = "ticket"
+        goal = "consultar_estado_o_seguimiento"
 
     if _is_capability_question(normalized):
         topic = topic or "capacidades"
@@ -102,6 +112,8 @@ def update_public_conversation_state(
         fallback_count=fallback_count,
         confusion_count=confusion_count,
         frustration_count=frustration_count,
+        next_action_suggested=answer_next_step,
+        last_response_signature=_signature(answer_text or answer_category),
     )
     _STATES[updated.conversation_id] = updated
     return updated
@@ -134,3 +146,7 @@ def _is_capability_question(normalized: str) -> bool:
 
 def _norm(value: str) -> str:
     return value.lower().strip()
+
+
+def _signature(value: str) -> str:
+    return " ".join(_norm(value).split())[:120]
