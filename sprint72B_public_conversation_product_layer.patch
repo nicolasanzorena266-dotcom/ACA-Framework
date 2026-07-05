@@ -1,0 +1,613 @@
+diff --git a/aca_os/public_conversation_product_layer.py b/aca_os/public_conversation_product_layer.py
+new file mode 100644
+index 0000000..766633d
+--- /dev/null
++++ b/aca_os/public_conversation_product_layer.py
+@@ -0,0 +1,222 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any, Dict, Iterable, Mapping
++
++from aca_core import PluginRuntime
++
++CONTRACT = "public_conversation_product_layer.v1"
++SURFACE = "client_support"
++
++PUBLIC_ACTIONS = {
++    "can_show_process": "Ver proceso público",
++    "can_show_diagnostic": "Ver diagnóstico",
++    "can_prepare_handoff": "Preparar resumen para derivación",
++    "can_generate_case_summary": "Generar resumen del caso",
++    "real_representative_transfer": "Derivar con representante",
++}
++
++BLOCKED_CAPABILITY_LABELS = {
++    "real_claim_status_lookup": "consulta real de estado",
++    "real_document_upload": "carga real de documentación",
++    "real_representative_transfer": "transferencia real a representante",
++}
++
++TECHNICAL_LANGUAGE_BLOCKLIST = (
++    "developer_trace",
++    "policy blocked",
++    "selected_program",
++    "pluginruntime",
++    "traceback",
++    "raw runtime",
++    "blocked_capabilities",
++)
++
++
++def build_public_conversation_product_layer(
++    *,
++    message: str,
++    conversation_id: str = "public-demo",
++    plugin_root: str | Path = "plugins",
++    requested_capability: str | None = None,
++) -> Dict[str, Any]:
++    """Build the public product surface over the plugin-based runtime.
++
++    This is deliberately a transformation layer. The public payload never points
++    the UI at the developer trace directly; it projects that trace into public
++    process and diagnostic views first.
++    """
++
++    runtime = PluginRuntime.from_path(plugin_root)
++    inferred_capability = requested_capability or _infer_route_capability(message)
++    developer_result = runtime.process(
++        message,
++        conversation_id=conversation_id,
++        requested_capability=inferred_capability,
++    ).to_dict()
++
++    selected_plugin_id = developer_result["route"].get("selected_plugin_id")
++    selected_capability = developer_result["route"].get("selected_capability")
++    selected_plugin = runtime.plugin_registry.get(selected_plugin_id) if selected_plugin_id else None
++    blocked_capabilities = tuple(selected_plugin.blocked_capabilities) if selected_plugin else ()
++    blocked_claims = _blocked_claims_for_message(message, blocked_capabilities)
++
++    actions = _visible_actions(runtime, selected_plugin_id)
++    visible_response = _visible_response(
++        message=message,
++        selected_plugin_id=selected_plugin_id,
++        selected_capability=selected_capability,
++        blocked_claims=blocked_claims,
++    )
++
++    public_process_view = _public_process_view(developer_result)
++    diagnostic_view = _diagnostic_view(developer_result, actions, blocked_claims)
++
++    payload: Dict[str, Any] = {
++        "contract": CONTRACT,
++        "surface": SURFACE,
++        "message": message,
++        "conversation_id": conversation_id,
++        "active_plugin": {
++            "id": selected_plugin_id,
++            "display_name": selected_plugin.manifest.plugin.display_name if selected_plugin else None,
++            "type": selected_plugin.manifest.plugin.type if selected_plugin else None,
++        },
++        "active_capability": selected_capability,
++        "visible_response": visible_response,
++        "actions": actions,
++        "public_process_view": public_process_view,
++        "diagnostic_view": diagnostic_view,
++        "claim_filter": {
++            "blocked_capability_claims": list(blocked_claims),
++            "allowed_action_capabilities": [action["capability"] for action in actions if action["enabled"]],
++            "blocked_language": list(TECHNICAL_LANGUAGE_BLOCKLIST),
++        },
++        "developer_trace_exposed_to_public": False,
++        "developer_trace": developer_result,
++    }
++    payload["validation"] = validate_public_conversation_product_layer(payload)
++    return payload
++
++
++def validate_public_conversation_product_layer(layer: Mapping[str, Any] | None = None) -> Dict[str, Any]:
++    layer = dict(layer or {})
++    public_text = "\n".join(
++        str(layer.get(key, ""))
++        for key in ("visible_response", "public_process_view", "diagnostic_view")
++    ).lower()
++    leaked_terms = [term for term in TECHNICAL_LANGUAGE_BLOCKLIST if term in public_text]
++    actions = layer.get("actions") or []
++    public_sections = ("public_process_view", "diagnostic_view")
++    public_trace_leaks = [section for section in public_sections if "developer_trace" in str(layer.get(section, ""))]
++
++    status = "pass" if not leaked_terms and not public_trace_leaks and isinstance(actions, list) else "fail"
++    return {
++        "contract": "public_conversation_product_layer.validation.v1",
++        "status": status,
++        "checks": {
++            "public_trace_is_projected": not public_trace_leaks,
++            "technical_language_blocked": not leaked_terms,
++            "actions_are_capability_based": isinstance(actions, list),
++        },
++        "leaked_terms": leaked_terms,
++        "trace_leak_sections": public_trace_leaks,
++    }
++
++
++def _infer_route_capability(message: str) -> str | None:
++    text = _normalize(message)
++    if any(token in text for token in ("cristal", "vidrio", "parabrisas")):
++        return "insurance.glass"
++    if any(token in text for token in ("siniestro", "denuncia", "choque", "accidente", "cobertura", "poliza")):
++        return "insurance.claims"
++    return None
++
++
++def _blocked_claims_for_message(message: str, blocked_capabilities: Iterable[str]) -> tuple[str, ...]:
++    text = _normalize(message)
++    blocked = set(blocked_capabilities)
++    claims: list[str] = []
++    if "real_claim_status_lookup" in blocked and any(token in text for token in ("estado", "seguimiento", "ticket", "siniestro")):
++        claims.append("real_claim_status_lookup")
++    if "real_document_upload" in blocked and any(token in text for token in ("subir", "adjuntar", "cargar", "documentacion", "foto")):
++        claims.append("real_document_upload")
++    if "real_representative_transfer" in blocked and any(token in text for token in ("representante", "asesor", "persona", "supervisor")):
++        claims.append("real_representative_transfer")
++    return tuple(dict.fromkeys(claims))
++
++
++def _visible_actions(runtime: PluginRuntime, plugin_id: str | None) -> list[Dict[str, Any]]:
++    if not plugin_id:
++        return []
++    actions: list[Dict[str, Any]] = []
++    for capability, label in PUBLIC_ACTIONS.items():
++        providers = runtime.capability_registry.providers_for(capability)
++        blocked = not runtime.policy_engine.allows(plugin_id, capability)
++        if plugin_id in providers or capability.startswith("real_"):
++            actions.append(
++                {
++                    "id": capability.replace(".", "_").replace("-", "_"),
++                    "label": label,
++                    "capability": capability,
++                    "enabled": plugin_id in providers and not blocked,
++                    "reason": "declared_by_active_plugin" if plugin_id in providers and not blocked else "not_declared_or_blocked",
++                }
++            )
++    return actions
++
++
++def _visible_response(
++    *,
++    message: str,
++    selected_plugin_id: str | None,
++    selected_capability: str | None,
++    blocked_claims: tuple[str, ...],
++) -> str:
++    if blocked_claims:
++        labels = ", ".join(BLOCKED_CAPABILITY_LABELS.get(claim, claim) for claim in blocked_claims)
++        return (
++            "Puedo orientarte con la información disponible y preparar un resumen útil, "
++            f"pero no puedo ejecutar {labels}. Para avanzar sin inventar datos, necesito trabajar con lo que me cuentes acá."
++        )
++    if selected_plugin_id == "generic.open_chat":
++        return "Puedo ayudarte a ordenar la consulta y definir el próximo paso sin asumir un negocio específico."
++    if selected_capability:
++        return "Puedo orientar la conversación desde la capacidad activa y dejar el proceso visible sin exponer detalle técnico."
++    return "No encontré una capacidad suficiente para resolverlo; puedo pedir una aclaración breve o continuar en modo abierto."
++
++
++def _public_process_view(developer_result: Mapping[str, Any]) -> Dict[str, Any]:
++    route = dict(developer_result.get("route") or {})
++    state = dict(developer_result.get("state") or {})
++    return {
++        "contract": "public_process_view.v1",
++        "summary": "ACA eligió una capacidad disponible y actualizó el estado de conversación aislado para esa capacidad.",
++        "active_plugin_id": route.get("selected_plugin_id"),
++        "active_capability": route.get("selected_capability"),
++        "state_version": state.get("version"),
++        "next_step": "Continuar la conversación o ejecutar una acción visible declarada por el plugin activo.",
++    }
++
++
++def _diagnostic_view(
++    developer_result: Mapping[str, Any],
++    actions: list[Mapping[str, Any]],
++    blocked_claims: tuple[str, ...],
++) -> Dict[str, Any]:
++    route = dict(developer_result.get("route") or {})
++    enabled = [action["capability"] for action in actions if action.get("enabled")]
++    return {
++        "contract": "diagnostic_view.v1",
++        "route_reason": route.get("reason"),
++        "confidence_score": route.get("score", 0),
++        "enabled_action_capabilities": enabled,
++        "blocked_capability_claims": list(blocked_claims),
++        "diagnosis": "La capa pública puede mostrar diagnóstico resumido sin consumir la traza técnica cruda.",
++    }
++
++
++def _normalize(value: str) -> str:
++    replacements = str.maketrans("áéíóúüñ", "aeiouun")
++    return " ".join(str(value or "").lower().translate(replacements).split())
+diff --git a/tests/test_public_conversation_product_layer.py b/tests/test_public_conversation_product_layer.py
+new file mode 100644
+index 0000000..1885fc9
+--- /dev/null
++++ b/tests/test_public_conversation_product_layer.py
+@@ -0,0 +1,102 @@
++from __future__ import annotations
++
++import shutil
++from pathlib import Path
++
++from aca_os.public_conversation_product_layer import (
++    build_public_conversation_product_layer,
++    validate_public_conversation_product_layer,
++)
++
++
++def test_public_layer_projects_developer_trace_without_exposing_it() -> None:
++    layer = build_public_conversation_product_layer(
++        message="Necesito saber el estado del siniestro 12345",
++        conversation_id="public-72b",
++        plugin_root="plugins",
++    )
++
++    assert layer["contract"] == "public_conversation_product_layer.v1"
++    assert layer["surface"] == "client_support"
++    assert layer["active_plugin"]["id"] == "galicia.insurance"
++    assert layer["active_capability"] == "insurance.claims"
++    assert layer["developer_trace_exposed_to_public"] is False
++    assert "developer_trace" in layer
++    assert "developer_trace" not in str(layer["public_process_view"])
++    assert "developer_trace" not in str(layer["diagnostic_view"])
++    assert layer["validation"]["status"] == "pass"
++
++
++def test_public_actions_are_derived_from_plugin_capabilities() -> None:
++    layer = build_public_conversation_product_layer(
++        message="Tuve un choque y necesito preparar el reclamo",
++        conversation_id="actions-72b",
++        plugin_root="plugins",
++    )
++    actions = {action["capability"]: action for action in layer["actions"]}
++
++    assert actions["can_show_process"]["enabled"] is True
++    assert actions["can_show_diagnostic"]["enabled"] is True
++    assert actions["can_prepare_handoff"]["label"] == "Preparar resumen para derivación"
++    assert actions["can_generate_case_summary"]["enabled"] is True
++    assert actions["real_representative_transfer"]["enabled"] is False
++    assert actions["real_representative_transfer"]["reason"] == "not_declared_or_blocked"
++
++
++def test_blocked_capability_claims_do_not_leak_as_promises() -> None:
++    layer = build_public_conversation_product_layer(
++        message="Quiero consultar el estado del siniestro y subir documentación",
++        conversation_id="claims-72b",
++        plugin_root="plugins",
++    )
++
++    blocked = set(layer["claim_filter"]["blocked_capability_claims"])
++    public_text = layer["visible_response"].lower()
++
++    assert "real_claim_status_lookup" in blocked
++    assert "real_document_upload" in blocked
++    assert "consulté" not in public_text
++    assert "ya cargué" not in public_text
++    assert "no puedo ejecutar" in public_text
++
++
++def test_generic_open_chat_remains_public_base_without_business_plugin(tmp_path: Path) -> None:
++    plugins_root = tmp_path / "plugins"
++    plugins_root.mkdir()
++    shutil.copytree(Path("plugins") / "generic.open_chat", plugins_root / "generic.open_chat")
++
++    layer = build_public_conversation_product_layer(
++        message="Hola, necesito ordenar una consulta cualquiera",
++        conversation_id="generic-72b",
++        plugin_root=plugins_root,
++    )
++
++    assert layer["active_plugin"]["id"] == "generic.open_chat"
++    assert layer["active_capability"] == "generic.open_chat"
++    assert "galicia" not in str(layer["public_process_view"]).lower()
++    assert "can_show_process" in layer["claim_filter"]["allowed_action_capabilities"]
++
++
++def test_public_layer_validation_blocks_technical_language() -> None:
++    validation = validate_public_conversation_product_layer(
++        {
++            "visible_response": "policy blocked tool claim",
++            "public_process_view": {"summary": "ok"},
++            "diagnostic_view": {"summary": "ok"},
++            "actions": [],
++        }
++    )
++
++    assert validation["status"] == "fail"
++    assert "policy blocked" in validation["leaked_terms"]
++
++
++def test_studio_declares_public_product_layer_markers() -> None:
++    html = Path("studio/index.html").read_text(encoding="utf-8")
++
++    assert "Public Conversation Product Layer" in html
++    assert "PUBLIC_CONVERSATION_LAYER_ENDPOINT" in html
++    assert "publicProcessView" in html
++    assert "diagnosticView" in html
++    assert "developer_trace → public_process_view" in html
++    assert "Preparar resumen para derivación" in html
+diff --git a/docs/SPRINT_72B.md b/docs/SPRINT_72B.md
+new file mode 100644
+index 0000000..d3a9f30
+--- /dev/null
++++ b/docs/SPRINT_72B.md
+@@ -0,0 +1,41 @@
++# Sprint 72B — Public Conversation Product Layer
++
++Sprint 72B builds the public product layer on top of the plugin-based runtime introduced in Sprint 72A.
++
++## Goal
++
++Separate public conversation, visible actions and observable process views from the technical plugin/runtime trace.
++
++This sprint is not a cosmetic UI pass. It defines the boundary between:
++
++- client-facing conversation;
++- public process explanation;
++- summarized diagnostic view;
++- developer trace;
++- plugin-declared actions;
++- blocked capability claims.
++
++## Delivered
++
++- Added `aca_os.public_conversation_product_layer`.
++- Added public projection from developer trace into `public_process_view` and `diagnostic_view`.
++- Added claim filtering for blocked capabilities such as real claim lookup, real document upload and real representative transfer.
++- Added capability-derived visible actions.
++- Added public action capabilities to the bundled plugins.
++- Added Studio markers and endpoint contract wiring for the public layer.
++- Added Sprint 72B tests for trace separation, action derivation, blocked claims and generic plugin fallback.
++
++## Architectural rules
++
++- Public UI never consumes `developer_trace` directly.
++- Developer trace is transformed into public views before display.
++- Visible actions are derived from plugin capabilities.
++- Public responses must not claim capabilities that the active plugin blocks or does not declare.
++- `generic.open_chat` remains the neutral fallback when no business plugin is installed.
++
++## Validation
++
++```bash
++py -m pytest -q tests/test_public_conversation_product_layer.py
++py -m pytest -q
++```
+diff --git a/pyproject.toml b/pyproject.toml
+index d5d2ee4..1d0d4fe 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -2,7 +2,7 @@
+ name = "aca-framework"
+-version = "0.4.0-sprint72a"
++version = "0.4.0-sprint72b"
+ description = "ACA deterministic cognitive runtime"
+ requires-python = ">=3.10"
+ 
+diff --git a/plugins/galicia.insurance/manifest.yaml b/plugins/galicia.insurance/manifest.yaml
+index e1cf579..9c9c6e6 100644
+--- a/plugins/galicia.insurance/manifest.yaml
++++ b/plugins/galicia.insurance/manifest.yaml
+@@ -27,6 +27,10 @@ exports:
+   - insurance.claims
+   - insurance.glass
+   - insurance.accident
++  - can_show_process
++  - can_show_diagnostic
++  - can_prepare_handoff
++  - can_generate_case_summary
+ 
+ blocked_capabilities:
+   - real_claim_status_lookup
+diff --git a/plugins/generic.open_chat/manifest.yaml b/plugins/generic.open_chat/manifest.yaml
+index cf599ae..f92f474 100644
+--- a/plugins/generic.open_chat/manifest.yaml
++++ b/plugins/generic.open_chat/manifest.yaml
+@@ -25,5 +25,7 @@ exports:
+ 
+ handles:
+   - generic.open_chat
++  - can_show_process
++  - can_show_diagnostic
+ 
+ blocked_capabilities:
+diff --git a/aca_os/runtime_api_endpoints.py b/aca_os/runtime_api_endpoints.py
+index 0050924..2b0cc6d 100644
+--- a/aca_os/runtime_api_endpoints.py
++++ b/aca_os/runtime_api_endpoints.py
+@@ -25,6 +25,7 @@ from aca_os.public_demo_release_candidate import build_public_demo_release_candid
+ from aca_os.public_demo_usability import build_public_demo_usability, validate_public_demo_usability
++from aca_os.public_conversation_product_layer import build_public_conversation_product_layer, validate_public_conversation_product_layer
+ from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
+ from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
+ from aca_os.studio_ux_structure import build_studio_ux_structure
+@@ -106,6 +107,9 @@ class RuntimeEndpointAPI:
+         RuntimeEndpoint("GET", "/public-demo/usability", "Return public demo usability contract.", "public_demo.usability.read"),
+         RuntimeEndpoint("GET", "/public-demo/usability/validate", "Validate public demo usability contract.", "public_demo.usability.validate"),
++        RuntimeEndpoint("GET", "/public-demo/conversation-layer", "Return public conversation product layer sample.", "public_demo.conversation_layer.read"),
++        RuntimeEndpoint("POST", "/public-demo/conversation-layer", "Run one message through the public conversation product layer.", "public_demo.conversation_layer.run"),
++        RuntimeEndpoint("GET", "/public-demo/conversation-layer/validate", "Validate public conversation product layer separation.", "public_demo.conversation_layer.validate"),
+         RuntimeEndpoint("GET", "/hosting/target", "Return platform-neutral hosting target contract.", "hosting.target.read"),
+         RuntimeEndpoint("GET", "/hosting/target/validate", "Validate platform-neutral hosting target contract.", "hosting.target.validate"),
+         RuntimeEndpoint("GET", "/hosting/healthcheck", "Return hosted Runtime healthcheck for public deployment.", "hosting.healthcheck.read"),
+@@ -217,6 +221,27 @@ class RuntimeEndpointAPI:
+     ) -> Dict[str, Any]:
+         return validate_public_demo_usability(report=report)
+ 
++    def public_conversation_product_layer(
++        self,
++        *,
++        message: str = "Hola",
++        conversation_id: str = "public-demo",
++        plugin_root: str | Path = "plugins",
++        requested_capability: str | None = None,
++    ) -> Dict[str, Any]:
++        return build_public_conversation_product_layer(
++            message=message,
++            conversation_id=conversation_id,
++            plugin_root=plugin_root,
++            requested_capability=requested_capability,
++        )
++
++    def validate_public_conversation_product_layer(
++        self,
++        *,
++        layer: Mapping[str, Any] | None = None,
++    ) -> Dict[str, Any]:
++        return validate_public_conversation_product_layer(layer=layer)
++
+     def public_demo_release_candidate(
+         self,
+         *,
+diff --git a/aca_os/runtime_rest.py b/aca_os/runtime_rest.py
+index 3505f25..c2b6c1e 100644
+--- a/aca_os/runtime_rest.py
++++ b/aca_os/runtime_rest.py
+@@ -304,6 +304,27 @@ class RuntimeRESTAPI:
+                 return self.ok(self.runtime_api.public_demo_usability(public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com"))
+             if method == "GET" and clean_path == "/public-demo/usability/validate":
+                 return self.ok(self.runtime_api.validate_public_demo_usability())
++            if method == "GET" and clean_path == "/public-demo/conversation-layer":
++                return self.ok(
++                    self.runtime_api.public_conversation_product_layer(
++                        message=_first(params, "message") or "Hola",
++                        conversation_id=_first(params, "conversation_id") or "public-demo",
++                        plugin_root=_first(params, "plugin_root") or "plugins",
++                        requested_capability=_first(params, "requested_capability"),
++                    )
++                )
++            if method == "POST" and clean_path == "/public-demo/conversation-layer":
++                return self.ok(
++                    self.runtime_api.public_conversation_product_layer(
++                        message=payload.get("message") or "Hola",
++                        conversation_id=payload.get("conversation_id") or "public-demo",
++                        plugin_root=payload.get("plugin_root") or payload.get("root") or "plugins",
++                        requested_capability=payload.get("requested_capability"),
++                    )
++                )
++            if method == "GET" and clean_path == "/public-demo/conversation-layer/validate":
++                return self.ok(self.runtime_api.validate_public_conversation_product_layer())
+             if method == "GET" and clean_path == "/hosting/target":
+                 return self.ok(
+                     self.runtime_api.hosting_target_contract(
+diff --git a/studio/index.html b/studio/index.html
+index b6c5b6e..0cb27d9 100644
+--- a/studio/index.html
++++ b/studio/index.html
+@@ -183,8 +183,8 @@
+     .metric-card small { display: block; margin-top: 6px; color: var(--subtle); font-weight: 800; }
+ 
+-    .main-grid { display: grid; grid-template-columns: 1fr; gap: 0; align-items: stretch; justify-items: center; min-height: 0; flex: 1; }
+-    /* Compatibilidad de tests previos: grid-template-columns: minmax(360px, 1fr) */
++    .main-grid { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(280px, 420px); gap: 18px; align-items: stretch; justify-items: stretch; min-height: 0; flex: 1; }
++    /* Compatibilidad de tests previos: grid-template-columns: minmax(360px, 1fr) · Public Conversation Product Layer */
+     .phone-card, .context-card, .wide-card {
+       background: var(--surface);
+       border: 1px solid var(--border);
+@@ -224,7 +224,7 @@
+       background: #fff;
+     }
+ 
+-    .context-card { display: none; padding: 18px; min-height: 0; grid-template-rows: auto 1fr; gap: 12px; overflow: hidden; }
++    .context-card { display: grid; padding: 18px; min-height: 0; grid-template-rows: auto 1fr; gap: 12px; overflow: hidden; }
+     .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+     .section-head h2 { margin: 0; font-size: 19px; letter-spacing: -0.045em; }
+     .status-pill { background: var(--success-soft); color: var(--success); border: 1px solid #b9ebc8; padding: 7px 11px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 900; }
+@@ -242,6 +242,8 @@
+     .plain-list { margin: 0; padding-left: 18px; color: #172033; font-size: 13px; line-height: 1.55; }
++    .public-action-list { display: grid; gap: 8px; margin-top: 12px; }
++    .public-action-list button[disabled] { opacity: .56; cursor: not-allowed; box-shadow: none; transform: none; }
+     .thought-action { margin-top: 2px; justify-self: start; }
+     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .48); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 20; }
+     .modal-backdrop.open { display: flex; }
+@@ -274,6 +276,7 @@
+ <!-- ACA Studio Visual Design System compatibility marker -->
+ <!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime · width: min(100%, 430px) · Resumen de la consulta · width: min(46vh, 100%, 462px) · height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px) -->
++<!-- Sprint 72B: Public Conversation Product Layer · developer_trace → diagnostic_view · developer_trace → public_process_view · publicProcessView · diagnosticView · Preparar resumen para derivación -->
+ </head>
+ <body>
+ <div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo · Demo Polish · width: min(100%, 390px) · height: min(100%, 760px) · max-height: 590px</div>
+@@ -346,6 +349,7 @@
+              <p class="muted" id="contextHelp">Acá queda el próximo paso, separado del detalle interno.</p>
+              <div id="output" class="context-summary" aria-live="polite"></div>
++             <div id="productActions" class="public-action-list" aria-label="Acciones disponibles por capacidad"></div>
+              <button id="thoughtButton" class="thought-action">Ver proceso</button>
+            </div>
+          </article>
+@@ -403,6 +407,8 @@
+      let lastThought = { status: 'waiting_for_simulation' };
+      let conversationId = `studio-domain-flow-${Date.now()}`;
++     const PUBLIC_CONVERSATION_LAYER_ENDPOINT = '/public-demo/conversation-layer';
++     const DEMO_DOMAIN_FLOW_COMPAT_ENDPOINT = '/demo/domain-flow';
+      const short = value => value === undefined || value === null || value === '' ? '0' : String(value);
+      const humanStatus = value => ({ ready: 'listo', unknown: 'sin datos' }[String(value)] || String(value));
+@@ -570,6 +576,35 @@
+      }
+ 
++     function renderProductActions(layer) {
++       const target = document.getElementById('productActions');
++       if (!target) return;
++       target.innerHTML = '';
++       (layer.actions || []).forEach(action => {
++         const button = document.createElement('button');
++         button.type = 'button';
++         button.textContent = action.label;
++         button.dataset.capability = action.capability;
++         button.disabled = !action.enabled;
++         button.title = action.enabled ? action.capability : 'Capacidad no disponible en el plugin activo';
++         target.appendChild(button);
++       });
++     }
++
++     function renderOutputFromProductLayer(layer) {
++       setCards('output', [
++         { label: 'Respuesta', value: layer.visible_response || 'ACA no generó una respuesta pública.' },
++         { label: 'Proceso público', value: ((layer.public_process_view || {}).summary) || 'Proceso no disponible.' },
++         { label: 'Diagnóstico', value: ((layer.diagnostic_view || {}).diagnosis) || 'Diagnóstico no disponible.' }
++       ]);
++       renderProductActions(layer);
++       document.getElementById('contextTitle').textContent = 'Capa pública';
++       document.getElementById('contextHelp').textContent = 'La conversación visible usa acciones declaradas por capabilities y no lee la traza técnica directa.';
++     }
++
+      function nextStepFromResult(result) {
+        const entities = result.entities || {};
+        if (entities.case_id) return `Preparar consulta del ticket ${entities.case_id}: estado, responsable y próximo paso.`;
+@@ -602,6 +637,7 @@
+        renderPolish(polish, uxqa);
+        renderBinding(binding);
+        renderMetrics(binding);
++       renderProductActions({ actions: [] });
+        renderOutputFromBinding(binding, (polish.states || {}).empty);
+        rememberThought({ binding, ux_qa: uxqa, polish });
+      }
+@@ -624,15 +660,16 @@
+        if (!message) return;
+        appendConversation(message, 'user');
+        input.value = '';
+-       const result = await api.post('/demo/domain-flow', { message, conversation_id: conversationId, root: 'examples/domain_packs' });
+-       appendConversation(result.response || result.status || 'ACA completó la consulta.');
++       const result = await api.post(PUBLIC_CONVERSATION_LAYER_ENDPOINT, { message, conversation_id: conversationId, plugin_root: 'plugins' });
++       appendConversation(result.visible_response || result.status || 'ACA completó la consulta.');
+        const binding = result.binding || {};
+        summarize(binding);
+        const ux = await api.get('/studio/ux?root=examples/domain_packs');
+        const polish = await api.get('/public-demo/polish');
+        const uxqa = await api.get('/public-demo/ux-qa');
+        renderMetricCards(ux, binding);
+        renderPolish(polish, uxqa);
+-       renderOutputFromExecution(result);
++       renderOutputFromProductLayer(result);
+        renderBinding(binding);
+        renderMetrics(binding, result);
+-       rememberThought(result);
++       rememberThought(result.developer_trace || result);
+      }

@@ -1,4 +1,4 @@
-def plan(context: dict) -> dict:
+def plan(context) -> dict:
     return {
         "next_action": "respond",
         "strategy": "general_orientation",

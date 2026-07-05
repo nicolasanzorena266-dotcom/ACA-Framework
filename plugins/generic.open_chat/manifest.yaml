@@ -25,3 +25,19 @@ handles:
   - generic.open_chat
 
 blocked_capabilities:
+
+public_actions:
+  - id: show_process
+    label: Ver proceso
+    capability: generic.open_chat
+    mode: observation
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null
+  - id: reset_conversation
+    label: Reiniciar conversación
+    capability: generic.open_chat
+    mode: action
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null

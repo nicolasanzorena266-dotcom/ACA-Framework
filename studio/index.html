@@ -223,6 +223,7 @@
     }
 
     .context-card { display: none; padding: 18px; min-height: 0; grid-template-rows: auto 1fr; gap: 12px; overflow: hidden; }
+    .public-actions { display: grid; gap: 8px; margin-top: 12px; }
     .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .section-head h2 { margin: 0; font-size: 19px; letter-spacing: -0.045em; }
     .status-pill { background: var(--success-soft); color: var(--success); border: 1px solid #b9ebc8; padding: 7px 11px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 900; }
@@ -266,7 +267,7 @@
     }
   </style>
 <!-- ACA Studio Visual Design System compatibility marker -->
-<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime · width: min(100%, 430px) · Resumen de la consulta · width: min(46vh, 100%, 462px) · height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px) -->
+<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime · Sprint 72B Product Layer · Plugin Execution Bridge · public_action_id · public_actions · width: min(100%, 430px) · Resumen de la consulta · width: min(46vh, 100%, 462px) · height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px) -->
 </head>
 <body>
 <div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo · Demo Polish · width: min(100%, 390px) · height: min(100%, 760px) · max-height: 590px</div>
@@ -341,6 +342,7 @@
             <div class="context-title" id="contextTitle">Listo para ayudarte</div>
             <p class="muted" id="contextHelp">Acá queda el próximo paso, separado del detalle interno.</p>
             <div id="output" class="context-summary" aria-live="polite"></div>
+            <div id="publicActions" class="public-actions" aria-label="Acciones disponibles"></div>
             <button id="thoughtButton" class="thought-action">Ver proceso</button>
           </div>
         </article>
@@ -387,6 +389,7 @@
 
     let lastThought = { status: 'waiting_for_simulation' };
     let conversationId = `studio-domain-flow-${Date.now()}`;
+    let publicActions = [];
     const short = value => value === undefined || value === null || value === '' ? '0' : String(value);
     const humanStatus = value => ({ ready: 'listo', unknown: 'sin datos' }[String(value)] || String(value));
 
@@ -572,6 +575,22 @@
       ]);
     }
 
+
+    function renderPublicActions(actions) {
+      publicActions = actions || [];
+      const target = document.getElementById('publicActions');
+      if (!target) return;
+      target.innerHTML = '';
+      publicActions.forEach(action => {
+        const button = document.createElement('button');
+        button.textContent = action.label;
+        button.disabled = !action.enabled;
+        button.title = action.disabled_reason || action.capability;
+        button.addEventListener('click', () => runPublicAction(action.id));
+        target.appendChild(button);
+      });
+    }
+
     async function refresh() {
       resetConversation();
       const design = await api.get('/studio/design');
@@ -587,7 +606,9 @@
       renderBinding(binding);
       renderMetrics(binding);
       renderOutputFromBinding(binding, (polish.states || {}).empty);
-      rememberThought({ binding, ux_qa: uxqa, polish });
+      const productLayer = await api.get('/public-conversation/product-layer?root=plugins');
+      renderPublicActions(productLayer.public_actions || []);
+      rememberThought({ binding, ux_qa: uxqa, polish, product_layer: productLayer });
     }
 
     async function runBinding() {
@@ -608,7 +629,7 @@
       if (!message) return;
       appendConversation(message, 'user');
       input.value = '';
-      const result = await api.post('/demo/domain-flow', { message, conversation_id: conversationId, root: 'examples/domain_packs' });
+      const result = await api.post('/public-conversation/product-layer/run', { message, conversation_id: conversationId, conversation_mode: 'client_support', root: 'plugins' });
       appendConversation(result.response || result.status || 'ACA completó la consulta.');
       const binding = result.binding || {};
       summarize(binding);
@@ -620,6 +641,15 @@
       renderOutputFromExecution(result);
       renderBinding(binding);
       renderMetrics(binding, result);
+      renderPublicActions(result.public_actions || []);
+      rememberThought(result);
+    }
+
+    async function runPublicAction(actionId) {
+      const result = await api.post('/public-conversation/product-layer/run', { message: document.getElementById('message').value || '', conversation_id: conversationId, conversation_mode: 'client_support', public_action_id: actionId, root: 'plugins' });
+      appendConversation(result.response || 'Acción completada.');
+      renderOutputFromExecution(result);
+      renderPublicActions(result.public_actions || []);
       rememberThought(result);
     }
 
@@ -647,6 +677,7 @@
     });
   
     const PUBLIC_DEMO_USABILITY_ENDPOINT = '/public-demo/usability';
+    const DEMO_DOMAIN_FLOW_COMPAT_ENDPOINT = '/demo/domain-flow';
   </script>
 </body>
 </html>

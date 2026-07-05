@@ -3,7 +3,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence
@@ -36,6 +38,7 @@ def _parse_scalar(value: str) -> Any:
 def _parse_simple_yaml(text: str) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     active_top_key: str | None = None
+    active_list_item: Dict[str, Any] | None = None
 
     for raw_line in text.splitlines():
         without_comment = raw_line.split("#", 1)[0].rstrip()
@@ -53,9 +56,11 @@ def _parse_simple_yaml(text: str) -> Dict[str, Any]:
             if value.strip() == "":
                 result[key] = {}
                 active_top_key = key
+                active_list_item = None
             else:
                 result[key] = _parse_scalar(value)
                 active_top_key = None
+                active_list_item = None
             continue
 
         if active_top_key is None:
@@ -66,12 +71,23 @@ def _parse_simple_yaml(text: str) -> Dict[str, Any]:
             if not isinstance(parent, list):
                 parent = []
                 result[active_top_key] = parent
-            parent.append(_parse_scalar(stripped[2:].strip()))
+            item = stripped[2:].strip()
+            if ":" in item:
+                key, value = item.split(":", 1)
+                active_list_item = {key.strip(): _parse_scalar(value)}
+                parent.append(active_list_item)
+            else:
+                parent.append(_parse_scalar(item))
+                active_list_item = None
             continue
 
         if ":" not in stripped:
             raise ValueError(f"Invalid nested manifest line: {raw_line}")
         if not isinstance(parent, dict):
+            if isinstance(parent, list) and active_list_item is not None:
+                key, value = stripped.split(":", 1)
+                active_list_item[key.strip()] = _parse_scalar(value)
+                continue
             raise ValueError(f"Cannot add mapping values under list key: {active_top_key}")
         key, value = stripped.split(":", 1)
         parent[key.strip()] = _parse_scalar(value)
@@ -99,6 +115,62 @@ def _as_tuple(value: Any) -> tuple[str, ...]:
     if isinstance(value, Sequence):
         return tuple(str(item) for item in value)
     raise ValueError("Expected a string or list of strings.")
+
+
+@dataclass(frozen=True)
+class PublicAction:
+    id: str
+    label: str
+    capability: str
+    mode: str = "interaction"
+    requires_real_tool: bool = False
+    enabled: bool = True
+    disabled_reason: str | None = None
+
+    @classmethod
+    def from_mapping(cls, payload: Mapping[str, Any]) -> "PublicAction":
+        action = cls(
+            id=str(payload.get("id", "")).strip(),
+            label=str(payload.get("label", "")).strip(),
+            capability=str(payload.get("capability", "")).strip(),
+            mode=str(payload.get("mode", "interaction")).strip() or "interaction",
+            requires_real_tool=bool(payload.get("requires_real_tool", False)),
+            enabled=bool(payload.get("enabled", True)),
+            disabled_reason=(None if payload.get("disabled_reason") is None else str(payload.get("disabled_reason")).strip()),
+        )
+        if not action.id:
+            raise ValueError("Public action id is required.")
+        if not action.label:
+            raise ValueError(f"Public action {action.id} must declare a label.")
+        if not _CAPABILITY_PATTERN.match(action.capability) or "." not in action.capability:
+            raise ValueError(f"Public action {action.id} must point to a namespaced capability.")
+        if not action.enabled and not action.disabled_reason:
+            raise ValueError(f"Disabled public action {action.id} must declare disabled_reason.")
+        return action
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "label": self.label,
+            "capability": self.capability,
+            "mode": self.mode,
+            "requires_real_tool": self.requires_real_tool,
+            "enabled": self.enabled,
+            "disabled_reason": self.disabled_reason,
+        }
+
+
+def _as_public_actions(value: Any) -> tuple[PublicAction, ...]:
+    if value is None or (isinstance(value, Mapping) and not value):
+        return ()
+    if not isinstance(value, Sequence) or isinstance(value, str):
+        raise ValueError("public_actions must be a list of action mappings.")
+    actions: list[PublicAction] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise ValueError("Each public action must be a mapping.")
+        actions.append(PublicAction.from_mapping(item))
+    return tuple(actions)
 
 
 @dataclass(frozen=True)
@@ -182,6 +254,7 @@ class PluginManifest:
     exports: PluginExports
     handles: tuple[str, ...] = field(default_factory=tuple)
     blocked_capabilities: tuple[str, ...] = field(default_factory=tuple)
+    public_actions: tuple[PublicAction, ...] = field(default_factory=tuple)
     path: str | None = None
 
     @classmethod
@@ -197,6 +270,7 @@ class PluginManifest:
             exports=PluginExports.from_mapping(payload.get("exports") or {}),
             handles=_as_tuple(payload.get("handles")),
             blocked_capabilities=_as_tuple(payload.get("blocked_capabilities")),
+            public_actions=_as_public_actions(payload.get("public_actions")),
             path=str(path.parent) if path else None,
         )
         manifest.validate()
@@ -221,6 +295,10 @@ class PluginManifest:
         invalid = [cap for cap in self.handles + self.blocked_capabilities if not _CAPABILITY_PATTERN.match(cap)]
         if invalid:
             raise ValueError(f"Invalid capability names for plugin {self.id}: {invalid}")
+        declared = set(self.handles) | set(self.blocked_capabilities)
+        unbound_actions = [action.id for action in self.public_actions if action.capability not in declared]
+        if unbound_actions:
+            raise ValueError(f"Public actions must point to handled or blocked capabilities for plugin {self.id}: {unbound_actions}")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -230,6 +308,7 @@ class PluginManifest:
             "exports": self.exports.to_dict(),
             "handles": list(self.handles),
             "blocked_capabilities": list(self.blocked_capabilities),
+            "public_actions": [action.to_dict() for action in self.public_actions],
             "path": self.path,
         }
 
@@ -433,6 +512,36 @@ class RouteDecision:
         }
 
 
+@dataclass(frozen=True)
+class PluginExecutionContext:
+    conversation_id: str
+    request_id: str
+    plugin_id: str
+    capability: str
+    message: str
+    public_action_id: str | None
+    conversation_mode: str
+    state: Mapping[str, Any]
+    route_decision: Mapping[str, Any]
+    manifest: Mapping[str, Any]
+    blocked_capabilities: tuple[str, ...]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "conversation_id": self.conversation_id,
+            "request_id": self.request_id,
+            "plugin_id": self.plugin_id,
+            "capability": self.capability,
+            "message": self.message,
+            "public_action_id": self.public_action_id,
+            "conversation_mode": self.conversation_mode,
+            "state": dict(self.state),
+            "route_decision": dict(self.route_decision),
+            "manifest": dict(self.manifest),
+            "blocked_capabilities": list(self.blocked_capabilities),
+        }
+
+
 class CapabilityRouter:
     def __init__(
         self,
@@ -476,6 +585,11 @@ class CapabilityRouter:
 
         best: tuple[int, str, str] | None = None
         for plugin in self.plugin_registry.all():
+            semantic_candidate = self._semantic_candidate(plugin, text)
+            if semantic_candidate is not None:
+                candidate = semantic_candidate
+                if best is None or candidate > best:
+                    best = candidate
             searchable = _normalize(" ".join([plugin.domain_id, plugin.manifest.plugin.display_name, *plugin.supported_capabilities]))
             score = sum(1 for token in normalized.split() if token and token in searchable)
             for capability in plugin.supported_capabilities:
@@ -489,6 +603,31 @@ class CapabilityRouter:
             return RouteDecision(None, None, 0, "no_text_match", ())
         score, plugin_id, capability = best
         return RouteDecision(plugin_id, capability, score, "text_match", (plugin_id,))
+
+    def _semantic_candidate(self, plugin: DomainPlugin, text: str) -> tuple[int, str, str] | None:
+        if plugin.domain_id == self.fallback_capability:
+            return None
+        if plugin.semantic is None:
+            return None
+        analyze = getattr(plugin.semantic, "analyze", None)
+        if not callable(analyze):
+            return None
+        try:
+            output = analyze(text)
+        except TypeError:
+            return None
+        if not isinstance(output, Mapping):
+            return None
+        capability = str(output.get("capability") or output.get("intent") or "")
+        if capability not in plugin.supported_capabilities:
+            return None
+        if not self.policy_engine.allows(plugin.domain_id, capability):
+            return None
+        try:
+            confidence = float(output.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        return (max(2, int(confidence * 100)) + 25, plugin.domain_id, capability)
 
 
 @dataclass(frozen=True)
@@ -551,16 +690,22 @@ class PluginTraceRecorder:
         self,
         event_type: str,
         *,
+        conversation_id: str | None = None,
+        request_id: str | None = None,
         plugin_id: str | None = None,
         capability: str | None = None,
         payload: Mapping[str, Any] | None = None,
     ) -> Dict[str, Any]:
         event = {
             "index": len(self._events) + 1,
+            "trace_id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "conversation_id": conversation_id,
+            "request_id": request_id,
             "event_type": event_type,
             "plugin_id": plugin_id,
             "capability": capability,
-            "payload": dict(payload or {}),
+            "payload": _safe_payload(payload or {}),
         }
         self._events.append(event)
         return event
@@ -568,12 +713,17 @@ class PluginTraceRecorder:
     def events(self) -> List[Dict[str, Any]]:
         return [dict(event) for event in self._events]
 
-    def to_dict(self) -> Dict[str, Any]:
-        active = next((event for event in reversed(self._events) if event.get("plugin_id")), None)
+    def to_dict(self, *, conversation_id: str | None = None, request_id: str | None = None) -> Dict[str, Any]:
+        events = self.events()
+        if conversation_id is not None:
+            events = [event for event in events if event.get("conversation_id") == conversation_id]
+        if request_id is not None:
+            events = [event for event in events if event.get("request_id") == request_id]
+        active = next((event for event in reversed(events) if event.get("plugin_id")), None)
         return {
             "active_plugin_id": active.get("plugin_id") if active else None,
             "active_capability": active.get("capability") if active else None,
-            "events": self.events(),
+            "events": events,
         }
 
 
@@ -601,6 +751,13 @@ class PluginRuntimeResult:
     state: PluginState | None
     trace: Mapping[str, Any]
     policy: Mapping[str, Any]
+    semantic: Mapping[str, Any] = field(default_factory=dict)
+    policy_decision: Mapping[str, Any] = field(default_factory=dict)
+    plan: Mapping[str, Any] = field(default_factory=dict)
+    hook_execution: Mapping[str, bool] = field(default_factory=dict)
+    request_id: str | None = None
+    conversation_mode: str = "client_support"
+    public_action_id: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -608,6 +765,13 @@ class PluginRuntimeResult:
             "state": self.state.to_dict() if self.state else None,
             "trace": dict(self.trace),
             "policy": dict(self.policy),
+            "semantic": dict(self.semantic),
+            "policy_decision": dict(self.policy_decision),
+            "plan": dict(self.plan),
+            "hook_execution": dict(self.hook_execution),
+            "request_id": self.request_id,
+            "conversation_mode": self.conversation_mode,
+            "public_action_id": self.public_action_id,
         }
 
 
@@ -647,30 +811,159 @@ class PluginRuntime:
         *,
         conversation_id: str = "default",
         requested_capability: str | None = None,
+        public_action_id: str | None = None,
+        conversation_mode: str = "client_support",
+        request_id: str | None = None,
     ) -> PluginRuntimeResult:
+        request_id = request_id or str(uuid.uuid4())
         route = self.router.route(requested_capability=requested_capability, text=text)
-        self.trace_recorder.record("route.selected", plugin_id=route.selected_plugin_id, capability=route.selected_capability, payload=route.to_dict())
+        self.trace_recorder.record(
+            "route.selected",
+            conversation_id=conversation_id,
+            request_id=request_id,
+            plugin_id=route.selected_plugin_id,
+            capability=route.selected_capability,
+            payload=route.to_dict(),
+        )
         if route.selected_plugin_id is None or route.selected_capability is None:
-            self.trace_recorder.record("route.unresolved", payload={"text_length": len(text)})
-            return PluginRuntimeResult(route=route, state=None, trace=self.trace_recorder.to_dict(), policy=self.policy_engine.to_dict())
+            self.trace_recorder.record(
+                "route.unresolved",
+                conversation_id=conversation_id,
+                request_id=request_id,
+                payload={"text_length": len(text)},
+            )
+            return PluginRuntimeResult(
+                route=route,
+                state=None,
+                trace=self.trace_recorder.to_dict(conversation_id=conversation_id, request_id=request_id),
+                policy=self.policy_engine.to_dict(),
+                request_id=request_id,
+                conversation_mode=conversation_mode,
+                public_action_id=public_action_id,
+            )
 
         state = self.state_store.get_or_create(conversation_id, route.selected_plugin_id, route.selected_capability)
+        plugin = self.plugin_registry.get(route.selected_plugin_id)
+        context = PluginExecutionContext(
+            conversation_id=conversation_id,
+            request_id=request_id,
+            plugin_id=route.selected_plugin_id,
+            capability=route.selected_capability,
+            message=text,
+            public_action_id=public_action_id,
+            conversation_mode=conversation_mode,
+            state=state.to_dict(),
+            route_decision=route.to_dict(),
+            manifest=plugin.manifest.to_dict() if plugin else {},
+            blocked_capabilities=plugin.blocked_capabilities if plugin else (),
+        )
+        semantic, semantic_ran = self._run_semantic(plugin, text, context)
+        policy_decision, policy_ran = self._run_policy(plugin, context)
+        plan, planner_ran = self._run_planner(plugin, context)
+        for name, ran, payload in (
+            ("semantic", semantic_ran, semantic),
+            ("policy", policy_ran, policy_decision),
+            ("planner", planner_ran, plan),
+        ):
+            self.trace_recorder.record(
+                f"plugin.{name}.{'executed' if ran else 'missing'}",
+                conversation_id=conversation_id,
+                request_id=request_id,
+                plugin_id=route.selected_plugin_id,
+                capability=route.selected_capability,
+                payload=payload,
+            )
         updated = self.state_store.update(
             state,
             last_input=text,
             active_plugin_id=route.selected_plugin_id,
             active_capability=route.selected_capability,
+            semantic=semantic,
+            policy_decision=policy_decision,
+            plan=plan,
+            public_action_id=public_action_id,
+            conversation_mode=conversation_mode,
         )
         self.trace_recorder.record(
             "state.updated",
+            conversation_id=conversation_id,
+            request_id=request_id,
             plugin_id=updated.plugin_id,
             capability=updated.capability,
             payload={"state_key": updated.key, "version": updated.version},
         )
         for hook_name in self.eval_hooks.hooks_for(route.selected_plugin_id):
-            self.trace_recorder.record("eval.hook.available", plugin_id=route.selected_plugin_id, capability=route.selected_capability, payload={"hook": hook_name})
-        return PluginRuntimeResult(route=route, state=updated, trace=self.trace_recorder.to_dict(), policy=self.policy_engine.to_dict())
+            self.trace_recorder.record(
+                "eval.hook.available",
+                conversation_id=conversation_id,
+                request_id=request_id,
+                plugin_id=route.selected_plugin_id,
+                capability=route.selected_capability,
+                payload={"hook": hook_name},
+            )
+        return PluginRuntimeResult(
+            route=route,
+            state=updated,
+            trace=self.trace_recorder.to_dict(conversation_id=conversation_id, request_id=request_id),
+            policy=self.policy_engine.to_dict(),
+            semantic=semantic,
+            policy_decision=policy_decision,
+            plan=plan,
+            hook_execution={"semantic": semantic_ran, "policy": policy_ran, "planner": planner_ran},
+            request_id=request_id,
+            conversation_mode=conversation_mode,
+            public_action_id=public_action_id,
+        )
+
+    def _run_semantic(self, plugin: DomainPlugin | None, text: str, context: PluginExecutionContext) -> tuple[Dict[str, Any], bool]:
+        if plugin is None or plugin.semantic is None:
+            return {}, False
+        analyze = getattr(plugin.semantic, "analyze", None)
+        if not callable(analyze):
+            return {}, False
+        try:
+            result = analyze(text, context)
+        except TypeError:
+            result = analyze(text)
+        return dict(result or {}), True
+
+    def _run_policy(self, plugin: DomainPlugin | None, context: PluginExecutionContext) -> tuple[Dict[str, Any], bool]:
+        if plugin is None or plugin.policy is None:
+            return {"allowed": True}, False
+        authorize = getattr(plugin.policy, "authorize", None)
+        evaluate = getattr(plugin.policy, "evaluate", None)
+        if callable(authorize):
+            return dict(authorize(context) or {}), True
+        if callable(evaluate):
+            return dict(evaluate(context.to_dict()) or {}), True
+        return {"allowed": True}, False
+
+    def _run_planner(self, plugin: DomainPlugin | None, context: PluginExecutionContext) -> tuple[Dict[str, Any], bool]:
+        if plugin is None or plugin.planner is None:
+            return {}, False
+        plan = getattr(plugin.planner, "plan", None)
+        if not callable(plan):
+            return {}, False
+        return dict(plan(context) or {}), True
 
 
 def _normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _safe_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    sensitive_terms = ("prompt", "secret", "token", "password", "credential")
+
+    def clean(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                str(key): ("<redacted>" if any(term in str(key).lower() for term in sensitive_terms) else clean(item))
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [clean(item) for item in value]
+        if isinstance(value, tuple):
+            return [clean(item) for item in value]
+        return value
+
+    return dict(clean(payload))

@@ -8,21 +8,21 @@ ACA is not a chatbot template and it is not a prompt collection. It separates co
 
 ```text
 Event
-  â†“
+  ↓
 Conversation Manager
-  â†“
+  ↓
 Mission Manager
-  â†“
+  ↓
 Policy Manager
-  â†“
+  ↓
 Compiler
-  â†“
+  ↓
 Operation Graph
-  â†“
+  ↓
 ACA Kernel
-  â†“
+  ↓
 CSM Timeline
-  â†“
+  ↓
 ACAOutput
 ```
 

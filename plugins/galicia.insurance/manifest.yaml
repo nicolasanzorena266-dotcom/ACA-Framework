@@ -25,8 +25,32 @@ handles:
   - insurance.claims
   - insurance.glass
   - insurance.accident
+  - insurance.handoff.prepare
 
 blocked_capabilities:
-  - real_claim_status_lookup
-  - real_document_upload
-  - real_representative_transfer
+  - insurance.claim_status.lookup
+  - insurance.document.upload
+  - insurance.representative.transfer
+
+public_actions:
+  - id: show_process
+    label: Ver proceso
+    capability: insurance.claims
+    mode: observation
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null
+  - id: prepare_handoff
+    label: Preparar derivación
+    capability: insurance.handoff.prepare
+    mode: action
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null
+  - id: real_claim_status_lookup
+    label: Consultar estado real
+    capability: insurance.claim_status.lookup
+    mode: action
+    requires_real_tool: true
+    enabled: false
+    disabled_reason: "No hay herramienta real conectada para consultar expedientes."

@@ -21,6 +21,7 @@ from aca_os.hosted_runtime_hardening import build_hosted_runtime_hardening, vali
 from aca_os.public_demo_ux_qa import build_public_demo_ux_qa, validate_public_demo_ux_qa
 from aca_os.public_demo_release_candidate import build_public_demo_release_candidate, validate_public_demo_release_candidate
 from aca_os.public_demo_usability import build_public_demo_usability, validate_public_demo_usability
+from aca_os.public_conversation_product_layer import build_public_conversation_product_layer, run_public_conversation_product_layer
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -118,6 +119,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/deploy/render/validate", "Validate Render deployment configuration.", "deploy.render.validate"),
         RuntimeEndpoint("GET", "/hosting/hardening", "Return hosted Runtime hardening contract.", "hosting.hardening.read"),
         RuntimeEndpoint("GET", "/hosting/hardening/validate", "Validate hosted Runtime hardening contract.", "hosting.hardening.validate"),
+        RuntimeEndpoint("GET", "/public-conversation/product-layer", "Return public conversation product layer contract.", "public_conversation.product_layer.read"),
+        RuntimeEndpoint("POST", "/public-conversation/product-layer/run", "Run public conversation through plugin execution bridge.", "public_conversation.product_layer.run"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -752,6 +755,30 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_hosted_runtime_hardening(project_root=project_root, hardening=hardening)
 
+    def public_conversation_product_layer(
+        self,
+        *,
+        root: str | Path = "plugins",
+    ) -> Dict[str, Any]:
+        return build_public_conversation_product_layer(root=root)
+
+    def run_public_conversation_product_layer(
+        self,
+        *,
+        message: str = "",
+        conversation_id: str = "public-conversation",
+        conversation_mode: str = "client_support",
+        public_action_id: str | None = None,
+        root: str | Path = "plugins",
+    ) -> Dict[str, Any]:
+        return run_public_conversation_product_layer(
+            message=message,
+            conversation_id=conversation_id,
+            conversation_mode=conversation_mode,
+            public_action_id=public_action_id,
+            root=root,
+        )
+
     def run_human_demo(
         self,
         *,
@@ -906,6 +933,16 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/hosting/hardening/validate":
             return self.validate_hosted_runtime_hardening(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/public-conversation/product-layer":
+            return self.public_conversation_product_layer(root=params.get("root") or "plugins")
+        if method == "POST" and path == "/public-conversation/product-layer/run":
+            return self.run_public_conversation_product_layer(
+                message=payload.get("message") or "",
+                conversation_id=payload.get("conversation_id") or "public-conversation",
+                conversation_mode=payload.get("conversation_mode") or "client_support",
+                public_action_id=payload.get("public_action_id"),
+                root=payload.get("root") or params.get("root") or "plugins",
+            )
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

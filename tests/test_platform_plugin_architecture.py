@@ -65,7 +65,7 @@ handles:
   - health.appointments
 
 blocked_capabilities:
-  - real_patient_record_lookup
+  - health.patient_record.lookup
 """.strip(),
         encoding="utf-8",
     )
@@ -121,7 +121,7 @@ def test_manifest_schema_validates_versioned_plugin_contract() -> None:
     assert manifest.requires.aca_plugin_sdk == "^1.0.0"
     assert manifest.exports.semantic is True
     assert "insurance.claims" in manifest.handles
-    assert "real_document_upload" in manifest.blocked_capabilities
+    assert "insurance.document.upload" in manifest.blocked_capabilities
 
 
 def test_core_policy_is_separate_from_domain_policy() -> None:
@@ -132,8 +132,8 @@ def test_core_policy_is_separate_from_domain_policy() -> None:
     assert core_policy.fallback_capability == "generic.open_chat"
     assert domain_policy.plugin_id == "galicia.insurance"
     assert domain_policy.allows("insurance.claims") is True
-    assert domain_policy.allows("real_claim_status_lookup") is False
-    assert "real_claim_status_lookup" not in core_policy.to_dict().values()
+    assert domain_policy.allows("insurance.claim_status.lookup") is False
+    assert "insurance.claim_status.lookup" not in core_policy.to_dict().values()
 
 
 def test_business_terms_do_not_leak_into_aca_core_source() -> None:

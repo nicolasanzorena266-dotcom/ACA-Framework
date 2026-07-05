@@ -299,6 +299,18 @@ class RuntimeRESTAPI:
                 return self.ok(self.runtime_api.public_demo_usability(public_base_url=_first(params, "public_base_url") or "https://aca-public-web-demo.onrender.com"))
             if method == "GET" and clean_path == "/public-demo/usability/validate":
                 return self.ok(self.runtime_api.validate_public_demo_usability())
+            if method == "GET" and clean_path == "/public-conversation/product-layer":
+                return self.ok(self.runtime_api.public_conversation_product_layer(root=_first(params, "root") or "plugins"))
+            if method == "POST" and clean_path == "/public-conversation/product-layer/run":
+                return self.ok(
+                    self.runtime_api.run_public_conversation_product_layer(
+                        message=payload.get("message") or "",
+                        conversation_id=payload.get("conversation_id") or "public-conversation",
+                        conversation_mode=payload.get("conversation_mode") or "client_support",
+                        public_action_id=payload.get("public_action_id"),
+                        root=payload.get("root") or _first(params, "root") or "plugins",
+                    )
+                )
             if method == "GET" and clean_path == "/hosting/target":
                 return self.ok(
                     self.runtime_api.hosting_target_contract(

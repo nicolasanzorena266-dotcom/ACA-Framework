@@ -1,5 +1,9 @@
-def evaluate(context: dict) -> dict:
+def authorize(context) -> dict:
     return {
         "allowed": True,
-        "limits": ["No external system access is assumed."],
+        "reason": None,
     }
+
+
+def evaluate(context: dict) -> dict:
+    return authorize(context)
