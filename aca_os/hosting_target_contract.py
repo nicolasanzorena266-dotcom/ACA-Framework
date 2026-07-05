@@ -116,6 +116,7 @@ class HostingTargetContract:
                     "aca_os/hosted_runtime_healthcheck.py",
                     "aca_os/hosted_studio_assets.py",
                     "aca_os/deployment_smoke_tests.py",
+                    "aca_os/first_public_hosted_demo.py",
                     "pyproject.toml",
                 ],
                 "platform_requirements": [
@@ -153,6 +154,8 @@ class HostingTargetContract:
                     "GET /hosting/studio-assets returns hosted_studio_assets.v1",
                     "GET /deploy/smoke-tests returns deployment_smoke_tests.v1",
                     "POST /deploy/smoke-tests/run validates hosted demo routes",
+                    "GET /hosted-demo/first returns first_public_hosted_demo.v1",
+                    "GET /hosted-demo/first/validate validates first public hosted demo readiness",
                     "POST /demo/domain-flow runs without external AI",
                     "runtime and domain behavior remain outside the hosting adapter",
                 ],
@@ -190,6 +193,8 @@ def default_hosting_routes() -> tuple[HostingRoute, ...]:
         HostingRoute("deployment_smoke_tests", "GET", "/deploy/smoke-tests", "Deployment smoke test plan for hosted demo readiness."),
         HostingRoute("deployment_smoke_tests_run", "POST", "/deploy/smoke-tests/run", "Run deployment smoke tests through REST adapter routes."),
         HostingRoute("deployment_smoke_tests_validate", "GET", "/deploy/smoke-tests/validate", "Validate deployment smoke test results."),
+        HostingRoute("first_public_hosted_demo", "GET", "/hosted-demo/first", "First public hosted demo deployment contract."),
+        HostingRoute("first_public_hosted_demo_validate", "GET", "/hosted-demo/first/validate", "First public hosted demo readiness validation."),
     )
 
 
@@ -236,7 +241,7 @@ def validate_hosting_target_contract(
 
     routes = payload.get("routes") or []
     route_paths = {route.get("path") for route in routes if isinstance(route, Mapping)}
-    for required_path in {"/health", "/studio", "/demo/domain-flow", "/hosting/target", "/hosting/studio-assets"}:
+    for required_path in {"/health", "/studio", "/demo/domain-flow", "/hosting/target", "/hosting/studio-assets", "/hosted-demo/first"}:
         if required_path not in route_paths:
             errors.append(f"missing required route: {required_path}")
 

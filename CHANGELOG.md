@@ -1,4 +1,12 @@
 
+## Sprint 64 — First Public Hosted Demo
+
+- Added first public hosted demo deployment contract.
+- Added Runtime API and REST routes for `/hosted-demo/first` and `/hosted-demo/first/validate`.
+- Added deploy config for the first public hosted demo.
+- Extended hosted healthcheck, hosting contract and deployment smoke tests with first-demo coverage.
+
+
 ## 0.3.0-sprint62 — Hosted Studio Asset Strategy
 
 - Added hosted Studio asset strategy contract.

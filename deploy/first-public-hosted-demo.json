@@ -1,0 +1,382 @@
+{
+  "contract": "first_public_hosted_demo.v1",
+  "status": "ready",
+  "app": {
+    "name": "aca-public-web-demo",
+    "surface": "ACA Studio",
+    "platform": "render-web-service",
+    "public_base_url": "https://aca-public-web-demo.onrender.com",
+    "mode": "first-public-hosted-demo"
+  },
+  "runtime": {
+    "start_command": "python tools/aca_web.py --host 0.0.0.0",
+    "healthcheck_path": "/health",
+    "studio_path": "/studio",
+    "external_ai_required": false,
+    "business_logic_location": "runtime",
+    "interface_logic_location": "adapters_and_studio_shell"
+  },
+  "environment": {
+    "PORT": "8765",
+    "ACA_HOST": "0.0.0.0",
+    "ACA_PUBLIC_BASE_URL": "https://aca-public-web-demo.onrender.com",
+    "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs",
+    "ACA_DEFAULT_DOMAIN_PACK": "example.customer_support",
+    "ACA_STUDIO_PATH": "studio/index.html"
+  },
+  "public_urls": {
+    "root": "https://aca-public-web-demo.onrender.com",
+    "studio": "https://aca-public-web-demo.onrender.com/studio",
+    "health": "https://aca-public-web-demo.onrender.com/health",
+    "runtime_status": "https://aca-public-web-demo.onrender.com/runtime/status",
+    "hosted_healthcheck": "https://aca-public-web-demo.onrender.com/hosting/healthcheck",
+    "studio_assets": "https://aca-public-web-demo.onrender.com/hosting/studio-assets",
+    "smoke_tests": "https://aca-public-web-demo.onrender.com/deploy/smoke-tests",
+    "first_demo_contract": "https://aca-public-web-demo.onrender.com/hosted-demo/first"
+  },
+  "platform_targets": [
+    {
+      "id": "render-web-service",
+      "label": "Render Web Service",
+      "build_command": "python -m pytest -q",
+      "start_command": "python tools/aca_web.py --host 0.0.0.0",
+      "healthcheck_path": "/health",
+      "port_strategy": "PORT environment variable"
+    },
+    {
+      "id": "railway-service",
+      "label": "Railway Service",
+      "build_command": "python -m pytest -q",
+      "start_command": "python tools/aca_web.py --host 0.0.0.0",
+      "healthcheck_path": "/health",
+      "port_strategy": "PORT environment variable"
+    },
+    {
+      "id": "generic-python-web-service",
+      "label": "Generic Python Web Service",
+      "build_command": "python -m pytest -q",
+      "start_command": "python tools/aca_web.py --host 0.0.0.0",
+      "healthcheck_path": "/health",
+      "port_strategy": "PORT with fallback 8765"
+    }
+  ],
+  "required_routes": [
+    "/health",
+    "/studio",
+    "/runtime/status",
+    "/studio/binding",
+    "/demo/domain-flow",
+    "/hosting/target",
+    "/hosting/healthcheck",
+    "/hosting/studio-assets",
+    "/deploy/smoke-tests",
+    "/deploy/smoke-tests/run",
+    "/hosted-demo/first",
+    "/hosted-demo/first/validate"
+  ],
+  "deploy_checklist": [
+    "connect repository main branch to selected Python web host",
+    "set start command to python tools/aca_web.py --host 0.0.0.0",
+    "let the host provide PORT or set PORT=8765 for local-style hosts",
+    "configure healthcheck path as /health",
+    "open /studio after deploy becomes healthy",
+    "run deployment smoke tests against the public base URL"
+  ],
+  "local_verification": {
+    "command": "python tools/aca_web.py --host 127.0.0.1 --port 8765 --open",
+    "studio_url": "http://127.0.0.1:8765/studio",
+    "health_url": "http://127.0.0.1:8765/health"
+  },
+  "smoke_test": {
+    "contract": "deployment_smoke_tests.v1",
+    "mode": "in_process_rest_adapter_smoke_tests",
+    "test_count": 10,
+    "public_base_url": "https://aca-public-web-demo.onrender.com",
+    "run_endpoint": "/deploy/smoke-tests/run",
+    "validate_endpoint": "/deploy/smoke-tests/validate"
+  },
+  "readiness_refs": {
+    "hosting_target_contract": {
+      "contract": "hosting_target_contract.v1",
+      "app": {
+        "name": "<max-depth>",
+        "surface": "<max-depth>",
+        "mode": "<max-depth>",
+        "platform": "<max-depth>",
+        "public_base_url": "<max-depth>"
+      },
+      "runtime": {
+        "type": "<max-depth>",
+        "python_version": "<max-depth>",
+        "external_ai_required": "<max-depth>",
+        "offline_core_supported": "<max-depth>",
+        "business_logic_location": "<max-depth>",
+        "interface_logic_location": "<max-depth>"
+      },
+      "process": {
+        "type": "<max-depth>",
+        "startup_command": "<max-depth>",
+        "local_command": "<max-depth>",
+        "host": "<max-depth>",
+        "port_env": "<max-depth>",
+        "fallback_port": "<max-depth>",
+        "shutdown": "<max-depth>"
+      },
+      "healthcheck": {
+        "method": "<max-depth>",
+        "path": "<max-depth>",
+        "expected_status_code": "<max-depth>",
+        "expected_json": "<max-depth>",
+        "timeout_seconds": "<max-depth>"
+      },
+      "routes": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "public_routes": {
+        "health": "<max-depth>",
+        "studio": "<max-depth>",
+        "runtime_status": "<max-depth>",
+        "studio_binding": "<max-depth>",
+        "demo_domain_flow": "<max-depth>",
+        "public_demo_runtime_adapter": "<max-depth>",
+        "public_demo_polish": "<max-depth>",
+        "hosting_target": "<max-depth>",
+        "hosting_target_validate": "<max-depth>",
+        "hosted_runtime_healthcheck": "<max-depth>",
+        "hosted_runtime_healthcheck_validate": "<max-depth>",
+        "hosted_studio_assets": "<max-depth>",
+        "hosted_studio_assets_validate": "<max-depth>",
+        "deployment_smoke_tests": "<max-depth>",
+        "deployment_smoke_tests_run": "<max-depth>",
+        "deployment_smoke_tests_validate": "<max-depth>",
+        "first_public_hosted_demo": "<max-depth>",
+        "first_public_hosted_demo_validate": "<max-depth>"
+      },
+      "assets": {
+        "studio_html": "<max-depth>",
+        "domain_pack_root": "<max-depth>",
+        "default_domain_pack": "<max-depth>",
+        "deploy_config": "<max-depth>",
+        "hosting_contract": "<max-depth>"
+      },
+      "environment": {
+        "PORT": "<max-depth>",
+        "ACA_HOST": "<max-depth>",
+        "ACA_PORT": "<max-depth>",
+        "ACA_PUBLIC_BASE_URL": "<max-depth>",
+        "ACA_DOMAIN_PACK_ROOT": "<max-depth>",
+        "ACA_DEFAULT_DOMAIN_PACK": "<max-depth>",
+        "ACA_STUDIO_PATH": "<max-depth>"
+      },
+      "required_files": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "platform_requirements": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "compatible_targets": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "acceptance_criteria": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "non_goals": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "metadata": {
+        "sprint": "<max-depth>",
+        "epic": "<max-depth>",
+        "business_logic": "<max-depth>",
+        "platform_lock_in": "<max-depth>"
+      }
+    },
+    "hosted_runtime_healthcheck": {
+      "contract": "hosted_runtime_healthcheck.v1",
+      "status": "degraded",
+      "mode": "hosted",
+      "summary": {
+        "ok": "<max-depth>",
+        "degraded": "<max-depth>",
+        "failed": "<max-depth>",
+        "required_failures": "<max-depth>"
+      },
+      "runtime": {
+        "external_ai_required": "<max-depth>",
+        "offline_core_supported": "<max-depth>",
+        "business_logic_location": "<max-depth>",
+        "interface_logic_location": "<max-depth>"
+      },
+      "hosting": {
+        "public_base_url": "<max-depth>",
+        "port_env": "<max-depth>",
+        "fallback_port": "<max-depth>",
+        "healthcheck_path": "<max-depth>",
+        "platform_healthcheck_path": "<max-depth>",
+        "startup_command": "<max-depth>"
+      },
+      "assets": {
+        "studio_html": "<max-depth>",
+        "domain_pack_root": "<max-depth>",
+        "default_domain_pack": "<max-depth>"
+      },
+      "checks": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "acceptance_criteria": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "metadata": {
+        "sprint": "<max-depth>",
+        "epic": "<max-depth>"
+      }
+    },
+    "hosted_studio_assets": {
+      "contract": "hosted_studio_assets.v1",
+      "status": "ok",
+      "surface": "ACA Studio",
+      "public_base_url": "https://aca-public-web-demo.onrender.com",
+      "serving": {
+        "mode": "<max-depth>",
+        "studio_route": "<max-depth>",
+        "fallback_route": "<max-depth>",
+        "api_base_route": "<max-depth>",
+        "asset_strategy": "<max-depth>",
+        "business_logic_location": "<max-depth>",
+        "interface_logic_location": "<max-depth>",
+        "external_ai_required": "<max-depth>"
+      },
+      "routes": {
+        "studio": "<max-depth>",
+        "asset_strategy": "<max-depth>",
+        "asset_validation": "<max-depth>",
+        "runtime_status": "<max-depth>",
+        "studio_binding": "<max-depth>",
+        "demo_domain_flow": "<max-depth>"
+      },
+      "public_routes": {
+        "studio": "<max-depth>",
+        "asset_strategy": "<max-depth>",
+        "asset_validation": "<max-depth>"
+      },
+      "assets": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "validation_hints": {
+        "missing_required": "<max-depth>",
+        "studio_html_valid": "<max-depth>",
+        "studio_title_required": "<max-depth>",
+        "fallback_required": "<max-depth>"
+      },
+      "cache": {
+        "html": "<max-depth>",
+        "runtime_api": "<max-depth>",
+        "static_future_assets": "<max-depth>"
+      },
+      "failure_behavior": {
+        "missing_studio_html": "<max-depth>",
+        "missing_optional_asset": "<max-depth>",
+        "runtime_api_failure": "<max-depth>"
+      },
+      "acceptance_criteria": [
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>",
+        "<max-depth>"
+      ],
+      "metadata": {
+        "sprint": "<max-depth>",
+        "epic": "<max-depth>"
+      }
+    }
+  },
+  "acceptance_criteria": [
+    "public host starts ACA using the documented start command",
+    "GET /health returns status ok",
+    "GET /studio serves ACA Studio",
+    "GET /hosted-demo/first returns first_public_hosted_demo.v1",
+    "GET /hosted-demo/first/validate returns valid true before public deploy attempt",
+    "deployment smoke tests remain deterministic and do not require external AI"
+  ],
+  "non_goals": [
+    "no provider API automation",
+    "no secret management",
+    "no paid service dependency",
+    "no business logic in deployment configuration"
+  ],
+  "metadata": {
+    "sprint": 64,
+    "epic": "Hosted Demo Path"
+  }
+}

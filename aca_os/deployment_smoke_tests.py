@@ -114,6 +114,21 @@ def default_deployment_smoke_tests(
             expected_payload_value=True,
         ),
         DeploymentSmokeTest(
+            "first_public_hosted_demo",
+            "GET",
+            "/hosted-demo/first",
+            "First public hosted demo contract is exposed before deployment.",
+            expected_contract="first_public_hosted_demo.v1",
+        ),
+        DeploymentSmokeTest(
+            "first_public_hosted_demo_validation",
+            "GET",
+            "/hosted-demo/first/validate",
+            "First public hosted demo validates required hosted artifacts.",
+            expected_payload_field="valid",
+            expected_payload_value=True,
+        ),
+        DeploymentSmokeTest(
             "demo_domain_flow",
             "POST",
             "/demo/domain-flow",
@@ -159,20 +174,22 @@ def build_deployment_smoke_test_plan(
                 "hosted_healthcheck": "/hosting/healthcheck/validate",
                 "assets": "/hosting/studio-assets/validate",
                 "demo_flow": "/demo/domain-flow",
+                "first_public_hosted_demo": "/hosted-demo/first and /hosted-demo/first/validate",
             },
             "acceptance_criteria": [
                 "all required smoke tests pass before a public hosted demo",
                 "smoke tests run through REST adapter routes instead of component internals",
-                "health, runtime, Studio, assets, hosting config and demo flow are covered",
+                "health, runtime, Studio, assets, hosting config, first public demo and demo flow are covered",
                 "failures return explicit diagnostic rows instead of silent deployment uncertainty",
             ],
             "non_goals": [
                 "no external hosting platform call",
+                "no public network call",
                 "no network socket requirement",
                 "no visual redesign",
                 "no external AI dependency",
             ],
-            "metadata": {"sprint": 63, "epic": "Hosted Demo Path"},
+            "metadata": {"sprint": 64, "epic": "Hosted Demo Path"},
         }
     )
 

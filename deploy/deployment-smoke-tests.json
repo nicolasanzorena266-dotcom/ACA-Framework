@@ -2,9 +2,9 @@
   "contract": "deployment_smoke_tests.v1",
   "status": "ready",
   "surface": "ACA Studio hosted demo",
-  "public_base_url": "https://aca-demo.example.com",
+  "public_base_url": "https://aca-public-web-demo.onrender.com",
   "mode": "in_process_rest_adapter_smoke_tests",
-  "test_count": 8,
+  "test_count": 10,
   "tests": [
     {
       "id": "platform_health",
@@ -106,6 +106,32 @@
       "body": {}
     },
     {
+      "id": "first_public_hosted_demo",
+      "method": "GET",
+      "path": "/hosted-demo/first",
+      "purpose": "First public hosted demo contract is exposed before deployment.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": "first_public_hosted_demo.v1",
+      "expected_payload_field": null,
+      "expected_payload_value": null,
+      "query": {},
+      "body": {}
+    },
+    {
+      "id": "first_public_hosted_demo_validation",
+      "method": "GET",
+      "path": "/hosted-demo/first/validate",
+      "purpose": "First public hosted demo validates required hosted artifacts.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "valid",
+      "expected_payload_value": true,
+      "query": {},
+      "body": {}
+    },
+    {
       "id": "demo_domain_flow",
       "method": "POST",
       "path": "/demo/domain-flow",
@@ -131,22 +157,24 @@
     "hosting_config": "/hosting/target/validate",
     "hosted_healthcheck": "/hosting/healthcheck/validate",
     "assets": "/hosting/studio-assets/validate",
-    "demo_flow": "/demo/domain-flow"
+    "demo_flow": "/demo/domain-flow",
+    "first_public_hosted_demo": "/hosted-demo/first and /hosted-demo/first/validate"
   },
   "acceptance_criteria": [
     "all required smoke tests pass before a public hosted demo",
     "smoke tests run through REST adapter routes instead of component internals",
-    "health, runtime, Studio, assets, hosting config and demo flow are covered",
+    "health, runtime, Studio, assets, hosting config, first public demo and demo flow are covered",
     "failures return explicit diagnostic rows instead of silent deployment uncertainty"
   ],
   "non_goals": [
     "no external hosting platform call",
+    "no public network call",
     "no network socket requirement",
     "no visual redesign",
     "no external AI dependency"
   ],
   "metadata": {
-    "sprint": 63,
+    "sprint": 64,
     "epic": "Hosted Demo Path"
   }
 }

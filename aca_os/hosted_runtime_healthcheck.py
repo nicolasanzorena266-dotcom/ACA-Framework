@@ -64,6 +64,8 @@ class HostedRuntimeHealthcheck:
         "/deploy/smoke-tests",
         "/deploy/smoke-tests/run",
         "/deploy/smoke-tests/validate",
+        "/hosted-demo/first",
+        "/hosted-demo/first/validate",
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -200,6 +202,12 @@ class HostedRuntimeHealthcheck:
                 "ok" if (root / "aca_os" / "deployment_smoke_tests.py").exists() else "failed",
                 "Deployment smoke test module is present." if (root / "aca_os" / "deployment_smoke_tests.py").exists() else "Deployment smoke test module is missing.",
                 details={"path": "aca_os/deployment_smoke_tests.py"},
+            ),
+            HostedHealthCheckItem(
+                "first_public_hosted_demo",
+                "ok" if (root / "aca_os" / "first_public_hosted_demo.py").exists() else "failed",
+                "First public hosted demo module is present." if (root / "aca_os" / "first_public_hosted_demo.py").exists() else "First public hosted demo module is missing.",
+                details={"path": "aca_os/first_public_hosted_demo.py"},
             ),
             HostedHealthCheckItem(
                 "port_configuration",
