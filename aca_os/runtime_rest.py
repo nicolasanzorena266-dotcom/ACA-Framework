@@ -272,6 +272,10 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/public-demo/runtime-adapter/validate":
                 return self.ok(self.runtime_api.validate_public_demo_runtime_adapter(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/public-demo/polish":
+                return self.ok(self.runtime_api.public_demo_polish())
+            if method == "GET" and clean_path == "/public-demo/polish/validate":
+                return self.ok(self.runtime_api.validate_public_demo_polish())
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

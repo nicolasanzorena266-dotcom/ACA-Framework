@@ -1,3 +1,11 @@
+
+## 0.3.0-sprint59 — Sprint 59 Public Demo Polish
+
+- Added public demo polish contract for ACA Studio.
+- Added public demo polish Runtime API and REST endpoints.
+- Updated Studio shell copy and public demo panels.
+- Added tests for polish contract, validation, REST/API exposure, and web serving.
+
 ## Sprint 58 — Visual Design System
 
 - Added ACA Studio visual design system contract.

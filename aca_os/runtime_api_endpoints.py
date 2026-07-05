@@ -10,6 +10,7 @@ from aca_os.deployable_web_package import build_deployable_web_package, validate
 from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.public_web_demo import build_public_web_demo_manifest, validate_public_web_demo_readiness
 from aca_os.public_demo_runtime_adapter import build_public_demo_runtime_adapter, validate_public_demo_runtime_adapter
+from aca_os.public_demo_polish import build_public_demo_polish, validate_public_demo_polish
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -84,6 +85,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/public-demo/readiness", "Validate public ACA Web Demo readiness files.", "public_demo.readiness.read"),
         RuntimeEndpoint("GET", "/public-demo/runtime-adapter", "Return public demo runtime adapter contract.", "public_demo.runtime_adapter.read"),
         RuntimeEndpoint("GET", "/public-demo/runtime-adapter/validate", "Validate public demo runtime adapter contract.", "public_demo.runtime_adapter.validate"),
+        RuntimeEndpoint("GET", "/public-demo/polish", "Return public ACA Studio demo polish contract.", "public_demo.polish.read"),
+        RuntimeEndpoint("GET", "/public-demo/polish/validate", "Validate public ACA Studio demo polish contract.", "public_demo.polish.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -452,6 +455,12 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_public_demo_runtime_adapter(project_root=project_root, adapter=adapter)
 
+    def public_demo_polish(self) -> Dict[str, Any]:
+        return build_public_demo_polish()
+
+    def validate_public_demo_polish(self, *, polish: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+        return validate_public_demo_polish(polish=polish)
+
     def run_human_demo(
         self,
         *,
@@ -509,6 +518,10 @@ class RuntimeEndpointAPI:
             return self.domain_packs(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
         if method == "GET" and path == "/runtime/domain-context":
             return self.domain_context(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
+        if method == "GET" and path == "/public-demo/polish":
+            return self.public_demo_polish()
+        if method == "GET" and path == "/public-demo/polish/validate":
+            return self.validate_public_demo_polish()
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

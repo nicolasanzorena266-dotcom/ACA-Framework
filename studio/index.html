@@ -276,7 +276,7 @@
         <div class="hello">
           <div class="eyebrow">Deterministic cognitive runtime</div>
           <h1>ACA Studio</h1>
-          <p>Simulá una entrada, mirá el dominio activo y seguí cada decisión sin convertir la interfaz en una caja negra con perfume caro.</p>
+          <p>Ejecutá una simulación pública, mirá el dominio activo y seguí cada decisión del runtime sin depender de IA externa.</p>
         </div>
         <div class="runtime-user">
           <div><strong>ACA Local</strong><span id="connection">Conectando…</span></div>
@@ -285,8 +285,8 @@
       </section>
 
       <div class="actions">
-        <button class="primary" id="run-domain" title="Run Demo Domain Flow">▣ Nueva simulación</button>
-        <button class="dark" id="run">◇ Diagnóstico Runtime</button>
+        <button class="primary" id="run-domain" title="Run Demo Domain Flow">▣ Ejecutar demo</button>
+        <button class="dark" id="run">◇ Ver diagnóstico</button>
         <button id="refresh">↻ Refrescar</button>
       </div>
 
@@ -328,7 +328,7 @@
       </section>
 
       <section class="bottom-grid">
-        <article class="wide-card"><h3>Visual Design System</h3><pre id="design">{}</pre></article>
+        <article class="wide-card"><h3>Demo Polish / Visual Design System</h3><pre id="polish">{}</pre></article>
         <article class="wide-card"><h3>Runtime Binding</h3><pre id="binding">{}</pre></article>
         <article class="wide-card"><h3>Trace / Metrics</h3><pre id="metrics">{}</pre></article>
       </section>
@@ -415,14 +415,15 @@
       const design = await api.get('/studio/design');
       applyDesignTokens(design);
       const ux = await api.get('/studio/ux?root=examples/domain_packs');
+      const polish = await api.get('/public-demo/polish');
       const binding = ux.runtime_binding || await api.get('/studio/binding?root=examples/domain_packs');
       summarize(binding);
       renderNav(ux);
       renderMetricCards(ux, binding);
-      write('design', design);
+      write('polish', polish);
       write('binding', binding);
       write('metrics', binding.metrics || {});
-      write('output', binding.last_run || { status: 'waiting_for_simulation' });
+      write('output', binding.last_run || { status: 'waiting_for_simulation', hint: (polish.states || {}).empty });
     }
 
     async function runBinding() {
@@ -444,6 +445,7 @@
       const binding = result.binding || {};
       summarize(binding);
       const ux = await api.get('/studio/ux?root=examples/domain_packs');
+      const polish = await api.get('/public-demo/polish');
       renderMetricCards(ux, binding);
       write('output', result);
       write('binding', binding);
@@ -460,7 +462,7 @@
 
     refresh().catch(error => {
       document.getElementById('connection').textContent = `error · ${error.message}`;
-      write('output', { error: error.message });
+      write('output', { error: error.message, help: 'Revisá que el servidor local siga corriendo.' });
     });
   </script>
 </body>
