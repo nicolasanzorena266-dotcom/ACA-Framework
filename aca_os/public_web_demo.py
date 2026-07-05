@@ -46,6 +46,7 @@ class PublicWebDemoConfig:
             "deploy_package": f"{base}/deploy/package",
             "public_demo_manifest": f"{base}/public-demo/manifest",
             "public_demo_readiness": f"{base}/public-demo/readiness",
+            "public_demo_runtime_adapter": f"{base}/public-demo/runtime-adapter",
         }
 
     @property
@@ -55,6 +56,7 @@ class PublicWebDemoConfig:
             "tools/aca_deploy.py",
             "tools/aca_public_demo.py",
             "aca_os/public_web_demo.py",
+            "aca_os/public_demo_runtime_adapter.py",
             "aca_os/runtime_rest.py",
             "aca_os/runtime_api_endpoints.py",
             str(self.studio_path),
@@ -75,6 +77,7 @@ class PublicWebDemoConfig:
             "/deploy/package",
             "/public-demo/manifest",
             "/public-demo/readiness",
+            "/public-demo/runtime-adapter",
         ]
 
     def to_dict(self) -> Dict[str, Any]:

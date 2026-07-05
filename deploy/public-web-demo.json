@@ -92,7 +92,8 @@
     "demo_domain_flow": "https://aca-demo.example.com/demo/domain-flow",
     "deploy_package": "https://aca-demo.example.com/deploy/package",
     "public_demo_manifest": "https://aca-demo.example.com/public-demo/manifest",
-    "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness"
+    "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness",
+    "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter"
   },
   "required_routes": [
     "/health",
@@ -102,7 +103,8 @@
     "/demo/domain-flow",
     "/deploy/package",
     "/public-demo/manifest",
-    "/public-demo/readiness"
+    "/public-demo/readiness",
+    "/public-demo/runtime-adapter"
   ],
   "assets": {
     "studio_html": "studio/index.html",
@@ -122,6 +124,7 @@
     "tools/aca_deploy.py",
     "tools/aca_public_demo.py",
     "aca_os/public_web_demo.py",
+    "aca_os/public_demo_runtime_adapter.py",
     "aca_os/runtime_rest.py",
     "aca_os/runtime_api_endpoints.py",
     "studio/index.html",
@@ -177,5 +180,286 @@
     "no aesthetic redesign in this sprint",
     "no external LLM dependency",
     "no platform-specific lock-in"
-  ]
+  ],
+  "runtime_adapter": {
+    "contract": "public_demo_runtime_adapter.v1",
+    "demo_name": "aca-public-web-demo",
+    "mode": "public-web-demo",
+    "runtime": {
+      "type": "aca-deterministic-runtime",
+      "offline_capable": true,
+      "external_ai_required": false,
+      "business_logic_location": "runtime",
+      "interface_logic_location": "adapter"
+    },
+    "binding": {
+      "host": "0.0.0.0",
+      "port_env": "PORT",
+      "fallback_port": 8765,
+      "startup_command": "python tools/aca_web.py --host 0.0.0.0",
+      "healthcheck_path": "/health"
+    },
+    "public_base_url": "https://aca-demo.example.com",
+    "public_routes": {
+      "studio": "https://aca-demo.example.com/studio",
+      "health": "https://aca-demo.example.com/health",
+      "runtime_status": "https://aca-demo.example.com/runtime/status",
+      "studio_binding": "https://aca-demo.example.com/studio/binding",
+      "domain_flow": "https://aca-demo.example.com/demo/domain-flow",
+      "public_demo_manifest": "https://aca-demo.example.com/public-demo/manifest",
+      "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness",
+      "runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter"
+    },
+    "default_domain": {
+      "pack_name": "customer_support",
+      "root": "examples/domain_packs",
+      "demo_endpoint": "/demo/domain-flow",
+      "demo_body": {
+        "message": "Necesito ayuda con un reclamo",
+        "pack_name": "customer_support",
+        "root": "examples/domain_packs"
+      }
+    },
+    "studio": {
+      "path": "studio/index.html",
+      "route": "/studio",
+      "binding_endpoint": "/studio/binding",
+      "run_endpoint": "/studio/binding/run"
+    },
+    "environment": {
+      "PORT": "8765",
+      "ACA_HOST": "0.0.0.0",
+      "ACA_PORT": "8765",
+      "ACA_PUBLIC_BASE_URL": "https://aca-demo.example.com",
+      "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs",
+      "ACA_DEFAULT_DOMAIN_PACK": "customer_support",
+      "ACA_STUDIO_PATH": "studio/index.html"
+    },
+    "smoke_checks": [
+      {
+        "method": "GET",
+        "path": "/health",
+        "expect": {
+          "status_code": 200,
+          "status": "ok"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/public-demo/runtime-adapter",
+        "expect": {
+          "status_code": 200
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/studio/binding",
+        "expect": {
+          "status_code": 200
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/demo/domain-flow",
+        "body": {
+          "message": "Necesito ayuda con un reclamo",
+          "pack_name": "customer_support",
+          "root": "examples/domain_packs"
+        },
+        "expect": {
+          "status_code": 200
+        }
+      }
+    ],
+    "public_demo_manifest": {
+      "contract": "public_web_demo_prep.v1",
+      "demo_name": "aca-public-web-demo",
+      "public_base_url": "https://aca-demo.example.com",
+      "runtime": "python",
+      "web_package": {
+        "contract": "deployable_web_package.v1",
+        "app_name": "aca-public-web-demo",
+        "runtime": "python",
+        "python_version": ">=3.10",
+        "process": {
+          "type": "web",
+          "command": "python tools/aca_web.py --host 0.0.0.0",
+          "local_command": "python tools/aca_web.py --host 127.0.0.1 --port 8765 --open",
+          "host": "0.0.0.0",
+          "port_env": "PORT",
+          "fallback_port": 8765
+        },
+        "healthcheck": {
+          "method": "GET",
+          "path": "/health",
+          "expected_status": 200,
+          "expected_json_status": "ok"
+        },
+        "routes": {
+          "studio": "/studio",
+          "health": "/health",
+          "runtime_status": "/runtime/status",
+          "studio_binding": "/studio/binding",
+          "demo_domain_flow": "/demo/domain-flow"
+        },
+        "assets": {
+          "studio_html": "studio/index.html",
+          "domain_pack_root": "examples/domain_packs"
+        },
+        "environment": {
+          "ACA_HOST": "0.0.0.0",
+          "ACA_PORT": "8765",
+          "PORT": "8765",
+          "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs"
+        },
+        "required_files": [
+          "tools/aca_web.py",
+          "aca_os/runtime_rest.py",
+          "aca_os/runtime_api_endpoints.py",
+          "studio/index.html",
+          "examples/domain_packs",
+          "pyproject.toml"
+        ],
+        "non_goals": [
+          "no LLM dependency",
+          "no external AI service requirement",
+          "no business logic in deployment wrapper"
+        ],
+        "local_runtime_plan": {
+          "contract": "local_web_runtime_launcher.v1",
+          "config": {
+            "host": "127.0.0.1",
+            "port": 8765,
+            "base_url": "http://127.0.0.1:8765",
+            "studio_url": "http://127.0.0.1:8765/studio",
+            "health_url": "http://127.0.0.1:8765/health",
+            "api_base_url": "http://127.0.0.1:8765",
+            "studio_path": "studio/index.html",
+            "open_browser": true
+          },
+          "endpoints": {
+            "studio": "http://127.0.0.1:8765/studio",
+            "health": "http://127.0.0.1:8765/health",
+            "runtime_status": "http://127.0.0.1:8765/runtime/status",
+            "studio_state": "http://127.0.0.1:8765/studio/state",
+            "studio_run": "http://127.0.0.1:8765/studio/run",
+            "domain_packs": "http://127.0.0.1:8765/runtime/domain-packs"
+          },
+          "commands": {
+            "start": "python tools/aca_web.py --host 127.0.0.1 --port 8765",
+            "health_check": "python -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8765/health').read().decode())\"",
+            "stop": "Ctrl+C"
+          }
+        }
+      },
+      "startup": {
+        "command": "python tools/aca_web.py --host 0.0.0.0",
+        "port_env": "PORT",
+        "healthcheck_path": "/health"
+      },
+      "routes": {
+        "studio": "https://aca-demo.example.com/studio",
+        "health": "https://aca-demo.example.com/health",
+        "runtime_status": "https://aca-demo.example.com/runtime/status",
+        "studio_binding": "https://aca-demo.example.com/studio/binding",
+        "demo_domain_flow": "https://aca-demo.example.com/demo/domain-flow",
+        "deploy_package": "https://aca-demo.example.com/deploy/package",
+        "public_demo_manifest": "https://aca-demo.example.com/public-demo/manifest",
+        "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness",
+        "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter"
+      },
+      "required_routes": [
+        "/health",
+        "/runtime/status",
+        "/studio",
+        "/studio/binding",
+        "/demo/domain-flow",
+        "/deploy/package",
+        "/public-demo/manifest",
+        "/public-demo/readiness",
+        "/public-demo/runtime-adapter"
+      ],
+      "assets": {
+        "studio_html": "studio/index.html",
+        "domain_pack_root": "examples/domain_packs",
+        "default_domain_pack": "customer_support"
+      },
+      "environment": {
+        "PORT": "8765",
+        "ACA_HOST": "0.0.0.0",
+        "ACA_PORT": "8765",
+        "ACA_PUBLIC_BASE_URL": "https://aca-demo.example.com",
+        "ACA_DOMAIN_PACK_ROOT": "examples/domain_packs",
+        "ACA_DEFAULT_DOMAIN_PACK": "customer_support"
+      },
+      "required_files": [
+        "tools/aca_web.py",
+        "tools/aca_deploy.py",
+        "tools/aca_public_demo.py",
+        "aca_os/public_web_demo.py",
+        "aca_os/public_demo_runtime_adapter.py",
+        "aca_os/runtime_rest.py",
+        "aca_os/runtime_api_endpoints.py",
+        "studio/index.html",
+        "examples/domain_packs",
+        "deploy/aca-web-package.json",
+        "deploy/public-web-demo.json",
+        "pyproject.toml"
+      ],
+      "smoke_checks": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "expect": {
+            "status_code": 200,
+            "status": "ok"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/status",
+          "expect": {
+            "status_code": 200
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/studio/binding",
+          "expect": {
+            "status_code": 200
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/demo/domain-flow",
+          "body": {
+            "message": "Necesito ayuda con un reclamo",
+            "pack_name": "customer_support",
+            "root": "examples/domain_packs"
+          },
+          "expect": {
+            "status_code": 200
+          }
+        }
+      ],
+      "readiness_criteria": [
+        "required files exist",
+        "health endpoint returns ok",
+        "Studio route is served by the web adapter",
+        "demo Domain Pack flow can run without external AI services",
+        "deployment command binds to 0.0.0.0 and reads the platform port env"
+      ],
+      "non_goals": [
+        "no aesthetic redesign in this sprint",
+        "no external LLM dependency",
+        "no platform-specific lock-in"
+      ]
+    },
+    "non_goals": [
+      "no visual redesign",
+      "no external LLM dependency",
+      "no business logic in web adapter",
+      "no platform-specific lock-in"
+    ]
+  }
 }

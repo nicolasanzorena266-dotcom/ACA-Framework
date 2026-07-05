@@ -9,6 +9,7 @@ from aca_os.demo_domain_flow import DemoDomainRuntimeFlowRunner
 from aca_os.deployable_web_package import build_deployable_web_package, validate_deployable_web_package
 from aca_os.human_demo import HumanTestDemoRunner
 from aca_os.public_web_demo import build_public_web_demo_manifest, validate_public_web_demo_readiness
+from aca_os.public_demo_runtime_adapter import build_public_demo_runtime_adapter, validate_public_demo_runtime_adapter
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from sdk.factory import build_galicia_runtime, process_message
@@ -77,6 +78,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/deploy/validate", "Validate deployable ACA Web Runtime package files.", "deploy.package.validate"),
         RuntimeEndpoint("GET", "/public-demo/manifest", "Return public ACA Web Demo preparation manifest.", "public_demo.manifest.read"),
         RuntimeEndpoint("GET", "/public-demo/readiness", "Validate public ACA Web Demo readiness files.", "public_demo.readiness.read"),
+        RuntimeEndpoint("GET", "/public-demo/runtime-adapter", "Return public demo runtime adapter contract.", "public_demo.runtime_adapter.read"),
+        RuntimeEndpoint("GET", "/public-demo/runtime-adapter/validate", "Validate public demo runtime adapter contract.", "public_demo.runtime_adapter.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -399,6 +402,38 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_public_web_demo_readiness(project_root=project_root, manifest=manifest)
 
+
+    def public_demo_runtime_adapter(
+        self,
+        *,
+        public_base_url: str = "https://example.com",
+        host: str = "0.0.0.0",
+        port_env: str = "PORT",
+        fallback_port: int = 8765,
+        domain_pack_root: str | Path = "examples/domain_packs",
+        default_domain_pack: str = "customer_support",
+        studio_path: str | Path = "studio/index.html",
+        demo_name: str = "aca-public-web-demo",
+    ) -> Dict[str, Any]:
+        return build_public_demo_runtime_adapter(
+            public_base_url=public_base_url,
+            host=host,
+            port_env=port_env,
+            fallback_port=fallback_port,
+            domain_pack_root=domain_pack_root,
+            default_domain_pack=default_domain_pack,
+            studio_path=studio_path,
+            demo_name=demo_name,
+        )
+
+    def validate_public_demo_runtime_adapter(
+        self,
+        *,
+        project_root: str | Path = ".",
+        adapter: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_public_demo_runtime_adapter(project_root=project_root, adapter=adapter)
+
     def run_human_demo(
         self,
         *,
@@ -480,6 +515,19 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/public-demo/readiness":
             return self.public_demo_readiness(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/public-demo/runtime-adapter":
+            return self.public_demo_runtime_adapter(
+                public_base_url=params.get("public_base_url") or "https://example.com",
+                host=params.get("host") or "0.0.0.0",
+                port_env=params.get("port_env") or "PORT",
+                fallback_port=int(params.get("fallback_port") or 8765),
+                domain_pack_root=params.get("domain_pack_root") or "examples/domain_packs",
+                default_domain_pack=params.get("default_domain_pack") or "customer_support",
+                studio_path=params.get("studio_path") or "studio/index.html",
+                demo_name=params.get("demo_name") or "aca-public-web-demo",
+            )
+        if method == "GET" and path == "/public-demo/runtime-adapter/validate":
+            return self.validate_public_demo_runtime_adapter(project_root=params.get("project_root") or ".")
         if method == "GET" and path == "/demo/human-test":
             return self.human_demo_scenario()
         if method == "POST" and path == "/demo/human-test":

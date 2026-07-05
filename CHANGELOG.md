@@ -242,3 +242,12 @@
 - Added Runtime and REST deploy package endpoints.
 - Added environment-driven host/port defaults to the local web launcher.
 - Added deploy package tests and Sprint 53 documentation.
+
+## Sprint 55 — Public Demo Runtime Adapter
+
+- Added public demo runtime adapter contract.
+- Added adapter validation and environment-driven adapter builder.
+- Exposed public demo runtime adapter through Runtime API and REST.
+- Added CLI support for runtime adapter output.
+- Added tests for adapter contract, validation, REST routing and CLI behavior.
+

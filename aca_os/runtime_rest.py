@@ -247,6 +247,21 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/public-demo/readiness":
                 return self.ok(self.runtime_api.public_demo_readiness(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/public-demo/runtime-adapter":
+                return self.ok(
+                    self.runtime_api.public_demo_runtime_adapter(
+                        demo_name=_first(params, "demo_name") or "aca-public-web-demo",
+                        public_base_url=_first(params, "public_base_url") or "https://example.com",
+                        host=_first(params, "host") or "0.0.0.0",
+                        port_env=_first(params, "port_env") or "PORT",
+                        fallback_port=int(_first(params, "fallback_port") or 8765),
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                        default_domain_pack=_first(params, "default_domain_pack") or "customer_support",
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                    )
+                )
+            if method == "GET" and clean_path == "/public-demo/runtime-adapter/validate":
+                return self.ok(self.runtime_api.validate_public_demo_runtime_adapter(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(
