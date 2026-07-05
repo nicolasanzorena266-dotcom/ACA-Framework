@@ -12,6 +12,7 @@ from aca_os.public_web_demo import build_public_web_demo_manifest, validate_publ
 from aca_os.public_demo_runtime_adapter import build_public_demo_runtime_adapter, validate_public_demo_runtime_adapter
 from aca_os.public_demo_polish import build_public_demo_polish, validate_public_demo_polish
 from aca_os.hosting_target_contract import build_hosting_target_contract, validate_hosting_target_contract
+from aca_os.hosted_runtime_healthcheck import build_hosted_runtime_healthcheck, validate_hosted_runtime_healthcheck
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -90,6 +91,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/public-demo/polish/validate", "Validate public ACA Studio demo polish contract.", "public_demo.polish.validate"),
         RuntimeEndpoint("GET", "/hosting/target", "Return platform-neutral hosting target contract.", "hosting.target.read"),
         RuntimeEndpoint("GET", "/hosting/target/validate", "Validate platform-neutral hosting target contract.", "hosting.target.validate"),
+        RuntimeEndpoint("GET", "/hosting/healthcheck", "Return hosted Runtime healthcheck for public deployment.", "hosting.healthcheck.read"),
+        RuntimeEndpoint("GET", "/hosting/healthcheck/validate", "Validate hosted Runtime healthcheck contract.", "hosting.healthcheck.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -489,6 +492,38 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_hosting_target_contract(project_root=project_root, contract=contract)
 
+
+    def hosted_runtime_healthcheck(
+        self,
+        *,
+        mode: str = "hosted",
+        project_root: str | Path = ".",
+        public_base_url: str = "https://aca-demo.example.com",
+        port_env: str = "PORT",
+        fallback_port: int = 8765,
+        default_domain_pack: str = "customer_support",
+        domain_pack_root: str | Path = "examples/domain_packs",
+        studio_path: str | Path = "studio/index.html",
+    ) -> Dict[str, Any]:
+        return build_hosted_runtime_healthcheck(
+            mode=mode,
+            project_root=project_root,
+            public_base_url=public_base_url,
+            port_env=port_env,
+            fallback_port=fallback_port,
+            default_domain_pack=default_domain_pack,
+            domain_pack_root=domain_pack_root,
+            studio_path=studio_path,
+        )
+
+    def validate_hosted_runtime_healthcheck(
+        self,
+        *,
+        project_root: str | Path = ".",
+        healthcheck: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_hosted_runtime_healthcheck(project_root=project_root, healthcheck=healthcheck)
+
     def run_human_demo(
         self,
         *,
@@ -560,6 +595,19 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/hosting/target/validate":
             return self.validate_hosting_target_contract(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/hosting/healthcheck":
+            return self.hosted_runtime_healthcheck(
+                mode=params.get("mode") or "hosted",
+                project_root=params.get("project_root") or ".",
+                public_base_url=params.get("public_base_url") or "https://aca-demo.example.com",
+                port_env=params.get("port_env") or "PORT",
+                fallback_port=int(params.get("fallback_port") or 8765),
+                default_domain_pack=params.get("default_domain_pack") or "customer_support",
+                domain_pack_root=params.get("domain_pack_root") or "examples/domain_packs",
+                studio_path=params.get("studio_path") or "studio/index.html",
+            )
+        if method == "GET" and path == "/hosting/healthcheck/validate":
+            return self.validate_hosted_runtime_healthcheck(project_root=params.get("project_root") or ".")
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

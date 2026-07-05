@@ -96,6 +96,20 @@
       "path": "/hosting/target/validate",
       "purpose": "Hosting target contract validation.",
       "required": true
+    },
+    {
+      "id": "hosted_runtime_healthcheck",
+      "method": "GET",
+      "path": "/hosting/healthcheck",
+      "purpose": "Hosted runtime healthcheck for public web deployments.",
+      "required": true
+    },
+    {
+      "id": "hosted_runtime_healthcheck_validate",
+      "method": "GET",
+      "path": "/hosting/healthcheck/validate",
+      "purpose": "Hosted runtime healthcheck validation.",
+      "required": true
     }
   ],
   "public_routes": {
@@ -107,7 +121,9 @@
     "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter",
     "public_demo_polish": "https://aca-demo.example.com/public-demo/polish",
     "hosting_target": "https://aca-demo.example.com/hosting/target",
-    "hosting_target_validate": "https://aca-demo.example.com/hosting/target/validate"
+    "hosting_target_validate": "https://aca-demo.example.com/hosting/target/validate",
+    "hosted_runtime_healthcheck": "https://aca-demo.example.com/hosting/healthcheck",
+    "hosted_runtime_healthcheck_validate": "https://aca-demo.example.com/hosting/healthcheck/validate"
   },
   "assets": {
     "studio_html": "studio/index.html",
@@ -136,6 +152,7 @@
     "examples/domain_packs",
     "deploy/public-web-demo.json",
     "deploy/hosting-target-contract.json",
+    "aca_os/hosted_runtime_healthcheck.py",
     "pyproject.toml"
   ],
   "platform_requirements": [
@@ -169,6 +186,7 @@
     "GET /health returns status ok",
     "GET /studio serves ACA Studio",
     "GET /hosting/target returns hosting_target_contract.v1",
+    "GET /hosting/healthcheck returns hosted_runtime_healthcheck.v1",
     "POST /demo/domain-flow runs without external AI",
     "runtime and domain behavior remain outside the hosting adapter"
   ],

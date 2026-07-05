@@ -288,6 +288,21 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/hosting/target/validate":
                 return self.ok(self.runtime_api.validate_hosting_target_contract(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/hosting/healthcheck":
+                return self.ok(
+                    self.runtime_api.hosted_runtime_healthcheck(
+                        mode=_first(params, "mode") or "hosted",
+                        project_root=_first(params, "project_root") or ".",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-demo.example.com",
+                        port_env=_first(params, "port_env") or "PORT",
+                        fallback_port=int(_first(params, "fallback_port") or 8765),
+                        default_domain_pack=_first(params, "default_domain_pack") or "customer_support",
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                        studio_path=_first(params, "studio_path") or "studio/index.html",
+                    )
+                )
+            if method == "GET" and clean_path == "/hosting/healthcheck/validate":
+                return self.ok(self.runtime_api.validate_hosted_runtime_healthcheck(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

@@ -1,4 +1,12 @@
 
+## 0.3.0-sprint61 — Hosted Runtime Healthcheck
+
+- Added hosted runtime healthcheck contract for public web deployments.
+- Exposed `/hosting/healthcheck` and `/hosting/healthcheck/validate` through Runtime API and REST.
+- Updated hosting target routes and deployment JSON to include hosted healthcheck paths.
+- Added tests covering healthcheck contract, validation, catalog exposure and REST routing.
+
+
 ## 0.3.0-sprint59 — Sprint 59 Public Demo Polish
 
 - Added public demo polish contract for ACA Studio.

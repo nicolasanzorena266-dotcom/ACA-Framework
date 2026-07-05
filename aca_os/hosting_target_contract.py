@@ -113,6 +113,7 @@ class HostingTargetContract:
                     "examples/domain_packs",
                     "deploy/public-web-demo.json",
                     "deploy/hosting-target-contract.json",
+                    "aca_os/hosted_runtime_healthcheck.py",
                     "pyproject.toml",
                 ],
                 "platform_requirements": [
@@ -146,6 +147,7 @@ class HostingTargetContract:
                     "GET /health returns status ok",
                     "GET /studio serves ACA Studio",
                     "GET /hosting/target returns hosting_target_contract.v1",
+                    "GET /hosting/healthcheck returns hosted_runtime_healthcheck.v1",
                     "POST /demo/domain-flow runs without external AI",
                     "runtime and domain behavior remain outside the hosting adapter",
                 ],
@@ -176,6 +178,8 @@ def default_hosting_routes() -> tuple[HostingRoute, ...]:
         HostingRoute("public_demo_polish", "GET", "/public-demo/polish", "Public demo copy and presentation contract."),
         HostingRoute("hosting_target", "GET", "/hosting/target", "Platform-neutral hosting target contract."),
         HostingRoute("hosting_target_validate", "GET", "/hosting/target/validate", "Hosting target contract validation."),
+        HostingRoute("hosted_runtime_healthcheck", "GET", "/hosting/healthcheck", "Hosted runtime healthcheck for public web deployments."),
+        HostingRoute("hosted_runtime_healthcheck_validate", "GET", "/hosting/healthcheck/validate", "Hosted runtime healthcheck validation."),
     )
 
 
