@@ -461,5 +461,58 @@
       "no business logic in web adapter",
       "no platform-specific lock-in"
     ]
-  }
+  },
+  "documentation": {
+    "deployment_guide": "docs/WEB_DEMO_DEPLOYMENT.md",
+    "sprint_notes": "docs/SPRINT_56.md",
+    "local_smoke_command": "python tools/aca_public_demo.py --validate --runtime-adapter"
+  },
+  "recommended_platform_contract": {
+    "runtime": "python",
+    "startup_command": "python tools/aca_web.py --host 0.0.0.0",
+    "port": "read from PORT environment variable with 8765 fallback",
+    "healthcheck": "GET /health returns status ok",
+    "static_route": "GET /studio serves studio/index.html",
+    "demo_route": "POST /demo/domain-flow uses examples/domain_packs/customer_support by default",
+    "external_ai_required": false
+  },
+  "deployment_steps": [
+    {
+      "step": 1,
+      "name": "Install Python",
+      "command": "python --version",
+      "expect": "Python 3.10+"
+    },
+    {
+      "step": 2,
+      "name": "Install project dependencies",
+      "command": "python -m pip install -e .",
+      "expect": "Package installs or current source tree remains importable"
+    },
+    {
+      "step": 3,
+      "name": "Run tests",
+      "command": "python -m pytest -q",
+      "expect": "All tests pass"
+    },
+    {
+      "step": 4,
+      "name": "Start web runtime locally",
+      "command": "python tools/aca_web.py --host 127.0.0.1 --port 8765 --open",
+      "expect": "Studio opens at http://127.0.0.1:8765/studio"
+    },
+    {
+      "step": 5,
+      "name": "Start web runtime on platform",
+      "command": "python tools/aca_web.py --host 0.0.0.0",
+      "expect": "Runtime binds to the platform provided PORT"
+    }
+  ],
+  "public_demo_acceptance": [
+    "GET /health returns 200 and status ok",
+    "GET /studio returns the Studio HTML shell",
+    "GET /public-demo/runtime-adapter returns public_demo_runtime_adapter.v1",
+    "POST /demo/domain-flow returns deterministic demo output without external AI",
+    "No web adapter contains domain business logic"
+  ]
 }

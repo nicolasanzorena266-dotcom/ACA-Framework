@@ -251,3 +251,11 @@
 - Added CLI support for runtime adapter output.
 - Added tests for adapter contract, validation, REST routing and CLI behavior.
 
+
+## Sprint 56 — Web Demo Deployment Guide
+
+- Added public web demo deployment guide.
+- Documented local and public runtime startup commands.
+- Documented environment variables, routes, healthcheck and smoke checks.
+- Extended `deploy/public-web-demo.json` with guide metadata, deployment steps and acceptance criteria.
+- Added tests for deployment guide/config alignment.
