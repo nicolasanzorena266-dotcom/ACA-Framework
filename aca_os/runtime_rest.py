@@ -162,6 +162,14 @@ class RuntimeRESTAPI:
                         memory_path=memory_path,
                     )
                 )
+            if method == "GET" and clean_path == "/studio/ux":
+                return self.ok(
+                    self.runtime_api.studio_ux_structure(
+                        root=_first(params, "root"),
+                        strict=_as_bool(_first(params, "strict")),
+                        memory_path=memory_path,
+                    )
+                )
             if method == "POST" and clean_path == "/studio/run":
                 return self.ok(
                     self.runtime_api.studio_run(

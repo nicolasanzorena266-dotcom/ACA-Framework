@@ -1,3 +1,12 @@
+## Sprint 57 — Studio UX Structure
+
+- Added declarative Studio UX structure contract.
+- Added `/studio/ux` Runtime API and REST route.
+- Reworked Studio into a light operational dashboard shell with sidebar, cards, simulation workspace and context/output panels.
+- Preserved Runtime-only business logic boundary.
+- Added Studio UX structure tests.
+
+
 
 ## Sprint 52 — Demo Domain Runtime Flow
 
