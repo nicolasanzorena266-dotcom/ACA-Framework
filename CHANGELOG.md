@@ -1,3 +1,12 @@
+# Changelog
+
+## 0.3.0-sprint66 — Public URL Smoke Test
+
+- Added public hosted URL smoke test contract and runner.
+- Added `tools/aca_smoke_url.py` for Render/public demo validation.
+- Added deploy metadata for post-hosting URL checks.
+- Documented Sprint 66 public URL validation workflow.
+
 ## Sprint 65 — Render Deployment Config
 
 - Added Render deployment configuration contract.

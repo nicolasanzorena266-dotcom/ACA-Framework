@@ -1,0 +1,18 @@
+{
+  "contract": "public_url_smoke_test.v1",
+  "status": "ready",
+  "default_public_base_url": "https://aca-public-web-demo.onrender.com",
+  "command": "python tools/aca_smoke_url.py https://aca-public-web-demo.onrender.com --validate",
+  "checks": [
+    "/health",
+    "/runtime/status",
+    "/studio",
+    "/studio/bootstrap",
+    "/public-demo/manifest",
+    "/demo/domain-flow"
+  ],
+  "notes": [
+    "Use --plan to print checks without calling the network.",
+    "Render free tier can cold-start slowly; retry once before treating a timeout as product failure."
+  ]
+}
