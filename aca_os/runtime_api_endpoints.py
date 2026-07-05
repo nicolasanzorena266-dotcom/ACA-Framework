@@ -14,6 +14,7 @@ from aca_os.public_demo_polish import build_public_demo_polish, validate_public_
 from aca_os.hosting_target_contract import build_hosting_target_contract, validate_hosting_target_contract
 from aca_os.hosted_runtime_healthcheck import build_hosted_runtime_healthcheck, validate_hosted_runtime_healthcheck
 from aca_os.hosted_studio_assets import build_hosted_studio_assets, validate_hosted_studio_assets
+from aca_os.deployment_smoke_tests import build_deployment_smoke_test_plan, run_deployment_smoke_tests, validate_deployment_smoke_tests
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -96,6 +97,9 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/hosting/healthcheck/validate", "Validate hosted Runtime healthcheck contract.", "hosting.healthcheck.validate"),
         RuntimeEndpoint("GET", "/hosting/studio-assets", "Return hosted ACA Studio asset strategy.", "hosting.studio_assets.read"),
         RuntimeEndpoint("GET", "/hosting/studio-assets/validate", "Validate hosted ACA Studio asset strategy.", "hosting.studio_assets.validate"),
+        RuntimeEndpoint("GET", "/deploy/smoke-tests", "Return deployment smoke test plan.", "deploy.smoke_tests.read"),
+        RuntimeEndpoint("POST", "/deploy/smoke-tests/run", "Run deployment smoke tests through REST adapter routes.", "deploy.smoke_tests.run"),
+        RuntimeEndpoint("GET", "/deploy/smoke-tests/validate", "Validate deployment smoke test results.", "deploy.smoke_tests.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -552,6 +556,39 @@ class RuntimeEndpointAPI:
         return validate_hosted_studio_assets(project_root=project_root, strategy=strategy)
 
 
+    def deployment_smoke_test_plan(
+        self,
+        *,
+        project_root: str | Path = ".",
+        public_base_url: str = "https://aca-demo.example.com",
+        domain_pack_root: str | Path = "examples/domain_packs",
+        default_domain_pack: str = "example.customer_support",
+    ) -> Dict[str, Any]:
+        return build_deployment_smoke_test_plan(
+            project_root=project_root,
+            public_base_url=public_base_url,
+            domain_pack_root=domain_pack_root,
+            default_domain_pack=default_domain_pack,
+        )
+
+    def run_deployment_smoke_tests(
+        self,
+        *,
+        project_root: str | Path = ".",
+        public_base_url: str = "https://aca-demo.example.com",
+        domain_pack_root: str | Path = "examples/domain_packs",
+        default_domain_pack: str = "example.customer_support",
+    ) -> Dict[str, Any]:
+        return run_deployment_smoke_tests(
+            project_root=project_root,
+            public_base_url=public_base_url,
+            domain_pack_root=domain_pack_root,
+            default_domain_pack=default_domain_pack,
+        )
+
+    def validate_deployment_smoke_tests(self, *, project_root: str | Path = ".") -> Dict[str, Any]:
+        return validate_deployment_smoke_tests(project_root=project_root)
+
     def run_human_demo(
         self,
         *,
@@ -647,6 +684,22 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/hosting/studio-assets/validate":
             return self.validate_hosted_studio_assets(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/deploy/smoke-tests":
+            return self.deployment_smoke_test_plan(
+                project_root=params.get("project_root") or ".",
+                public_base_url=params.get("public_base_url") or "https://aca-demo.example.com",
+                domain_pack_root=params.get("domain_pack_root") or "examples/domain_packs",
+                default_domain_pack=params.get("default_domain_pack") or "example.customer_support",
+            )
+        if method == "POST" and path == "/deploy/smoke-tests/run":
+            return self.run_deployment_smoke_tests(
+                project_root=payload.get("project_root") or params.get("project_root") or ".",
+                public_base_url=payload.get("public_base_url") or params.get("public_base_url") or "https://aca-demo.example.com",
+                domain_pack_root=payload.get("domain_pack_root") or params.get("domain_pack_root") or "examples/domain_packs",
+                default_domain_pack=payload.get("default_domain_pack") or params.get("default_domain_pack") or "example.customer_support",
+            )
+        if method == "GET" and path == "/deploy/smoke-tests/validate":
+            return self.validate_deployment_smoke_tests(project_root=params.get("project_root") or ".")
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

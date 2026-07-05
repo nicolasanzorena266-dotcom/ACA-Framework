@@ -124,6 +124,27 @@
       "path": "/hosting/studio-assets/validate",
       "purpose": "Hosted ACA Studio asset validation.",
       "required": true
+    },
+    {
+      "id": "deployment_smoke_tests",
+      "method": "GET",
+      "path": "/deploy/smoke-tests",
+      "purpose": "Deployment smoke test plan for hosted demo readiness.",
+      "required": true
+    },
+    {
+      "id": "deployment_smoke_tests_run",
+      "method": "POST",
+      "path": "/deploy/smoke-tests/run",
+      "purpose": "Run deployment smoke tests through REST adapter routes.",
+      "required": true
+    },
+    {
+      "id": "deployment_smoke_tests_validate",
+      "method": "GET",
+      "path": "/deploy/smoke-tests/validate",
+      "purpose": "Validate deployment smoke test results.",
+      "required": true
     }
   ],
   "public_routes": {
@@ -139,7 +160,10 @@
     "hosted_runtime_healthcheck": "https://aca-demo.example.com/hosting/healthcheck",
     "hosted_runtime_healthcheck_validate": "https://aca-demo.example.com/hosting/healthcheck/validate",
     "hosted_studio_assets": "https://aca-demo.example.com/hosting/studio-assets",
-    "hosted_studio_assets_validate": "https://aca-demo.example.com/hosting/studio-assets/validate"
+    "hosted_studio_assets_validate": "https://aca-demo.example.com/hosting/studio-assets/validate",
+    "deployment_smoke_tests": "https://aca-demo.example.com/deploy/smoke-tests",
+    "deployment_smoke_tests_run": "https://aca-demo.example.com/deploy/smoke-tests/run",
+    "deployment_smoke_tests_validate": "https://aca-demo.example.com/deploy/smoke-tests/validate"
   },
   "assets": {
     "studio_html": "studio/index.html",
@@ -170,6 +194,7 @@
     "deploy/hosting-target-contract.json",
     "aca_os/hosted_runtime_healthcheck.py",
     "aca_os/hosted_studio_assets.py",
+    "aca_os/deployment_smoke_tests.py",
     "pyproject.toml"
   ],
   "platform_requirements": [
@@ -205,6 +230,8 @@
     "GET /hosting/target returns hosting_target_contract.v1",
     "GET /hosting/healthcheck returns hosted_runtime_healthcheck.v1",
     "GET /hosting/studio-assets returns hosted_studio_assets.v1",
+    "GET /deploy/smoke-tests returns deployment_smoke_tests.v1",
+    "POST /deploy/smoke-tests/run validates hosted demo routes",
     "POST /demo/domain-flow runs without external AI",
     "runtime and domain behavior remain outside the hosting adapter"
   ],

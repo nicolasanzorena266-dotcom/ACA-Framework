@@ -95,7 +95,10 @@
     "public_demo_readiness": "https://aca-demo.example.com/public-demo/readiness",
     "public_demo_runtime_adapter": "https://aca-demo.example.com/public-demo/runtime-adapter",
     "hosted_studio_assets": "https://aca-demo.example.com/hosting/studio-assets",
-    "hosted_studio_assets_validate": "https://aca-demo.example.com/hosting/studio-assets/validate"
+    "hosted_studio_assets_validate": "https://aca-demo.example.com/hosting/studio-assets/validate",
+    "deployment_smoke_tests": "https://aca-demo.example.com/deploy/smoke-tests",
+    "deployment_smoke_tests_run": "https://aca-demo.example.com/deploy/smoke-tests/run",
+    "deployment_smoke_tests_validate": "https://aca-demo.example.com/deploy/smoke-tests/validate"
   },
   "required_routes": [
     "/health",
@@ -108,13 +111,17 @@
     "/public-demo/readiness",
     "/public-demo/runtime-adapter",
     "/hosting/studio-assets",
-    "/hosting/studio-assets/validate"
+    "/hosting/studio-assets/validate",
+    "/deploy/smoke-tests",
+    "/deploy/smoke-tests/run",
+    "/deploy/smoke-tests/validate"
   ],
   "assets": {
     "studio_html": "studio/index.html",
     "domain_pack_root": "examples/domain_packs",
     "default_domain_pack": "customer_support",
-    "asset_strategy": "hosted_studio_assets.v1"
+    "asset_strategy": "hosted_studio_assets.v1",
+    "deployment_smoke_tests": "deploy/deployment-smoke-tests.json"
   },
   "environment": {
     "PORT": "8765",

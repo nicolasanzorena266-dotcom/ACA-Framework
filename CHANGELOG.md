@@ -310,3 +310,11 @@
 - Exposed hosting target and validation endpoints through Runtime API and REST.
 - Added deploy/hosting-target-contract.json for hosted demo preparation.
 - Added tests covering contract validation and endpoint routing.
+
+## Sprint 63 — Deployment Smoke Tests
+
+- Added platform-neutral deployment smoke test plan and runner.
+- Added REST/Runtime API endpoints for smoke test plan, run, and validation.
+- Added deploy/deployment-smoke-tests.json for hosted demo readiness checks.
+- Extended hosting target contract and hosted runtime healthcheck with smoke test coverage.
+

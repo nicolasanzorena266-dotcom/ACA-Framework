@@ -1,0 +1,152 @@
+{
+  "contract": "deployment_smoke_tests.v1",
+  "status": "ready",
+  "surface": "ACA Studio hosted demo",
+  "public_base_url": "https://aca-demo.example.com",
+  "mode": "in_process_rest_adapter_smoke_tests",
+  "test_count": 8,
+  "tests": [
+    {
+      "id": "platform_health",
+      "method": "GET",
+      "path": "/health",
+      "purpose": "Platform-facing health endpoint returns a stable ok status.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "status",
+      "expected_payload_value": "ok",
+      "query": {},
+      "body": {}
+    },
+    {
+      "id": "runtime_status",
+      "method": "GET",
+      "path": "/runtime/status",
+      "purpose": "Runtime status endpoint can instantiate the deterministic runtime.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "status",
+      "expected_payload_value": "ready",
+      "query": {},
+      "body": {}
+    },
+    {
+      "id": "studio_bootstrap",
+      "method": "GET",
+      "path": "/studio/bootstrap",
+      "purpose": "Studio bootstrap endpoint returns a browser-ready contract.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": "studio_api_integration.v1",
+      "expected_payload_field": null,
+      "expected_payload_value": null,
+      "query": {},
+      "body": {}
+    },
+    {
+      "id": "studio_binding",
+      "method": "GET",
+      "path": "/studio/binding",
+      "purpose": "Studio Runtime binding can assemble state, domain context, trace and metrics.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": "studio_runtime_binding.v1",
+      "expected_payload_field": null,
+      "expected_payload_value": null,
+      "query": {
+        "root": "<max-depth>"
+      },
+      "body": {}
+    },
+    {
+      "id": "hosting_target_validation",
+      "method": "GET",
+      "path": "/hosting/target/validate",
+      "purpose": "Hosting target configuration validates before deployment.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "valid",
+      "expected_payload_value": true,
+      "query": {
+        "project_root": "<max-depth>"
+      },
+      "body": {}
+    },
+    {
+      "id": "hosted_runtime_healthcheck_validation",
+      "method": "GET",
+      "path": "/hosting/healthcheck/validate",
+      "purpose": "Hosted runtime healthcheck validates against project files.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "valid",
+      "expected_payload_value": true,
+      "query": {
+        "project_root": "<max-depth>"
+      },
+      "body": {}
+    },
+    {
+      "id": "hosted_studio_assets_validation",
+      "method": "GET",
+      "path": "/hosting/studio-assets/validate",
+      "purpose": "Hosted Studio assets validate before a public demo.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": null,
+      "expected_payload_field": "valid",
+      "expected_payload_value": true,
+      "query": {
+        "project_root": "<max-depth>"
+      },
+      "body": {}
+    },
+    {
+      "id": "demo_domain_flow",
+      "method": "POST",
+      "path": "/demo/domain-flow",
+      "purpose": "Default Domain Pack demo flow runs without external AI.",
+      "required": true,
+      "expected_status_code": 200,
+      "expected_contract": "demo_domain_runtime_flow.v1",
+      "expected_payload_field": null,
+      "expected_payload_value": null,
+      "query": {},
+      "body": {
+        "message": "<max-depth>",
+        "conversation_id": "<max-depth>",
+        "root": "<max-depth>",
+        "pack_name": "<max-depth>"
+      }
+    }
+  ],
+  "coverage": {
+    "platform_health": "/health",
+    "runtime": "/runtime/status",
+    "studio": "/studio/bootstrap and /studio/binding",
+    "hosting_config": "/hosting/target/validate",
+    "hosted_healthcheck": "/hosting/healthcheck/validate",
+    "assets": "/hosting/studio-assets/validate",
+    "demo_flow": "/demo/domain-flow"
+  },
+  "acceptance_criteria": [
+    "all required smoke tests pass before a public hosted demo",
+    "smoke tests run through REST adapter routes instead of component internals",
+    "health, runtime, Studio, assets, hosting config and demo flow are covered",
+    "failures return explicit diagnostic rows instead of silent deployment uncertainty"
+  ],
+  "non_goals": [
+    "no external hosting platform call",
+    "no network socket requirement",
+    "no visual redesign",
+    "no external AI dependency"
+  ],
+  "metadata": {
+    "sprint": 63,
+    "epic": "Hosted Demo Path"
+  }
+}

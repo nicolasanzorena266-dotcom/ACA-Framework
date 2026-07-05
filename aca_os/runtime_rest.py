@@ -315,6 +315,26 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/hosting/studio-assets/validate":
                 return self.ok(self.runtime_api.validate_hosted_studio_assets(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/deploy/smoke-tests":
+                return self.ok(
+                    self.runtime_api.deployment_smoke_test_plan(
+                        project_root=_first(params, "project_root") or ".",
+                        public_base_url=_first(params, "public_base_url") or "https://aca-demo.example.com",
+                        domain_pack_root=_first(params, "domain_pack_root") or "examples/domain_packs",
+                        default_domain_pack=_first(params, "default_domain_pack") or "example.customer_support",
+                    )
+                )
+            if method == "POST" and clean_path == "/deploy/smoke-tests/run":
+                return self.ok(
+                    self.runtime_api.run_deployment_smoke_tests(
+                        project_root=payload.get("project_root") or _first(params, "project_root") or ".",
+                        public_base_url=payload.get("public_base_url") or _first(params, "public_base_url") or "https://aca-demo.example.com",
+                        domain_pack_root=payload.get("domain_pack_root") or _first(params, "domain_pack_root") or "examples/domain_packs",
+                        default_domain_pack=payload.get("default_domain_pack") or _first(params, "default_domain_pack") or "example.customer_support",
+                    )
+                )
+            if method == "GET" and clean_path == "/deploy/smoke-tests/validate":
+                return self.ok(self.runtime_api.validate_deployment_smoke_tests(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(

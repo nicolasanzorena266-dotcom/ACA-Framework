@@ -115,6 +115,7 @@ class HostingTargetContract:
                     "deploy/hosting-target-contract.json",
                     "aca_os/hosted_runtime_healthcheck.py",
                     "aca_os/hosted_studio_assets.py",
+                    "aca_os/deployment_smoke_tests.py",
                     "pyproject.toml",
                 ],
                 "platform_requirements": [
@@ -150,6 +151,8 @@ class HostingTargetContract:
                     "GET /hosting/target returns hosting_target_contract.v1",
                     "GET /hosting/healthcheck returns hosted_runtime_healthcheck.v1",
                     "GET /hosting/studio-assets returns hosted_studio_assets.v1",
+                    "GET /deploy/smoke-tests returns deployment_smoke_tests.v1",
+                    "POST /deploy/smoke-tests/run validates hosted demo routes",
                     "POST /demo/domain-flow runs without external AI",
                     "runtime and domain behavior remain outside the hosting adapter",
                 ],
@@ -184,6 +187,9 @@ def default_hosting_routes() -> tuple[HostingRoute, ...]:
         HostingRoute("hosted_runtime_healthcheck_validate", "GET", "/hosting/healthcheck/validate", "Hosted runtime healthcheck validation."),
         HostingRoute("hosted_studio_assets", "GET", "/hosting/studio-assets", "Hosted ACA Studio asset strategy."),
         HostingRoute("hosted_studio_assets_validate", "GET", "/hosting/studio-assets/validate", "Hosted ACA Studio asset validation."),
+        HostingRoute("deployment_smoke_tests", "GET", "/deploy/smoke-tests", "Deployment smoke test plan for hosted demo readiness."),
+        HostingRoute("deployment_smoke_tests_run", "POST", "/deploy/smoke-tests/run", "Run deployment smoke tests through REST adapter routes."),
+        HostingRoute("deployment_smoke_tests_validate", "GET", "/deploy/smoke-tests/validate", "Validate deployment smoke test results."),
     )
 
 

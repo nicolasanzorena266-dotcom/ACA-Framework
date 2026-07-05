@@ -61,6 +61,9 @@ class HostedRuntimeHealthcheck:
         "/hosting/target",
         "/hosting/healthcheck",
         "/hosting/studio-assets",
+        "/deploy/smoke-tests",
+        "/deploy/smoke-tests/run",
+        "/deploy/smoke-tests/validate",
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -103,6 +106,7 @@ class HostedRuntimeHealthcheck:
                     "platform /health route remains available",
                     "Studio asset is present",
                     "hosted Studio asset strategy validates",
+                    "deployment smoke tests are available",
                     "default Domain Pack is present",
                     "hosting target contract validates",
                     "public demo readiness validates",
@@ -190,6 +194,12 @@ class HostedRuntimeHealthcheck:
                 "ok" if not missing_routes else "failed",
                 "Hosted routes are declared." if not missing_routes else "Hosted route contract is missing required routes.",
                 details={"missing_routes": missing_routes, "declared_routes": sorted(route_paths)},
+            ),
+            HostedHealthCheckItem(
+                "deployment_smoke_tests",
+                "ok" if (root / "aca_os" / "deployment_smoke_tests.py").exists() else "failed",
+                "Deployment smoke test module is present." if (root / "aca_os" / "deployment_smoke_tests.py").exists() else "Deployment smoke test module is missing.",
+                details={"path": "aca_os/deployment_smoke_tests.py"},
             ),
             HostedHealthCheckItem(
                 "port_configuration",
