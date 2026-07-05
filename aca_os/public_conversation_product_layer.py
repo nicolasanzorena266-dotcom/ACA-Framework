@@ -27,6 +27,42 @@ FALSE_OPERATIONAL_CLAIMS = (
 )
 
 OBSERVABILITY_ACTIONS = {"show_process", "show_diagnostic"}
+
+BILLING_DOMAIN_TERMS = (
+    "factura",
+    "facturación",
+    "facturacion",
+    "pago",
+    "vencimiento",
+    "importe",
+    "monto",
+    "cobro",
+    "deuda",
+)
+
+INSURANCE_DOMAIN_TERMS = (
+    "siniestro",
+    "denuncia",
+    "choque",
+    "colisión",
+    "colision",
+    "cristal",
+    "vidrio",
+    "parabrisas",
+    "robo",
+    "accidente",
+    "franquicia",
+)
+
+REPETITION_MARKERS = (
+    "ya te dije",
+    "ya lo dije",
+    "ya dije",
+    "me estás repitiendo",
+    "me estas repitiendo",
+    "otra vez",
+)
+
 _LAYER_CACHE: Dict[str, "PublicConversationProductLayer"] = {}
 
 
@@ -211,10 +247,16 @@ class PublicConversationProductLayer:
 
     def _requested_capability_from_message(self, *, message: str, memory: ConversationProductMemory) -> str | None:
         text = message.lower()
+        if _is_billing_message(text):
+            return "generic.open_chat"
         if any(marker in text for marker in ("persona", "representante", "deriv", "supervisor")):
-            return "insurance.handoff.prepare" if memory.active_plugin_id == "galicia.insurance" or memory.claim_type else memory.active_capability
+            return "insurance.handoff.prepare" if memory.active_plugin_id in {None, "galicia.insurance"} or memory.claim_type else memory.active_capability
         if any(marker in text for marker in ("cristal", "vidrio", "parabrisas")):
             return "insurance.glass"
+        if any(marker in text for marker in ("choque", "colisión", "colision", "accidente")):
+            return "insurance.accident"
+        if any(marker in text for marker in ("denuncia", "siniestro", "robo", "franquicia")):
+            return "insurance.claims"
         if memory.active_capability and _should_continue_previous_capability(message):
             return memory.active_capability
         return None
@@ -234,6 +276,9 @@ class PublicConversationProductLayer:
             memory.active_plugin_id = plugin_id
         if capability:
             memory.active_capability = capability
+        if _is_billing_message(text):
+            memory.active_plugin_id = "generic.open_chat"
+            memory.active_capability = "generic.open_chat"
         if "cristal" in text or "vidrio" in text or capability == "insurance.glass":
             memory.claim_type = "cristales"
             memory.active_plugin_id = "galicia.insurance"
@@ -255,7 +300,35 @@ class PublicConversationProductLayer:
             return _handoff_response(memory=memory)
         if plugin_id == "galicia.insurance" or capability in {"insurance.claims", "insurance.glass", "insurance.accident", "insurance.handoff.prepare"}:
             return _project_insurance_response(text=text, capability=str(capability or ""), plan=plan, memory=memory)
-        return "Te puedo orientar paso a paso. Contame qué querés resolver y te ayudo a ordenar el próximo movimiento."
+        return _project_generic_response(text=text, memory=memory)
+
+
+def _is_billing_message(text: str) -> bool:
+    return any(term in text for term in BILLING_DOMAIN_TERMS)
+
+
+def _is_insurance_message(text: str) -> bool:
+    return any(term in text for term in INSURANCE_DOMAIN_TERMS)
+
+
+def _is_repetition_marker(text: str) -> bool:
+    return any(marker in text for marker in REPETITION_MARKERS)
+
+
+def _project_generic_response(*, text: str, memory: ConversationProductMemory) -> str:
+    if _is_repetition_marker(text):
+        if memory.active_capability == "generic.open_chat":
+            return "Tenés razón, ya lo dijiste. No te vuelvo a pedir lo mismo: el tema es la factura. Para orientarte mejor necesito saber si querés revisar importe, vencimiento, pago o un reclamo ya iniciado."
+        return "Tenés razón, ya lo dijiste. No repito la misma respuesta: ordenemos el punto concreto que querés resolver y avanzo sobre eso."
+    if _is_billing_message(text):
+        if "monto" in text or "importe" in text or "valor" in text:
+            return "Sobre la factura, entiendo que el problema es que el importe llegó distinto al esperado. Puedo ayudarte a ordenar el reclamo: conviene identificar período facturado, monto esperado, monto cobrado y si ya hubo un reclamo previo."
+        if "vencimiento" in text:
+            return "Sobre la factura, el punto es el vencimiento. Puedo ayudarte a ordenar qué dato necesitás revisar y qué información conviene tener a mano antes de continuar por el canal correspondiente."
+        if "pago" in text or "cobro" in text:
+            return "Sobre el pago de la factura, puedo ayudarte a ordenar la consulta de forma general: fecha de pago, medio utilizado, comprobante y período facturado. No tengo acceso operativo a un sistema de facturación desde esta demo."
+        return "Sobre la factura, puedo orientarte de forma general sin consultar un sistema de facturación. Para avanzar, decime si querés revisar importe, vencimiento, pago o un reclamo ya iniciado."
+    return "Te puedo orientar paso a paso. Contame el tema concreto que querés resolver y te ayudo a ordenar el próximo movimiento."
 
 
 def _should_continue_previous_capability(message: str) -> bool:
@@ -278,6 +351,8 @@ def _should_continue_previous_capability(message: str) -> bool:
 
 
 def _project_insurance_response(*, text: str, capability: str, plan: Mapping[str, Any], memory: ConversationProductMemory) -> str:
+    if _is_billing_message(text):
+        return _project_generic_response(text=text, memory=memory)
     claim_type = memory.claim_type or ("cristales" if capability == "insurance.glass" else None)
     if "persona" in text or "representante" in text or plan.get("next_action") == "prepare_handoff":
         return _handoff_response(memory=memory)

@@ -1,3 +1,11 @@
+# Sprint 72B-RC3 — Routing and Response Repair
+
+- Prevented explicit billing messages from routing into `insurance.claims`.
+- Added domain-precedence behavior so explicit domains beat generic operational words like estado or trámite.
+- Added client-support repair for repetition/frustration markers such as “ya te dije”.
+- Updated the public Studio example to run the Galicia/cristales acceptance flow.
+- Added RC3 acceptance tests for billing fallback, semantic-core response reflection and non-repetitive repair.
+
 # Sprint 72B-RC2 — Public Demo Product Repair
 
 - Repaired the public Studio layout into chat-left / actions-right without the cut-off phone shell.

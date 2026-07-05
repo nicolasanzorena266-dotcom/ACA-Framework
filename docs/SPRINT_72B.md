@@ -61,3 +61,25 @@ If an observability action writes to visible chat, it fails.
 If an enabled button does not execute a real action, it fails.
 If the user already said cristales and ACA asks for the case type again, it fails.
 ```
+
+## RC3 — Routing and Response Repair
+
+Sprint 72B-RC3 is an acceptance repair for public conversational quality. It keeps the RC2 visual structure and fixes routing / response behavior exposed during manual Render testing.
+
+### RC3 acceptance fixes
+
+- Explicit billing terms such as factura, pago, vencimiento, importe or monto no longer route to `insurance.claims` when no billing plugin exists.
+- Explicit domain terms take precedence over generic operational words such as estado, trámite or seguimiento.
+- Billing messages fall back to `generic.open_chat` with general orientation and without operational billing claims.
+- Repetition/frustration markers such as “ya te dije” trigger a repair response instead of repeating the same template.
+- Visible client responses must reflect the semantic core of the user message.
+- The public example button runs the Galicia/cristales acceptance flow instead of a generic billing/status scenario.
+
+### RC3 hard rules
+
+```text
+If the user says factura and ACA routes to insurance.claims, it fails.
+If the user says ya te dije and ACA repeats the same template, it fails.
+If the response does not mention the semantic core of the user message, it fails.
+If generic.open_chat handles billing, it must not pretend to access billing systems.
+```

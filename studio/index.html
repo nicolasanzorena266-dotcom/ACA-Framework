@@ -135,7 +135,7 @@
   <!-- ACA Studio Visual Design System compatibility marker · /studio/binding · /studio/binding/run · /studio/ux · /studio/design · brand-logo -->
   <!-- Compatibility markers: Contexto para el runtime · Lectura humana del runtime · Ver pensamiento · Run Demo Domain Flow · width: min(100%, 430px) · width: min(46vh, 100%, 462px) · height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px) · grid-template-columns: minmax(360px, 1fr) · aspect-ratio: 9 / 16 -->
   <!-- Legacy static markers: .main-grid { display: grid; grid-template-columns: 1fr · .context-card { display: none; · function resetConversation() · resetConversation(); · Copiar resumen · width: min(390px, 100%) · conversationId = `studio-domain-flow-${Date.now()}` · indexOf('<max-depth>') === -1 · Resumen de la consulta · height: min(700px, calc(100vh - 145px)) · ACA responde como asistente de atención -->
-  <!-- Sprint 72B Product Layer · Sprint 72B-RC2 Product Repair · Plugin Execution Bridge · public_action_id · publicActions · chat-left-actions-right · viewport 1366x768 · viewport 390x844 -->
+  <!-- Sprint 72B Product Layer · Sprint 72B-RC2 Product Repair · Sprint 72B-RC3 Routing Repair · Plugin Execution Bridge · public_action_id · publicActions · chat-left-actions-right · viewport 1366x768 · viewport 390x844 -->
 </head>
 <body>
   <div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo · Demo Polish · max-height: 590px</div>
@@ -341,20 +341,34 @@
       ], lastResult || { diagnostic_view: diagnostic });
     }
 
-    async function sendMessage() {
-      const input = document.getElementById('message');
-      const message = input.value.trim();
-      if (!message) return;
-      appendConversation(message, 'user');
-      input.value = '';
-      const result = await api.post('/public-conversation/product-layer/run', { message, conversation_id: conversationId, conversation_mode: 'client_support', root: 'plugins' });
+    async function sendClientMessage(message) {
+      const clean = String(message || '').trim();
+      if (!clean) return;
+      appendConversation(clean, 'user');
+      const result = await api.post('/public-conversation/product-layer/run', { message: clean, conversation_id: conversationId, conversation_mode: 'client_support', root: 'plugins' });
       appendConversation(result.response || 'Te ayudo a ordenar el próximo paso.');
       renderResult(result);
     }
 
+    async function sendMessage() {
+      const input = document.getElementById('message');
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      await sendClientMessage(message);
+    }
+
     async function runExample() {
-      document.getElementById('message').value = 'Cargué una denuncia de cristales desde la app y ya pasaron más de 48hs hábiles';
-      await sendMessage();
+      const exampleMessages = [
+        'Cargué una denuncia desde la app pero sigo sin tener respuesta',
+        'fue cristales',
+        'ya tengo la documentación, te la comparto a vos?',
+        'ya pasaron más de 48hs hábiles',
+        'quiero hablar con una persona'
+      ];
+      for (const exampleMessage of exampleMessages) {
+        await sendClientMessage(exampleMessage);
+      }
     }
 
     async function runPublicAction(actionId) {

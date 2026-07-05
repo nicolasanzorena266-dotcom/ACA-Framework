@@ -1,17 +1,24 @@
+BILLING_TERMS = {
+    "factura",
+    "facturación",
+    "facturacion",
+    "pago",
+    "vencimiento",
+    "importe",
+    "monto",
+    "cobro",
+    "deuda",
+}
+
+
 def analyze(message: str, context=None) -> dict:
     text = message.lower()
-    if "persona" in text or "representante" in text or "deriv" in text:
-        intent = "insurance.handoff.prepare"
-    elif "cristal" in text or "vidrio" in text:
-        intent = "insurance.glass"
-    elif "accidente" in text or "choque" in text:
-        intent = "insurance.accident"
-    else:
-        intent = "insurance.claims"
-    confidence = 0.86 if intent == "insurance.glass" else 0.72
-    return {
-        "intent": intent,
-        "capability": intent,
-        "confidence": confidence,
-        "signals": {"mentions_48h": "48" in text, "asks_person": "persona" in text or "representante" in text},
-    }
+    if any(term in text for term in BILLING_TERMS):
+        return {"intent": None, "confidence": 0.0, "domain_match": False}
+    if "cristal" in text or "vidrio" in text or "parabrisas" in text:
+        return {"intent": "insurance.glass", "confidence": 0.86, "domain_match": True}
+    if "accidente" in text or "choque" in text or "colisión" in text or "colision" in text:
+        return {"intent": "insurance.accident", "confidence": 0.78, "domain_match": True}
+    if any(term in text for term in ("siniestro", "denuncia", "robo", "franquicia", "póliza", "poliza")):
+        return {"intent": "insurance.claims", "confidence": 0.68, "domain_match": True}
+    return {"intent": None, "confidence": 0.0, "domain_match": False}
