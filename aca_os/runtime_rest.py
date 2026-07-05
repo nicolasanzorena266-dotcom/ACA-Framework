@@ -170,6 +170,8 @@ class RuntimeRESTAPI:
                         memory_path=memory_path,
                     )
                 )
+            if method == "GET" and clean_path == "/studio/design":
+                return self.ok(self.runtime_api.studio_visual_design())
             if method == "POST" and clean_path == "/studio/run":
                 return self.ok(
                     self.runtime_api.studio_run(

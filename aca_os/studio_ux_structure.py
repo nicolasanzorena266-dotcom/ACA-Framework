@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Mapping
 
 from aca_os.execution_trace import sanitize
+from aca_os.studio_visual_design import build_studio_visual_design_system
 
 
 STUDIO_UX_STRUCTURE_CONTRACT = "studio_ux_structure.v1"
@@ -104,6 +105,7 @@ class StudioUXStructure:
                     "inspiration": "cx_lab_operational_tooling",
                 },
                 "theme": dict(self.theme),
+                "design_system": build_studio_visual_design_system(),
                 "navigation": [item.to_dict() for item in self.navigation],
                 "panels": [panel.to_dict() for panel in self.panels],
                 "metric_cards": [card.to_dict() for card in self.metric_cards],

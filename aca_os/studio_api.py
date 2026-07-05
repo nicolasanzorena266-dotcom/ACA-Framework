@@ -87,6 +87,7 @@ STUDIO_API_RESOURCES: tuple[StudioAPIResource, ...] = (
     StudioAPIResource("domain_context", "GET", "/runtime/domain-context", "domain_pack.context.read", "Read active Domain Pack context."),
     StudioAPIResource("binding", "GET", "/studio/binding", "studio.runtime.binding", "Read bound Studio Runtime dashboard."),
     StudioAPIResource("ux", "GET", "/studio/ux", "studio.ux.structure", "Read Studio UX structure bound to Runtime API data."),
+    StudioAPIResource("design", "GET", "/studio/design", "studio.visual_design.read", "Read ACA Studio visual design system."),
     StudioAPIResource("binding_run", "POST", "/studio/binding/run", "studio.runtime.binding.run", "Run one message and return refreshed binding.", False),
     StudioAPIResource("run", "POST", "/studio/run", "studio.runtime.run", "Run one message and refresh Studio state.", False),
     StudioAPIResource("replay", "POST", "/studio/replay", "studio.session.replay", "Replay one saved session into Studio.", False),

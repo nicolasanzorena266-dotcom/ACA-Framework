@@ -1,3 +1,14 @@
+## Sprint 58 — Visual Design System
+
+- Added ACA Studio visual design system contract.
+- Locked visual product naming as ACA Studio.
+- Added stable color, typography, spacing, shape and elevation tokens.
+- Added Studio component style recipes for sidebar, metric cards, simulation phone, context panel and primary actions.
+- Exposed `/studio/design` through Runtime API and REST.
+- Embedded the design system into `/studio/ux`.
+- Refined Studio HTML into the light operational CX-style dashboard direction.
+
+
 ## Sprint 57 — Studio UX Structure
 
 - Added declarative Studio UX structure contract.

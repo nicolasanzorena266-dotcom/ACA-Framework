@@ -13,6 +13,7 @@ from aca_os.public_demo_runtime_adapter import build_public_demo_runtime_adapter
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
+from aca_os.studio_visual_design import build_studio_visual_design_system
 from sdk.factory import build_galicia_runtime, process_message
 
 RuntimeFactory = Callable[..., Any]
@@ -64,6 +65,7 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/studio/state", "Return Studio state assembled from Runtime APIs.", "studio.state.read"),
         RuntimeEndpoint("GET", "/studio/binding", "Return bound Studio Runtime dashboard state.", "studio.runtime.binding"),
         RuntimeEndpoint("GET", "/studio/ux", "Return Studio UX structure bound to Runtime API data.", "studio.ux.structure"),
+        RuntimeEndpoint("GET", "/studio/design", "Return ACA Studio visual design system tokens and component styles.", "studio.visual_design.read"),
         RuntimeEndpoint("POST", "/studio/run", "Run one Studio message through Runtime APIs.", "studio.runtime.run"),
         RuntimeEndpoint("POST", "/studio/binding/run", "Run one Studio message and return refreshed binding.", "studio.runtime.binding.run"),
         RuntimeEndpoint("POST", "/studio/replay", "Replay a session through Studio API.", "studio.session.replay"),
@@ -300,6 +302,9 @@ class RuntimeEndpointAPI:
             runtime_binding=self.studio_binding(root=root, strict=strict, memory_path=memory_path)
         )
 
+    def studio_visual_design(self) -> Dict[str, Any]:
+        return build_studio_visual_design_system()
+
     def studio_binding_run(
         self,
         *,
@@ -490,6 +495,8 @@ class RuntimeEndpointAPI:
             return self.studio_binding(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
         if method == "GET" and path == "/studio/ux":
             return self.studio_ux_structure(root=params.get("root"), strict=bool(params.get("strict")), memory_path=memory_path)
+        if method == "GET" and path == "/studio/design":
+            return self.studio_visual_design()
         if method == "GET" and path == "/runtime/studio":
             return self.studio(memory_path=memory_path)
         if method == "GET" and path == "/runtime/metrics":
