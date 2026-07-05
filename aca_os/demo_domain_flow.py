@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping
 
 from aca_os.execution_trace import sanitize
+from aca_os.representative_answer_composer import RepresentativeAnswerComposer
 DEMO_DOMAIN_RUNTIME_FLOW_CONTRACT = "demo_domain_runtime_flow.v1"
 DEMO_DOMAIN_RUNTIME_SCENARIO_CONTRACT = "demo_domain_runtime_flow.scenario.v1"
 DEFAULT_DOMAIN_PACK_ROOT = "examples/domain_packs"
@@ -195,7 +196,7 @@ def _match_intent(pack: Mapping[str, Any], message: str) -> Mapping[str, Any]:
                 score += 6
             score += sum(1 for word in words if word in normalized)
         name = str(intent.get("name", ""))
-        if "status" in normalized and "status" in name:
+        if any(word in normalized for word in ["status", "estado", "ticket", "caso", "tramite", "trámite"]) and any(word in name for word in ["status", "case", "support"]):
             score += 4
         if any(word in normalized for word in ["document", "documentation", "missing", "send"]):
             if "documentation" in name or "missing" in name:
@@ -262,75 +263,13 @@ def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[
 
 
 def _render_response(*, message: str, pack: Mapping[str, Any], intent: Mapping[str, Any], flow: Mapping[str, Any], entities: Mapping[str, Any]) -> str:
-    normalized_message = _norm(message)
-    domain = str(pack.get("domain") or "").replace(".", " ")
-    intent_name = str(intent.get("name") or "consulta")
-    flow_name = str(flow.get("name") or "seguimiento")
-    case_id = entities.get("case_id")
-    process_name = entities.get("process_name")
-    missing = entities.get("missing_required")
-
-    if _is_identity_question(normalized_message):
-        return (
-            "Soy ACA, una interfaz de runtime. En esta demo no estoy conectado a un modelo generativo como ChatGPT; "
-            "trabajo con módulos cargados, reglas observables y rutas de respuesta. Por eso puedo responder bien cuando la consulta entra en esos módulos, "
-            "y prefiero decirte que no tengo ruta antes que inventar una respuesta."
-        )
-
-    if _is_capability_question(normalized_message):
-        return (
-            "Puedo interpretar consultas de soporte y operaciones dentro de los módulos cargados. "
-            "Hoy la demo pública no usa inteligencia artificial generativa externa, así que no conversa con la misma libertad que un chat general. "
-            "La idea de ACA no es parecer humano: es decidir de forma observable, mostrar por qué eligió una ruta y dejar listo el punto donde se conectaría un modelo si hiciera falta."
-        )
-
-    if _is_confusion_question(normalized_message):
-        return (
-            "Me expresé mal: con el ticket 12345 no estoy consultando una base real. "
-            "Estoy simulando cómo ACA entiende la intención, elige la ruta de seguimiento y deja preparado qué tendría que pedirle al sistema del cliente: estado actual, responsable y próximo paso."
-        )
-
-    if isinstance(missing, list) and missing:
-        readable = ", ".join(str(item).replace("_", " ") for item in missing)
-        return (
-            "Puedo avanzar, pero me falta un dato para hacerlo bien: "
-            f"{readable}. Pasame esa información y ACA vuelve a evaluar la consulta sin inventar."
-        )
-
-    if pack.get("domain") == "customer.support" and case_id:
-        if "documentation" in intent_name:
-            return (
-                f"Revisé el ticket {case_id}. ACA lo interpreta como una consulta por documentación pendiente "
-                "y dejó preparada la ruta de revisión documental. En una integración real, acá mostraría qué archivo falta "
-                "y cuál sería el próximo paso."
-            )
-        if "escalation" in intent_name:
-            return (
-                f"Detecté que el ticket {case_id} requiere prioridad. ACA seleccionó la ruta de escalamiento "
-                "para ordenar el caso, identificar el motivo y dejarlo listo para derivación."
-            )
-        return (
-            f"Revisé el ticket {case_id}. ACA lo entiende como una consulta de estado y seleccionó la ruta de seguimiento. "
-            "Con una conexión al sistema del cliente, acá devolvería estado actual, responsable y próximo paso."
-        )
-
-    if pack.get("domain") == "operations.basic":
-        subject = f"el proceso {process_name}" if process_name else "el proceso indicado"
-        return (
-            f"ACA interpreta la consulta como una revisión operativa sobre {subject}. "
-            "La ruta elegida permite ordenar señales, detectar posibles trabas y proponer el próximo punto de análisis."
-        )
-
-    if intent_name == "demo.fallback":
-        return (
-            "Entiendo la consulta, pero no encontré una ruta suficientemente específica dentro de los módulos cargados. "
-            "Probá con un número de ticket, un proceso o una solicitud más concreta para que ACA pueda responder sin inventar."
-        )
-
-    return (
-        f"ACA procesó la consulta dentro del módulo {domain or 'activo'} y seleccionó la ruta {flow_name}. "
-        "La respuesta queda resumida para uso humano y el detalle del proceso queda separado."
-    )
+    return RepresentativeAnswerComposer().compose(
+        message=message,
+        pack=pack,
+        intent=intent,
+        flow=flow,
+        entities=entities,
+    ).text
 
 
 

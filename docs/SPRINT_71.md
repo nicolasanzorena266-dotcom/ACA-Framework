@@ -33,3 +33,17 @@ User validation found that the Studio still looked like a basic dashboard and th
 - The public action is renamed to **Probar ejemplo** while keeping hidden compatibility markers required by older tests.
 
 This does not turn ACA into a ChatGPT clone. It makes the current public runtime honest about its limits while still behaving like an interaction surface, not a broken classifier.
+
+
+## RC4 correction — Representative experience alignment
+
+User validation showed that the UI still had too much dashboard weight and that ACA was speaking about its own runtime instead of answering like a service representative. RC4 changes the public experience around the original ACA principle: understand first, communicate clearly, and never invent system data.
+
+- Removed the visible Runtime / Components / Modules / Events metric cards from the main Studio surface.
+- Enlarged the phone shell to a 9:16 story-style conversation panel and removed the fake clock.
+- Added `RepresentativeAnswerComposer` as the public language layer over deterministic routing.
+- Rewrote ticket-status answers so ACA explains the demo limitation naturally and shows what it would prepare: status, responsible and next step.
+- Added natural answers for identity, AI-capability, confusion and basic Galicia-style siniestro scenarios such as choque, cristales, robo parcial and franquicia.
+- Kept runtime interpretation and trace detail behind **Ver proceso** instead of leaking it into the chat response.
+
+Acceptance target: ACA should feel like a constrained representative simulation, not a classifier dashboard with a chat box.

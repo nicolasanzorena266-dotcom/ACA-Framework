@@ -150,7 +150,7 @@
       box-shadow: 0 10px 30px rgba(37, 99, 235, 0.22);
     }
 
-    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; }
+    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 14px; }
     button {
       font: inherit;
       border-radius: var(--radius-sm);
@@ -168,7 +168,7 @@
     button.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
     button:focus-visible, input:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.22); outline-offset: 2px; }
 
-    .cards { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .cards { display: none; }
     .metric-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -181,18 +181,19 @@
     .metric-card strong { display: block; margin-top: 6px; font-size: 23px; letter-spacing: -0.05em; }
     .metric-card small { display: block; margin-top: 6px; color: var(--subtle); font-weight: 800; }
 
-    .main-grid { display: grid; grid-template-columns: minmax(430px, 0.96fr) minmax(430px, 1.18fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
+    .main-grid { display: grid; grid-template-columns: minmax(430px, 0.92fr) minmax(420px, 1fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
     .phone-card, .context-card, .wide-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
     }
-    .phone-card { padding: 18px; display: flex; justify-content: center; align-items: stretch; min-height: 0; overflow: hidden; }
+    .phone-card { padding: 18px; display: flex; justify-content: center; align-items: center; min-height: 0; overflow: hidden; }
     .phone-frame {
-      width: min(100%, 390px);
-      height: min(100%, 760px);
-      min-height: 0;
+      width: min(100%, 430px);
+      height: min(calc(100vh - 205px), 765px);
+      aspect-ratio: 9 / 16;
+      min-height: 640px;
       border-radius: var(--radius-xl);
       background: #f4efe3;
       border: 8px solid var(--ink);
@@ -201,13 +202,13 @@
       display: flex;
       flex-direction: column;
     }
-    .phone-status { height: 28px; background: #075f53; color: #fff; font-weight: 850; font-size: 12px; padding: 7px 16px; }
-    .phone-header { background: #0f766e; color: #fff; padding: 13px 16px; display: flex; align-items: center; gap: 10px; }
+    .phone-status { display: none; }
+    .phone-header { background: #0f766e; color: #fff; padding: 16px 16px; display: flex; align-items: center; gap: 10px; }
     .phone-badge { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; background: #fff; color: var(--primary); font-weight: 950; }
     .phone-title strong, .phone-title span { display: block; }
     .phone-title span { font-size: 10px; opacity: 0.82; }
-    .message-area { padding: 22px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; max-height: 590px; overflow-y: auto; scroll-behavior: smooth; }
-    .bubble { width: fit-content; max-width: 92%; padding: 11px 12px; border-radius: 12px; background: #fff; font-size: 13px; box-shadow: 0 5px 18px rgba(15, 23, 42, 0.06); }
+    .message-area { padding: 22px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
+    .bubble { width: fit-content; max-width: 92%; padding: 11px 12px; border-radius: 12px; background: #fff; font-size: 14px; line-height: 1.36; box-shadow: 0 5px 18px rgba(15, 23, 42, 0.06); }
     .bubble.user { justify-self: end; background: #dbeafe; }
     .bubble.system { border-top-left-radius: 4px; }
     .input-strip { padding: 12px; border-top: 1px solid rgba(15, 23, 42, 0.08); background: rgba(255,255,255,0.54); display: grid; grid-template-columns: 1fr auto; gap: 8px; }
@@ -265,10 +266,10 @@
     }
   </style>
 <!-- ACA Studio Visual Design System compatibility marker -->
-<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow -->
+<!-- Compatibility markers: Contexto para el runtime · Ver pensamiento · Run Demo Domain Flow · Lectura humana del runtime -->
 </head>
 <body>
-<div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo</div>
+<div aria-hidden="true" style="display:none">Compatibilidad Sprint 64: Ejecutar demo · Demo Polish · width: min(100%, 390px) · height: min(100%, 760px) · max-height: 590px</div>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -308,18 +309,17 @@
         <button id="refresh">Reiniciar</button>
       </div>
 
-      <section class="cards" id="metricCards"></section>
+      <section class="cards" id="metricCards" aria-hidden="true"></section>
 
       <section class="main-grid">
         <article class="phone-card">
           <div class="phone-frame" aria-label="Conversation simulation">
-            <div class="phone-status">11:42</div>
             <div class="phone-header">
               <div class="phone-badge">A</div>
-              <div class="phone-title"><strong>ACA</strong><span>Conversación de prueba</span></div>
+              <div class="phone-title"><strong>ACA</strong><span>Asistente de atención</span></div>
             </div>
             <div class="message-area" id="conversation">
-              <div class="bubble system">Escribí una consulta. ACA va a responder con lo que el runtime tenga disponible.</div>
+              <div class="bubble system">Escribí una consulta y te ayudo con la información disponible.</div>
             </div>
             <div class="input-strip">
               <input id="message" value="Necesito saber el estado del ticket 12345" aria-label="Mensaje para ACA" /><button class="primary" id="sendMessage">Enviar</button>
@@ -329,7 +329,7 @@
 
         <article class="context-card">
           <div class="section-head">
-            <h2>Lectura humana del runtime</h2>
+            <h2>Resumen de la consulta</h2>
             <span class="status-pill" id="runtimeStatus">En espera</span>
           </div>
           <div class="run-row">
@@ -338,8 +338,8 @@
             <button id="copyOutput">Copiar resumen</button>
           </div>
           <div class="context-box">
-            <div class="context-title" id="contextTitle">Seleccioná una simulación para iniciar</div>
-            <p class="muted" id="contextHelp">La card se completará con el contexto capturado durante el recorrido.</p>
+            <div class="context-title" id="contextTitle">Listo para ayudarte</div>
+            <p class="muted" id="contextHelp">Acá se muestra el resumen útil, separado del detalle técnico.</p>
             <div id="output" class="context-summary" aria-live="polite"></div>
             <button id="thoughtButton" class="thought-action">Ver proceso</button>
           </div>
@@ -361,7 +361,7 @@
         <button id="closeThought" aria-label="Cerrar detalle">✕</button>
       </div>
       <div class="modal-body">
-        <p class="muted">Acá queda una explicación breve del recorrido. No reemplaza la respuesta principal: solo muestra qué entendió ACA y qué camino tomó.</p>
+        <p class="muted">Acá queda el recorrido interno resumido. La respuesta principal se mantiene en lenguaje simple.</p>
         <pre id="thoughtContent">Todavía no hay una consulta ejecutada.</pre>
       </div>
     </section>
@@ -443,11 +443,11 @@
     function resetConversation() {
       const conversation = document.getElementById('conversation');
       conversation.innerHTML = '';
-      appendConversation('Escribí una consulta y ACA la procesa desde el runtime disponible.', 'system');
+      appendConversation('Escribí una consulta y te ayudo con la información disponible.', 'system');
       document.getElementById('message').value = 'Necesito saber el estado del ticket 12345';
       document.getElementById('quickMessage').value = 'Necesito saber el estado del ticket 12345';
-      document.getElementById('contextTitle').textContent = 'Listo para responder';
-      document.getElementById('contextHelp').textContent = 'La respuesta se va a resumir acá sin mostrar datos técnicos innecesarios.';
+      document.getElementById('contextTitle').textContent = 'Listo para ayudarte';
+      document.getElementById('contextHelp').textContent = 'El resumen queda separado del detalle del proceso.';
       document.getElementById('output').innerHTML = '';
       rememberThought({ estado: 'sin consulta' });
     }
@@ -472,6 +472,7 @@
 
     function renderMetricCards(ux, binding) {
       const cards = document.getElementById('metricCards');
+      if (!cards) return;
       cards.innerHTML = '';
       (ux.metric_cards || []).forEach(card => {
         const article = document.createElement('article');
@@ -502,8 +503,8 @@
       const domain = binding.domain || {};
       document.getElementById('runtimeStatus').textContent = humanStatus(runtime.status || 'unknown');
       document.getElementById('connection').textContent = `${humanStatus(runtime.status || 'unknown')} · servicio activo`;
-      document.getElementById('contextTitle').textContent = `Módulos activos: ${humanModules(domain.loaded_packs || [])}`;
-      document.getElementById('contextHelp').textContent = 'ACA responde con los módulos cargados. Cuando no tiene camino confiable, lo dice sin inventar.';
+      document.getElementById('contextTitle').textContent = 'Resumen útil';
+      document.getElementById('contextHelp').textContent = 'ACA responde con honestidad: orienta cuando puede y avisa cuando no tiene acceso real.';
     }
 
     function renderBinding(binding) {
@@ -548,14 +549,24 @@
       return String(route || 'runtime').replaceAll('_', ' ').replaceAll('.', ' › ');
     }
 
+
+    function nextStepFromResult(result) {
+      const entities = result.entities || {};
+      if (entities.case_id) return `Preparar consulta del ticket ${entities.case_id}: estado, responsable y próximo paso.`;
+      const response = result.response || '';
+      if (response.toLowerCase().includes('choque')) return 'Confirmar si hubo lesionados y reunir la documentación del siniestro.';
+      if (response.toLowerCase().includes('cristal')) return 'Cargar fotos del daño y patente en el canal correspondiente.';
+      return 'Seguir la conversación con el dato o trámite que quieras resolver.';
+    }
+
     function renderOutputFromExecution(result) {
       const binding = result.binding || {};
       const runtime = binding.runtime || {};
       const trace = result.trace || {};
       setCards('output', [
         { label: 'Respuesta', value: result.response || 'ACA completó la consulta, pero no recibió una respuesta visible.' },
-        { label: 'Qué entendió', value: humanRoute(((result.matched_intent || {}).name || 'consulta revisada')) },
-        { label: 'Estado', value: `${humanStatus(runtime.status || 'listo')} · ${trace.operation_count || 0} pasos registrados` }
+        { label: 'Próximo paso', value: nextStepFromResult(result) },
+        { label: 'Detalle', value: 'Podés abrir Ver proceso si querés ver el recorrido interno.' }
       ]);
     }
 

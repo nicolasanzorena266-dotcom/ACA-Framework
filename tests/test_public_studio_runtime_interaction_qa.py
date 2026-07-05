@@ -38,7 +38,9 @@ def test_demo_domain_flow_response_is_human_readable_not_raw_routing_dump():
     )
 
     response = result["response"]
-    assert "Revisé el ticket 12345" in response
+    assert "no tengo conexión real" in response
+    assert "ticket 12345" in response
+    assert "estado actual, responsable y próximo paso" in response
     assert "Domain '" not in response
     assert "matched intent" not in response
     assert "selected flow" not in response
@@ -53,10 +55,10 @@ def test_public_studio_handles_identity_and_ai_limit_questions_without_repeating
     confusion = runner.run(message="eh?", conversation_id="sprint71-confusion")
 
     assert "Soy ACA" in identity["response"]
-    assert "modelo generativo" in identity["response"]
-    assert "módulos cargados" in ai_limit["response"]
-    assert "no conversa con la misma libertad" in ai_limit["response"]
-    assert "Me expresé mal" in confusion["response"]
+    assert "asistente de atención" in identity["response"]
+    assert "no estoy conectado a una IA externa" in ai_limit["response"]
+    assert "no puedo hacer es consultar un caso real" in ai_limit["response"]
+    assert "Me explico mejor" in confusion["response"]
     assert "Probá con un número de ticket" not in identity["response"]
     assert "Probá con un número de ticket" not in ai_limit["response"]
 
@@ -64,9 +66,37 @@ def test_public_studio_handles_identity_and_ai_limit_questions_without_repeating
 def test_public_studio_phone_has_real_cellphone_proportions_and_no_max_depth_leak():
     html = open("studio/index.html", encoding="utf-8").read()
 
-    assert "width: min(100%, 390px)" in html
-    assert "height: min(100%, 760px)" in html
-    assert "max-height: 590px" in html
+    assert "width: min(100%, 430px)" in html
+    assert "aspect-ratio: 9 / 16" in html
+    assert "phone-status { display: none; }" in html
     assert "indexOf('<max-depth>') === -1" in html
     assert "Probar ejemplo" in html
+    assert "Runtime</span><strong>" not in html
+    assert "Componentes</span><strong>" not in html
     assert "Simulador Runtime" not in html
+
+
+def test_public_studio_removes_dashboard_cards_and_prioritizes_story_chat():
+    html = open("studio/index.html", encoding="utf-8").read()
+
+    assert ".cards { display: none; }" in html
+    assert "phone-status { display: none; }" in html
+    assert "aspect-ratio: 9 / 16" in html
+    assert "Resumen de la consulta" in html
+    assert ">Runtime</span><strong>" not in html
+    assert ">Componentes</span><strong>" not in html
+    assert ">Eventos</span><strong>" not in html
+
+
+def test_representative_answer_composer_orients_claims_without_runtime_jargon():
+    result = DemoDomainRuntimeFlowRunner().run(
+        message="tuve un choque",
+        conversation_id="sprint71-claim-rep",
+    )
+
+    response = result["response"]
+    assert "Lamento lo del choque" in response
+    assert "denuncia administrativa" in response
+    assert "fotos de los daños" in response
+    assert "runtime" not in response.lower()
+    assert "intent" not in response.lower()
