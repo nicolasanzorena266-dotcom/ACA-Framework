@@ -24,6 +24,12 @@ class PublicConversationState:
     fallback_count: int = 0
     confusion_count: int = 0
     frustration_count: int = 0
+    known_facts: tuple[str, ...] = ()
+    missing_facts: tuple[str, ...] = ()
+    interaction_signals: dict[str, object] | None = None
+    control_state: dict[str, object] | None = None
+    next_action_suggested: str | None = None
+    last_response_signature: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +43,12 @@ class PublicConversationState:
             "fallback_count": self.fallback_count,
             "confusion_count": self.confusion_count,
             "frustration_count": self.frustration_count,
+            "known_facts": list(self.known_facts),
+            "missing_facts": list(self.missing_facts),
+            "interaction_signals": dict(self.interaction_signals or {}),
+            "control_state": dict(self.control_state or {}),
+            "next_action_suggested": self.next_action_suggested,
+            "last_response_signature": self.last_response_signature,
         }
 
 
@@ -67,10 +79,16 @@ def update_public_conversation_state(
     intent: Mapping[str, Any],
     entities: Mapping[str, Any],
     answer_category: str,
+    semantic_parse: Mapping[str, Any] | None = None,
+    policy_decision: Mapping[str, Any] | None = None,
+    next_action: str | None = None,
+    response_text: str | None = None,
 ) -> PublicConversationState:
     normalized = _norm(message)
     readable = _readable_norm(message)
-    case_id = str(entities.get("case_id") or state.active_case_id or "") or None
+    semantic = dict(semantic_parse or {})
+    semantic_entities = dict(semantic.get("entities") or {})
+    case_id = str(entities.get("case_id") or semantic_entities.get("case_id") or state.active_case_id or "") or None
     topic = state.active_topic
     goal = state.active_goal
     claim_type = state.active_claim_type
@@ -79,15 +97,25 @@ def update_public_conversation_state(
         topic = "ticket"
         goal = "consultar_estado_o_seguimiento"
 
-    detected_claim = _detect_claim_type(readable)
+    detected_claim = semantic_entities.get("claim_type") or _detect_claim_type(readable)
     if detected_claim:
         claim_type = detected_claim
         topic = "siniestro"
         goal = "orientar_siniestro"
 
+    if semantic.get("topic"):
+        topic = str(semantic.get("topic"))
+    if semantic.get("user_goal"):
+        goal = str(semantic.get("user_goal"))
     if _is_capability_question(readable):
         topic = topic or "capacidades"
         goal = goal or "explicar_capacidades"
+
+    known_facts = tuple(dict.fromkeys([*state.known_facts, *(semantic.get("known_facts") or [])]))
+    missing_facts = tuple(dict.fromkeys([*(semantic.get("missing_facts") or [])]))
+    interaction_signals = dict(semantic.get("signals") or state.interaction_signals or {})
+    control_state = dict(policy_decision or state.control_state or {})
+    response_signature = _signature(response_text) if response_text else state.last_response_signature
 
     fallback_count = state.fallback_count + 1 if answer_category == "fallback" else 0
     confusion_count = state.confusion_count + 1 if _is_confusion_or_short_reply(readable) else state.confusion_count
@@ -104,6 +132,12 @@ def update_public_conversation_state(
         fallback_count=fallback_count,
         confusion_count=confusion_count,
         frustration_count=frustration_count,
+        known_facts=known_facts,
+        missing_facts=missing_facts,
+        interaction_signals=interaction_signals,
+        control_state=control_state,
+        next_action_suggested=next_action,
+        last_response_signature=response_signature,
     )
     _STATES[updated.conversation_id] = updated
     return updated
@@ -140,3 +174,10 @@ def _readable_norm(value: str) -> str:
 
 def _norm(value: str) -> str:
     return value.lower().strip()
+
+
+def _signature(value: str | None) -> str | None:
+    if not value:
+        return None
+    words = _readable_norm(value).split()
+    return " ".join(words[:22])

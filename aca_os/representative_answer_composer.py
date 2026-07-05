@@ -13,6 +13,12 @@ class RepresentativeAnswer:
     text: str
     category: str
     next_step: str | None = None
+    semantic_parse: Mapping[str, Any] | None = None
+    policy_decision: Mapping[str, Any] | None = None
+    planner_decision: Mapping[str, Any] | None = None
+    supervisor_result: Mapping[str, Any] | None = None
+    public_trace: Mapping[str, Any] | None = None
+    developer_trace: Mapping[str, Any] | None = None
 
 
 class RepresentativeAnswerComposer:
@@ -36,6 +42,30 @@ class RepresentativeAnswerComposer:
         normalized = _norm(message)
         readable = _readable_norm(message)
         case_id = entities.get("case_id") or (state.active_case_id if state else None)
+
+        # Sprint 71 RC10: the public chat is now driven by a structured
+        # conversational workflow. The legacy branches below remain as a
+        # deterministic fallback, but the primary path separates semantic
+        # understanding, policy, planning, generation, supervision and trace.
+        try:
+            from aca_os.public_conversation_workflow import PublicConversationWorkflow
+
+            workflow = PublicConversationWorkflow().run(message=message, state=state, entities=entities)
+            return RepresentativeAnswer(
+                text=workflow.text,
+                category=workflow.category,
+                next_step=workflow.next_step,
+                semantic_parse=workflow.semantic_parse,
+                policy_decision=workflow.policy_decision,
+                planner_decision=workflow.planner_decision,
+                supervisor_result=workflow.supervisor_result,
+                public_trace=workflow.public_trace,
+                developer_trace=workflow.developer_trace,
+            )
+        except Exception:
+            # Fallback must remain safe and non-magical; tests and the public demo
+            # must keep running even if the optional workflow path fails.
+            pass
 
         # Conversational acts come before domain-pack fallback/missing-entity logic.
         if _is_greeting(readable):

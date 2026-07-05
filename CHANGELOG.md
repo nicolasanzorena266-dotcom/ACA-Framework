@@ -1,3 +1,12 @@
+## 0.3.0-sprint71-rc10 — LLM-assisted Conversational Workflow Runtime
+
+- Added structured public conversation contracts for semantic understanding, policy authorization, planning, supervision and traces.
+- Added an offline deterministic fallback that follows the same workflow contract without requiring external LLM access.
+- Added public/developer trace separation for the hosted Studio conversation runtime.
+- Extended public conversation state with known facts, missing facts, interaction signals, control state, next action and response signature.
+- Added multi-turn tests for post-denunciation claim follow-up, contextual deadlines, documentation follow-up, repetition repair and handoff summary.
+- Preserved the rule that tools must be explicitly available before ACA can claim operational lookup.
+
 # Changelog
 
 

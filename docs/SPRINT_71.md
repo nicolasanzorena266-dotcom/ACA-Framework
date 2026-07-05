@@ -1,91 +1,57 @@
-# Sprint 71 — Public Studio Runtime Interaction QA
+# Sprint 71 — LLM-assisted Conversational Workflow Runtime
 
-## Goal
+Estado: RC10
 
-Make the hosted Studio feel like a usable runtime interaction surface instead of a technical demo shell.
+## Decisión técnica
 
-## Scope
+Sprint 71 deja de tratar la conversación pública como una suma de reglas de copy. El objetivo es un workflow conversacional asistido por LLM, con comportamientos agentic controlados por ACA.
 
-- The phone simulation now has an explicit **Enviar** action and supports Enter.
-- The conversation scrolls inside the phone panel instead of expanding the full Studio page.
-- **Reiniciar** clears the visible conversation and resets the public reading state.
-- Public-facing labels are Spanish and human-readable.
-- Diagnostic phrases about code exposure and internal decisions were removed from the main view.
-- Runtime demo responses were humanized so users get an actionable answer rather than raw domain/intent/flow strings.
+Contrato central:
 
-## Architectural boundary
+- ACA gobierna.
+- El LLM propone.
+- Las políticas autorizan.
+- Las herramientas ejecutan.
+- El supervisor controla.
+- La traza explica.
 
-ACA Studio remains a surface over the runtime. The interface does not own business logic and does not turn the project into a regular chatbot wrapper. The runtime still selects the route; the Studio only presents the interaction.
+La implementación actual no requiere un proveedor LLM externo para correr tests ni para la demo pública. Incluye un fallback offline determinista que respeta los mismos contratos. El LLM queda preparado como capacidad futura del `SemanticUnderstandingLayer` y del `NaturalReplyGenerator`, no como reemplazo del runtime.
 
-## Validation
+## Contratos implementados
 
-Targeted validation covers the Sprint 71 UX requirements plus the Sprint 70 compatibility markers required by older tests.
+- `SemanticParse`: intención gruesa, tema, objetivo del usuario, hechos conocidos, datos faltantes, señales de interacción, confianza, requerimiento de herramienta, riesgo y acción solicitada.
+- `InteractionSignals`: frustración, confusión, urgencia y repetición como señales conversacionales, no como diagnóstico emocional.
+- `PolicyDecision`: acción solicitada, herramienta requerida, disponibilidad, autorización, fallback y motivo.
+- `PlannerDecision`: próxima acción, estrategia, aclaración, herramienta, handoff, contenido obligatorio y contenido prohibido.
+- `SupervisorResult`: resultado estructurado de control, issues, reescritura y bloqueo.
+- `Public Trace`: qué entendió, qué contexto usó, qué decidió hacer y qué límite encontró.
+- `Developer Trace`: trace_id, session_id, semantic_parse, state_before, state_after_projection, planner_decision, policy_decision, guardrail_result, tool_requests, fallback_used, latency y model_used.
 
+## Flujo
 
-## RC3 correction — Conversation quality and cellphone shell
+Usuario → Input Guardrail → Semantic Understanding Layer → State Update → Policy Layer → Hybrid Conversation Planner → Tool / Knowledge / Handoff Decision → Optional Execution → State Update → Natural Reply Generator → Output Supervisor → Respuesta final → Public Trace + Developer Trace.
 
-User validation found that the Studio still looked like a basic dashboard and the chat still behaved like a deterministic fallback screen. RC3 tightens the public interaction layer:
+## Criterios de aceptación
 
-- The phone frame now uses real cellphone proportions and keeps conversation scrolling inside the device.
-- ACA answers identity and AI-capability questions directly instead of repeating the generic fallback.
-- The visible process detail is rewritten as a human explanation instead of a technical trace dump.
-- The interface hides `<max-depth>` artifacts from module labels.
-- The public action is renamed to **Probar ejemplo** while keeping hidden compatibility markers required by older tests.
+- No responder desde el mensaje aislado cuando existe contexto activo.
+- No pedir datos ya dados.
+- No repetir el mismo fallback.
+- No fingir herramientas reales.
+- No prometer estados, pagos, reparaciones ni plazos exactos no verificables.
+- Preparar derivación con contexto cuando el usuario pide persona real.
+- Mantener chat-first UI y proceso como detalle secundario.
 
-This does not turn ACA into a ChatGPT clone. It makes the current public runtime honest about its limits while still behaving like an interaction surface, not a broken classifier.
+## Caso conversacional cubierto
 
+Flujo validado por tests multi-turn:
 
-## RC4 correction — Representative experience alignment
+1. “cargué la denuncia desde la app pero no tengo novedades”
+2. “tuve un choque. cargué la denuncia en la app. pero sigo esperando”
+3. “Si, ya lo hice a eso”
+4. “Cuales son los plazos?”
+5. “documentacion”
+6. “Ya la envie a la documentacion”
+7. “ya me dijiste mil veces eso”
+8. “quiero hablar con una persona. derivame”
 
-User validation showed that the UI still had too much dashboard weight and that ACA was speaking about its own runtime instead of answering like a service representative. RC4 changes the public experience around the original ACA principle: understand first, communicate clearly, and never invent system data.
-
-- Removed the visible Runtime / Components / Modules / Events metric cards from the main Studio surface.
-- Enlarged the phone shell to a 9:16 story-style conversation panel and removed the fake clock.
-- Added `RepresentativeAnswerComposer` as the public language layer over deterministic routing.
-- Rewrote ticket-status answers so ACA explains the demo limitation naturally and shows what it would prepare: status, responsible and next step.
-- Added natural answers for identity, AI-capability, confusion and basic Galicia-style siniestro scenarios such as choque, cristales, robo parcial and franquicia.
-- Kept runtime interpretation and trace detail behind **Ver proceso** instead of leaking it into the chat response.
-
-Acceptance target: ACA should feel like a constrained representative simulation, not a classifier dashboard with a chat box.
-
-## RC5 correction — Adaptive representative conversation
-
-User validation found the remaining core defect: the public chat still treated each message as an isolated request. That broke the ACA premise of cognitive continuity and caused short follow-ups such as "Bueno", "bue..." or "Qué podés hacer?" to fall back instead of continuing the active context.
-
-RC5 adds a lightweight public conversation state for the hosted demo and routes responses through an adaptive reply policy:
-
-- Tracks active goal, active topic, ticket number, claim type, last category and fallback/confusion signals per conversation.
-- Keeps ticket context across turns, so follow-ups after `ticket 12345` continue from that ticket instead of restarting.
-- Keeps claim context across turns, so `Qué documentación necesito?` after `Tuve un choque` answers about choque documentation.
-- Handles greetings, capabilities, identity, AI-limit and frustration/confusion without generic fallback.
-- Reformulates when the user is confused instead of repeating the same answer.
-- Moves the public Studio closer to a chat-first 9:16 conversation surface and prevents the previous dashboard layout from cutting the phone shell.
-
-Architectural note: this is still not a free LLM chatbot. The deterministic runtime continues to interpret the request, while the new public state and representative policy preserve continuity and communicate the next step in human language.
-
-
-## RC7 correction — Public Conversation Runtime hardening
-
-User validation after RC6 showed that ACA still failed in realistic conversational sequences: misspelled domain terms such as “franquisia” were missed, documentation follow-ups after a franquicia explanation were misrouted to ticket `case_id`, and frustration/show-me requests repeated the same demo limitation instead of producing a useful representative answer.
-
-RC7 hardens the public conversation runtime:
-
-- Normalizes accents and common typos for public intent cues such as franquicia/franquisia.
-- Prioritizes conversational acts and active context before generic missing-entity checks.
-- Answers documentation follow-ups from the active claim topic, including franquicia, choque, cristales and robo parcial.
-- Turns frustration into a concrete model response instead of repeating the connection limitation.
-- Adds client-facing example responses when the user asks “mostrame”, “cómo sería” or “cómo le responderías a un cliente”.
-- Simplifies the Studio public surface to one centered chat panel and hides the technical summary card from the main view.
-- Keeps compatibility markers for older Studio tests without exposing those artifacts in the public interface.
-
-Acceptance target: ACA must preserve the active conversation topic and produce useful representative-style answers before exposing any internal process detail.
-
-
-## RC8 correction — Test compatibility and typo-tolerant capability routing
-
-RC8 fixes two regressions discovered after integrating RC7 locally:
-
-- Capability and AI-limit questions with realistic typos such as `Podes haceeer algo mas?` and `no tenees IA` now route to the adaptive capability/AI policy instead of falling back to the active ticket status response.
-- The Studio public shell keeps the single chat-first layout while preserving legacy layout markers required by older tests.
-
-Acceptance target: after a ticket query, capability and AI-limit follow-ups must keep ticket context and explain what ACA can do, without repeating the ticket-status limitation.
+El resultado esperado es continuidad de estado, orientación contextual, bloqueo de tool inexistente y resumen de derivación.
