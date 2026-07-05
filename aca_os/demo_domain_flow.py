@@ -129,7 +129,7 @@ class DemoDomainRuntimeFlowRunner:
         intent = _match_intent(pack, message)
         flow = _match_flow(pack, intent)
         entities = _extract_entities(message=message, intent=intent, pack=pack)
-        response = _render_response(pack=pack, intent=intent, flow=flow, entities=entities)
+        response = _render_response(message=message, pack=pack, intent=intent, flow=flow, entities=entities)
 
         runtime_execution = self.api.process_event(
             event_type="demo_domain_flow",
@@ -261,13 +261,34 @@ def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[
     return entities
 
 
-def _render_response(*, pack: Mapping[str, Any], intent: Mapping[str, Any], flow: Mapping[str, Any], entities: Mapping[str, Any]) -> str:
+def _render_response(*, message: str, pack: Mapping[str, Any], intent: Mapping[str, Any], flow: Mapping[str, Any], entities: Mapping[str, Any]) -> str:
+    normalized_message = _norm(message)
     domain = str(pack.get("domain") or "").replace(".", " ")
     intent_name = str(intent.get("name") or "consulta")
     flow_name = str(flow.get("name") or "seguimiento")
     case_id = entities.get("case_id")
     process_name = entities.get("process_name")
     missing = entities.get("missing_required")
+
+    if _is_identity_question(normalized_message):
+        return (
+            "Soy ACA, una interfaz de runtime. En esta demo no estoy conectado a un modelo generativo como ChatGPT; "
+            "trabajo con módulos cargados, reglas observables y rutas de respuesta. Por eso puedo responder bien cuando la consulta entra en esos módulos, "
+            "y prefiero decirte que no tengo ruta antes que inventar una respuesta."
+        )
+
+    if _is_capability_question(normalized_message):
+        return (
+            "Puedo interpretar consultas de soporte y operaciones dentro de los módulos cargados. "
+            "Hoy la demo pública no usa inteligencia artificial generativa externa, así que no conversa con la misma libertad que un chat general. "
+            "La idea de ACA no es parecer humano: es decidir de forma observable, mostrar por qué eligió una ruta y dejar listo el punto donde se conectaría un modelo si hiciera falta."
+        )
+
+    if _is_confusion_question(normalized_message):
+        return (
+            "Me expresé mal: con el ticket 12345 no estoy consultando una base real. "
+            "Estoy simulando cómo ACA entiende la intención, elige la ruta de seguimiento y deja preparado qué tendría que pedirle al sistema del cliente: estado actual, responsable y próximo paso."
+        )
 
     if isinstance(missing, list) and missing:
         readable = ", ".join(str(item).replace("_", " ") for item in missing)
@@ -311,6 +332,40 @@ def _render_response(*, pack: Mapping[str, Any], intent: Mapping[str, Any], flow
         "La respuesta queda resumida para uso humano y el detalle del proceso queda separado."
     )
 
+
+
+def _is_identity_question(normalized: str) -> bool:
+    compact = normalized.replace("¿", "").replace("?", "")
+    return any(phrase in compact for phrase in [
+        "sos un bot",
+        "eres un bot",
+        "sos bot",
+        "que sos",
+        "quien sos",
+        "que eres",
+        "quien eres",
+    ])
+
+
+def _is_capability_question(normalized: str) -> bool:
+    compact = normalized.replace("¿", "").replace("?", "")
+    return any(phrase in compact for phrase in [
+        "no tenes ia",
+        "no tienes ia",
+        "tenes ia",
+        "tienes ia",
+        "solo podes responder",
+        "solo puedes responder",
+        "podes responder",
+        "puedes responder",
+        "inteligencia artificial",
+        "chatgpt",
+    ])
+
+
+def _is_confusion_question(normalized: str) -> bool:
+    compact = normalized.strip().replace("¿", "").replace("?", "")
+    return compact in {"eh", "ehh", "que", "cómo", "como", "no entiendo", "no entendi", "no entendí"}
 
 def _asset_items(pack: Mapping[str, Any], asset_name: str, list_key: str) -> list[Mapping[str, Any]]:
     for asset in pack.get("assets", []):

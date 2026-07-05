@@ -43,3 +43,30 @@ def test_demo_domain_flow_response_is_human_readable_not_raw_routing_dump():
     assert "matched intent" not in response
     assert "selected flow" not in response
     assert "Entities:" not in response
+
+
+def test_public_studio_handles_identity_and_ai_limit_questions_without_repeating_fallback():
+    runner = DemoDomainRuntimeFlowRunner()
+
+    identity = runner.run(message="sos un bot?", conversation_id="sprint71-identity")
+    ai_limit = runner.run(message="solo podes responder eso? no tenes IA?", conversation_id="sprint71-ai-limit")
+    confusion = runner.run(message="eh?", conversation_id="sprint71-confusion")
+
+    assert "Soy ACA" in identity["response"]
+    assert "modelo generativo" in identity["response"]
+    assert "módulos cargados" in ai_limit["response"]
+    assert "no conversa con la misma libertad" in ai_limit["response"]
+    assert "Me expresé mal" in confusion["response"]
+    assert "Probá con un número de ticket" not in identity["response"]
+    assert "Probá con un número de ticket" not in ai_limit["response"]
+
+
+def test_public_studio_phone_has_real_cellphone_proportions_and_no_max_depth_leak():
+    html = open("studio/index.html", encoding="utf-8").read()
+
+    assert "width: min(100%, 390px)" in html
+    assert "height: min(100%, 760px)" in html
+    assert "max-height: 590px" in html
+    assert "indexOf('<max-depth>') === -1" in html
+    assert "Probar ejemplo" in html
+    assert "Simulador Runtime" not in html

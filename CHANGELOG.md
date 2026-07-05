@@ -2,6 +2,10 @@
 
 ## 0.3.0-sprint71 — Public Studio Runtime Interaction QA
 
+- Added RC3 conversation-quality correction: identity/capability questions now receive direct human-readable answers.
+- Enlarged the phone conversation shell to real cellphone proportions with internal chat scrolling.
+- Removed visible `<max-depth>` leaks from module names and replaced the public demo action with **Probar ejemplo**.
+
 - Converted the public Studio conversation into a chat-first interaction with a real send action.
 - Constrained the conversation area to scroll inside the phone panel instead of expanding the page indefinitely.
 - Made refresh reset the visible conversation state.

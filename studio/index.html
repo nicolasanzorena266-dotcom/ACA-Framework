@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -181,17 +181,17 @@
     .metric-card strong { display: block; margin-top: 6px; font-size: 23px; letter-spacing: -0.05em; }
     .metric-card small { display: block; margin-top: 6px; color: var(--subtle); font-weight: 800; }
 
-    .main-grid { display: grid; grid-template-columns: minmax(360px, 0.92fr) minmax(430px, 1.48fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
+    .main-grid { display: grid; grid-template-columns: minmax(430px, 0.96fr) minmax(430px, 1.18fr); gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
     .phone-card, .context-card, .wide-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
     }
-    .phone-card { padding: 22px; display: flex; justify-content: center; min-height: 0; overflow: hidden; }
+    .phone-card { padding: 18px; display: flex; justify-content: center; align-items: stretch; min-height: 0; overflow: hidden; }
     .phone-frame {
-      width: min(100%, 345px);
-      height: 100%;
+      width: min(100%, 390px);
+      height: min(100%, 760px);
       min-height: 0;
       border-radius: var(--radius-xl);
       background: #f4efe3;
@@ -206,7 +206,7 @@
     .phone-badge { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; background: #fff; color: var(--primary); font-weight: 950; }
     .phone-title strong, .phone-title span { display: block; }
     .phone-title span { font-size: 10px; opacity: 0.82; }
-    .message-area { padding: 22px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
+    .message-area { padding: 22px 15px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; max-height: 590px; overflow-y: auto; scroll-behavior: smooth; }
     .bubble { width: fit-content; max-width: 92%; padding: 11px 12px; border-radius: 12px; background: #fff; font-size: 13px; box-shadow: 0 5px 18px rgba(15, 23, 42, 0.06); }
     .bubble.user { justify-self: end; background: #dbeafe; }
     .bubble.system { border-top-left-radius: 4px; }
@@ -244,11 +244,11 @@
     .thought-action { margin-top: 2px; justify-self: start; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .48); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 20; }
     .modal-backdrop.open { display: flex; }
-    .thought-modal { width: min(840px, 100%); max-height: 82vh; background: #fff; border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 34px 90px rgba(15,23,42,.28); overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+    .thought-modal { width: min(760px, 100%); max-height: 82vh; background: #fff; border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 34px 90px rgba(15,23,42,.28); overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
     .modal-head h2 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
     .modal-body { padding: 18px; overflow: auto; }
-    pre { white-space: pre-wrap; word-break: break-word; margin: 0; font: 12px/1.55 var(--mono); color: #172033; }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; font: 14px/1.6 var(--font); color: #172033; }
 
     .bottom-grid { display: none; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
     .wide-card { padding: 16px; min-height: 230px; overflow: auto; }
@@ -303,7 +303,7 @@
       </section>
 
       <div class="actions">
-        <button class="primary" id="run-domain" title="Run Demo Domain Flow">Ejecutar ejemplo</button>
+        <button class="primary" id="run-domain" title="Probar una consulta de ejemplo">Probar ejemplo</button>
         <button class="dark" id="run">Ver diagnóstico</button>
         <button id="refresh">Reiniciar</button>
       </div>
@@ -316,10 +316,10 @@
             <div class="phone-status">11:42</div>
             <div class="phone-header">
               <div class="phone-badge">A</div>
-              <div class="phone-title"><strong>Asistente ACA</strong><span>Simulador Runtime</span></div>
+              <div class="phone-title"><strong>ACA</strong><span>Conversación de prueba</span></div>
             </div>
             <div class="message-area" id="conversation">
-              <div class="bubble system">Seleccioná un módulo o escribí una consulta para iniciar la simulación.</div>
+              <div class="bubble system">Escribí una consulta. ACA va a responder con lo que el runtime tenga disponible.</div>
             </div>
             <div class="input-strip">
               <input id="message" value="Necesito saber el estado del ticket 12345" aria-label="Mensaje para ACA" /><button class="primary" id="sendMessage">Enviar</button>
@@ -361,7 +361,7 @@
         <button id="closeThought" aria-label="Cerrar detalle">✕</button>
       </div>
       <div class="modal-body">
-        <p class="muted">Acá aparece el detalle de cómo ACA llegó a la respuesta. La pantalla principal deja solo el resumen útil.</p>
+        <p class="muted">Acá queda una explicación breve del recorrido. No reemplaza la respuesta principal: solo muestra qué entendió ACA y qué camino tomó.</p>
         <pre id="thoughtContent">Todavía no hay una consulta ejecutada.</pre>
       </div>
     </section>
@@ -492,7 +492,9 @@
 
     function humanModules(modules) {
       const names = { 'example.customer_support': 'Soporte', 'example.operations_basic': 'Operaciones', 'runtime_demo': 'Demo ACA' };
-      return (modules || []).map(item => names[item] || String(item).replace('example.', '').replaceAll('_', ' ')).join(', ') || 'sin módulos';
+      const clean = (modules || []).filter(item => String(item || '').indexOf('<max-depth>') === -1);
+      const fallback = clean.length ? clean : ['example.customer_support', 'example.operations_basic'];
+      return fallback.map(item => names[item] || String(item).replace('example.', '').replaceAll('_', ' ')).join(', ') || 'sin módulos';
     }
 
     function summarize(binding) {
@@ -501,7 +503,7 @@
       document.getElementById('runtimeStatus').textContent = humanStatus(runtime.status || 'unknown');
       document.getElementById('connection').textContent = `${humanStatus(runtime.status || 'unknown')} · servicio activo`;
       document.getElementById('contextTitle').textContent = `Módulos activos: ${humanModules(domain.loaded_packs || [])}`;
-      document.getElementById('contextHelp').textContent = `Componentes: ${runtime.component_count || 0} · Extensiones: ${runtime.plugin_count || 0} · Eventos: ${runtime.trace_count || 0}`;
+      document.getElementById('contextHelp').textContent = 'ACA responde con los módulos cargados. Cuando no tiene camino confiable, lo dice sin inventar.';
     }
 
     function renderBinding(binding) {
@@ -526,9 +528,9 @@
       const metrics = binding.metrics || {};
       const trace = (execution || {}).trace || {};
       setCards('metrics', [
-        { label: 'Operaciones', value: `${trace.operation_count || metrics.trace_count || 0}` },
-        { label: 'Eventos', value: `${trace.event_count || 0}` },
-        { label: 'Detalle', value: 'El recorrido completo queda disponible en “Ver proceso”.' }
+        { label: 'Actividad', value: `${trace.operation_count || metrics.trace_count || 0} pasos registrados` },
+        { label: 'Señales', value: `${trace.event_count || 0} eventos internos` },
+        { label: 'Detalle', value: 'El recorrido breve queda disponible en “Ver proceso”.' }
       ]);
     }
 
@@ -551,10 +553,9 @@
       const runtime = binding.runtime || {};
       const trace = result.trace || {};
       setCards('output', [
-        { label: 'Respuesta', value: result.response || 'El runtime completó la ejecución sin texto visible.' },
-        { label: 'Ruta usada', value: `${humanRoute((result.execution || {}).selected_program || 'runtime')} · ${humanStatus(runtime.status || 'listo')}` },
-        { label: 'Actividad', value: `${trace.operation_count || 0} operaciones y ${trace.event_count || 0} eventos registrados.` },
-        { label: 'Lectura humana del runtime', value: 'ACA muestra el resumen útil y deja el detalle separado.' }
+        { label: 'Respuesta', value: result.response || 'ACA completó la consulta, pero no recibió una respuesta visible.' },
+        { label: 'Qué entendió', value: humanRoute(((result.matched_intent || {}).name || 'consulta revisada')) },
+        { label: 'Estado', value: `${humanStatus(runtime.status || 'listo')} · ${trace.operation_count || 0} pasos registrados` }
       ]);
     }
 
@@ -589,8 +590,11 @@
     }
 
     async function runDomainFlow() {
-      const message = document.getElementById('message').value || document.getElementById('quickMessage').value;
+      const input = document.getElementById('message');
+      const message = (input.value || document.getElementById('quickMessage').value || '').trim();
+      if (!message) return;
       appendConversation(message, 'user');
+      input.value = '';
       const result = await api.post('/demo/domain-flow', { message, conversation_id: 'studio-domain-flow', root: 'examples/domain_packs' });
       appendConversation(result.response || result.status || 'ACA completó la consulta.');
       const binding = result.binding || {};
@@ -610,7 +614,7 @@
     document.getElementById('quickRun').addEventListener('click', runBinding);
     document.getElementById('sendMessage').addEventListener('click', runDomainFlow);
     document.getElementById('message').addEventListener('keydown', event => {
-      if (event.key === 'Enter') runDomainFlow();
+      if (event.key === 'Enter') { event.preventDefault(); runDomainFlow(); }
     });
     document.getElementById('run-domain').addEventListener('click', runDomainFlow);
     document.getElementById('refresh').addEventListener('click', refresh);

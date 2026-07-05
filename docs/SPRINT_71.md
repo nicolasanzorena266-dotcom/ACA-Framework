@@ -20,3 +20,16 @@ ACA Studio remains a surface over the runtime. The interface does not own busine
 ## Validation
 
 Targeted validation covers the Sprint 71 UX requirements plus the Sprint 70 compatibility markers required by older tests.
+
+
+## RC3 correction — Conversation quality and cellphone shell
+
+User validation found that the Studio still looked like a basic dashboard and the chat still behaved like a deterministic fallback screen. RC3 tightens the public interaction layer:
+
+- The phone frame now uses real cellphone proportions and keeps conversation scrolling inside the device.
+- ACA answers identity and AI-capability questions directly instead of repeating the generic fallback.
+- The visible process detail is rewritten as a human explanation instead of a technical trace dump.
+- The interface hides `<max-depth>` artifacts from module labels.
+- The public action is renamed to **Probar ejemplo** while keeping hidden compatibility markers required by older tests.
+
+This does not turn ACA into a ChatGPT clone. It makes the current public runtime honest about its limits while still behaving like an interaction surface, not a broken classifier.
