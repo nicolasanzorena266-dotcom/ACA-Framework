@@ -343,3 +343,12 @@
 - Added deploy/deployment-smoke-tests.json for hosted demo readiness checks.
 - Extended hosting target contract and hosted runtime healthcheck with smoke test coverage.
 
+
+
+## Sprint 67 — Hosted Runtime Hardening
+
+- Added hosted Runtime hardening contract.
+- Added REST hardening endpoints.
+- Added stable hosted error envelope.
+- Added hosted response headers for public deployment surfaces.
+- Added tests and deployment hardening config.

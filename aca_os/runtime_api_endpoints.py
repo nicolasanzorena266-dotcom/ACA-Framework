@@ -17,6 +17,7 @@ from aca_os.hosted_studio_assets import build_hosted_studio_assets, validate_hos
 from aca_os.deployment_smoke_tests import build_deployment_smoke_test_plan, run_deployment_smoke_tests, validate_deployment_smoke_tests
 from aca_os.first_public_hosted_demo import build_first_public_hosted_demo, validate_first_public_hosted_demo
 from aca_os.render_deployment_config import build_render_deployment_config, validate_render_deployment_config
+from aca_os.hosted_runtime_hardening import build_hosted_runtime_hardening, validate_hosted_runtime_hardening
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -106,6 +107,8 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/hosted-demo/first/validate", "Validate first public hosted demo deployment readiness.", "hosted_demo.first.validate"),
         RuntimeEndpoint("GET", "/deploy/render", "Return Render deployment configuration contract.", "deploy.render.read"),
         RuntimeEndpoint("GET", "/deploy/render/validate", "Validate Render deployment configuration.", "deploy.render.validate"),
+        RuntimeEndpoint("GET", "/hosting/hardening", "Return hosted Runtime hardening contract.", "hosting.hardening.read"),
+        RuntimeEndpoint("GET", "/hosting/hardening/validate", "Validate hosted Runtime hardening contract.", "hosting.hardening.validate"),
     )
 
     def __init__(self, runtime_factory: RuntimeFactory = build_galicia_runtime) -> None:
@@ -667,6 +670,29 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_render_deployment_config(project_root=project_root, config=config)
 
+    def hosted_runtime_hardening(
+        self,
+        *,
+        mode: str = "hosted",
+        platform: str = "render-web-service",
+        timeout_seconds: int = 30,
+        max_body_bytes: int = 128_000,
+    ) -> Dict[str, Any]:
+        return build_hosted_runtime_hardening(
+            mode=mode,
+            platform=platform,
+            timeout_seconds=timeout_seconds,
+            max_body_bytes=max_body_bytes,
+        )
+
+    def validate_hosted_runtime_hardening(
+        self,
+        *,
+        project_root: str | Path = ".",
+        hardening: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return validate_hosted_runtime_hardening(project_root=project_root, hardening=hardening)
+
     def run_human_demo(
         self,
         *,
@@ -792,6 +818,15 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/hosted-demo/first/validate":
             return self.validate_first_public_hosted_demo(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/hosting/hardening":
+            return self.hosted_runtime_hardening(
+                mode=params.get("mode") or "hosted",
+                platform=params.get("platform") or "render-web-service",
+                timeout_seconds=int(params.get("timeout_seconds") or 30),
+                max_body_bytes=int(params.get("max_body_bytes") or 128000),
+            )
+        if method == "GET" and path == "/hosting/hardening/validate":
+            return self.validate_hosted_runtime_hardening(project_root=params.get("project_root") or ".")
         if method == "POST" and path == "/studio/binding/run":
             return self.studio_binding_run(
                 message=payload.get("message"),

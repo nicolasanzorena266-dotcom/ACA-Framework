@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, unquote
 
 from sdk.factory import build_galicia_runtime
 from aca_os.runtime_api_endpoints import RuntimeEndpoint, RuntimeEndpointAPI
+from aca_os.hosted_runtime_hardening import build_hosted_error_payload, build_hosted_response_headers
 
 
 RuntimeFactory = Callable[..., Any]
@@ -368,6 +369,17 @@ class RuntimeRESTAPI:
                 )
             if method == "GET" and clean_path == "/deploy/render/validate":
                 return self.ok(self.runtime_api.validate_render_deployment_config(project_root=_first(params, "project_root") or "."))
+            if method == "GET" and clean_path == "/hosting/hardening":
+                return self.ok(
+                    self.runtime_api.hosted_runtime_hardening(
+                        mode=_first(params, "mode") or "hosted",
+                        platform=_first(params, "platform") or "render-web-service",
+                        timeout_seconds=int(_first(params, "timeout_seconds") or 30),
+                        max_body_bytes=int(_first(params, "max_body_bytes") or 128000),
+                    )
+                )
+            if method == "GET" and clean_path == "/hosting/hardening/validate":
+                return self.ok(self.runtime_api.validate_hosted_runtime_hardening(project_root=_first(params, "project_root") or "."))
             if method == "POST" and clean_path == "/demo/domain-flow":
                 return self.ok(
                     self.runtime_api.run_domain_flow(
@@ -387,10 +399,18 @@ class RuntimeRESTAPI:
             return self.error(400, "bad_request", str(exc))
 
     def ok(self, payload: Dict[str, Any]) -> RESTResponse:
-        return RESTResponse(status_code=200, payload=payload)
+        return RESTResponse(status_code=200, payload=payload, headers=build_hosted_response_headers())
 
     def error(self, status_code: int, code: str, message: str) -> RESTResponse:
-        return RESTResponse(status_code=status_code, payload={"error": {"code": code, "message": message}})
+        return RESTResponse(
+            status_code=status_code,
+            payload=build_hosted_error_payload(
+                code=code,
+                message=message,
+                status_code=status_code,
+            ),
+            headers=build_hosted_response_headers(),
+        )
 
     def health(self) -> Dict[str, Any]:
         health = self.runtime_api.health()

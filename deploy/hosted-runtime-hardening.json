@@ -1,0 +1,28 @@
+{
+  "contract": "hosted_runtime_hardening.v1",
+  "status": "ready",
+  "mode": "hosted",
+  "platform": "render-web-service",
+  "routes": {
+    "hardening": "/hosting/hardening",
+    "hardening_validate": "/hosting/hardening/validate",
+    "health": "/health",
+    "runtime_status": "/runtime/status"
+  },
+  "required_headers": [
+    "content-type",
+    "cache-control",
+    "x-aca-request-id",
+    "x-aca-runtime",
+    "x-aca-hosting-mode",
+    "x-aca-hardening"
+  ],
+  "error_contract": "hosted_runtime_error.v1",
+  "timeout_seconds": 30,
+  "max_body_bytes": 128000,
+  "notes": [
+    "This is a hosted adapter safety envelope only.",
+    "Runtime and domain logic remain outside the hosting layer.",
+    "Render free cold starts should be retried before treating the deployment as failed."
+  ]
+}
