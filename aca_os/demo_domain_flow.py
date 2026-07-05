@@ -61,7 +61,6 @@ class DemoDomainRuntimeFlowResult:
     runtime_execution: Mapping[str, Any]
     binding: Mapping[str, Any] = field(default_factory=dict)
     conversation_state: Mapping[str, Any] = field(default_factory=dict)
-    next_step: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         trace = self.runtime_execution.get("execution_trace", {})
@@ -88,7 +87,6 @@ class DemoDomainRuntimeFlowResult:
                 "runtime_execution": self.runtime_execution,
                 "binding": self.binding,
                 "conversation_state": dict(self.conversation_state),
-                "next_step": self.next_step,
                 "metadata": {
                     "source": "runtime_api",
                     "domain_pack_used": True,
@@ -154,8 +152,6 @@ class DemoDomainRuntimeFlowRunner:
             intent=intent,
             entities=entities,
             answer_category=answer.category,
-            answer_next_step=answer.next_step,
-            answer_text=answer.text,
         )
         response = answer.text
 
@@ -190,7 +186,6 @@ class DemoDomainRuntimeFlowRunner:
             runtime_execution=runtime_execution,
             binding=binding,
             conversation_state=state_after.to_dict(),
-            next_step=answer.next_step,
         ).to_dict()
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
@@ -23,8 +24,6 @@ class PublicConversationState:
     fallback_count: int = 0
     confusion_count: int = 0
     frustration_count: int = 0
-    next_action_suggested: str | None = None
-    last_response_signature: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,8 +37,6 @@ class PublicConversationState:
             "fallback_count": self.fallback_count,
             "confusion_count": self.confusion_count,
             "frustration_count": self.frustration_count,
-            "next_action_suggested": self.next_action_suggested,
-            "last_response_signature": self.last_response_signature,
         }
 
 
@@ -70,36 +67,31 @@ def update_public_conversation_state(
     intent: Mapping[str, Any],
     entities: Mapping[str, Any],
     answer_category: str,
-    answer_next_step: str | None = None,
-    answer_text: str | None = None,
 ) -> PublicConversationState:
     normalized = _norm(message)
+    readable = _readable_norm(message)
     case_id = str(entities.get("case_id") or state.active_case_id or "") or None
     topic = state.active_topic
     goal = state.active_goal
     claim_type = state.active_claim_type
 
-    explicit_case = bool(entities.get("case_id"))
-    if case_id and explicit_case:
+    if case_id:
         topic = "ticket"
         goal = "consultar_estado_o_seguimiento"
 
-    detected_claim = _detect_claim_type(normalized)
-    if detected_claim or answer_category.startswith("claim") or answer_category in {"deductible", "upload_issue", "cleas"}:
-        claim_type = detected_claim or claim_type
+    detected_claim = _detect_claim_type(readable)
+    if detected_claim:
+        claim_type = detected_claim
         topic = "siniestro"
         goal = "orientar_siniestro"
-    elif case_id and not topic:
-        topic = "ticket"
-        goal = "consultar_estado_o_seguimiento"
 
-    if _is_capability_question(normalized):
+    if _is_capability_question(readable):
         topic = topic or "capacidades"
         goal = goal or "explicar_capacidades"
 
     fallback_count = state.fallback_count + 1 if answer_category == "fallback" else 0
-    confusion_count = state.confusion_count + 1 if _is_confusion_or_short_reply(normalized) else state.confusion_count
-    frustration_count = state.frustration_count + 1 if _is_frustrated(normalized) else state.frustration_count
+    confusion_count = state.confusion_count + 1 if _is_confusion_or_short_reply(readable) else state.confusion_count
+    frustration_count = state.frustration_count + 1 if _is_frustrated(readable) else state.frustration_count
 
     updated = replace(
         state,
@@ -112,8 +104,6 @@ def update_public_conversation_state(
         fallback_count=fallback_count,
         confusion_count=confusion_count,
         frustration_count=frustration_count,
-        next_action_suggested=answer_next_step,
-        last_response_signature=_signature(answer_text or answer_category),
     )
     _STATES[updated.conversation_id] = updated
     return updated
@@ -126,7 +116,7 @@ def _detect_claim_type(normalized: str) -> str | None:
         return "cristales"
     if any(word in normalized for word in ["robo", "robaron", "rueda", "bateria", "batería", "estereo", "estéreo"]):
         return "robo parcial"
-    if any(word in normalized for word in ["franquicia"]):
+    if "franqui" in normalized or "franquisia" in normalized:
         return "franquicia"
     return None
 
@@ -136,7 +126,7 @@ def _is_confusion_or_short_reply(normalized: str) -> bool:
 
 
 def _is_frustrated(normalized: str) -> bool:
-    return any(phrase in normalized for phrase in ["bue", "no sirve", "inutil", "inútil", "solo podes", "solo podés", "no entendes", "no entendés", "no tenes ia", "no tenés ia"])
+    return any(phrase in normalized for phrase in ["bue", "no sirve", "inutil", "inútil", "solo podes", "solo podés", "no entendes", "no entendés", "no tenes ia", "no tenés ia", "no estas siendo", "ya me dijiste", "no ayuda", "mostrame"])
 
 
 def _is_capability_question(normalized: str) -> bool:
@@ -144,9 +134,9 @@ def _is_capability_question(normalized: str) -> bool:
     return any(phrase in compact for phrase in ["que podes hacer", "qué podés hacer", "que podés hacer", "que puedes hacer", "podes hacer algo", "podés hacer algo", "que haces", "qué haces"])
 
 
+def _readable_norm(value: str) -> str:
+    return "".join(ch for ch in unicodedata.normalize("NFD", value.lower()) if unicodedata.category(ch) != "Mn").strip()
+
+
 def _norm(value: str) -> str:
     return value.lower().strip()
-
-
-def _signature(value: str) -> str:
-    return " ".join(_norm(value).split())[:120]

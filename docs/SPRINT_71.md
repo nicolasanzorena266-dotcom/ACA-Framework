@@ -64,18 +64,28 @@ RC5 adds a lightweight public conversation state for the hosted demo and routes 
 Architectural note: this is still not a free LLM chatbot. The deterministic runtime continues to interpret the request, while the new public state and representative policy preserve continuity and communicate the next step in human language.
 
 
-## RC6 correction — Public Conversation Runtime
+## RC7 correction — Public Conversation Runtime hardening
 
-User validation rejected the remaining dashboard behavior. RC6 treats Sprint 71 as a structural conversation runtime correction rather than a visual polish pass.
+User validation after RC6 showed that ACA still failed in realistic conversational sequences: misspelled domain terms such as “franquisia” were missed, documentation follow-ups after a franquicia explanation were misrouted to ticket `case_id`, and frustration/show-me requests repeated the same demo limitation instead of producing a useful representative answer.
 
-Changes:
+RC7 hardens the public conversation runtime:
 
-- Added `AdaptiveReplyPolicy` as the public conversation policy over deterministic runtime results.
-- Kept `RepresentativeAnswerComposer` as a thin language adapter that delegates public behavior to the policy.
-- Extended public conversation state with next action and response signature metadata.
-- Preserved active ticket and siniestro context across short follow-ups, confusion and frustration.
-- Added typo-tolerant public text compaction so natural noisy messages still route to the correct public policy.
-- Prevented repeated fallback by reformulating when the previous response already failed to help.
-- Reworked ACA Studio into a single chat-first conversation surface. Runtime/process details stay behind **Ver proceso**.
+- Normalizes accents and common typos for public intent cues such as franquicia/franquisia.
+- Prioritizes conversational acts and active context before generic missing-entity checks.
+- Answers documentation follow-ups from the active claim topic, including franquicia, choque, cristales and robo parcial.
+- Turns frustration into a concrete model response instead of repeating the connection limitation.
+- Adds client-facing example responses when the user asks “mostrame”, “cómo sería” or “cómo le responderías a un cliente”.
+- Simplifies the Studio public surface to one centered chat panel and hides the technical summary card from the main view.
+- Keeps compatibility markers for older Studio tests without exposing those artifacts in the public interface.
 
-Acceptance rule: the public surface must feel like a constrained representative conversation. The runtime remains observable internally, but the user-facing chat must answer naturally, honestly and contextually.
+Acceptance target: ACA must preserve the active conversation topic and produce useful representative-style answers before exposing any internal process detail.
+
+
+## RC8 correction — Test compatibility and typo-tolerant capability routing
+
+RC8 fixes two regressions discovered after integrating RC7 locally:
+
+- Capability and AI-limit questions with realistic typos such as `Podes haceeer algo mas?` and `no tenees IA` now route to the adaptive capability/AI policy instead of falling back to the active ticket status response.
+- The Studio public shell keeps the single chat-first layout while preserving legacy layout markers required by older tests.
+
+Acceptance target: after a ticket query, capability and AI-limit follow-ups must keep ticket context and explain what ACA can do, without repeating the ticket-status limitation.

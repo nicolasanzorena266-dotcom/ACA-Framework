@@ -1,14 +1,20 @@
 # Changelog
 
 
-## 0.3.0-sprint71 — Public Conversation Runtime RC6
+## 0.3.0-sprint71-rc8 — Public Conversation Runtime Compatibility Fix
 
-- Added a structural public conversation policy over deterministic runtime decisions.
-- Preserved active goal, topic, ticket, claim type, next action and fallback/confusion signals across turns.
-- Added typo-tolerant public text normalization for common conversational input such as repeated vowels.
-- Prevented short follow-ups and frustration markers from resetting the active ticket or siniestro context.
-- Reworked the public Studio layout into a single chat-first surface with process detail behind **Ver proceso**.
-- Kept internal runtime evidence observable without making the dashboard the main public experience.
+- Fixed typo-tolerant capability and AI-limit detection for realistic user input such as “haceeer” and “tenees IA”.
+- Ensured AI-limit answers preserve active ticket context and still describe real capabilities.
+- Restored compatibility with the legacy `test_public_conversation_runtime.py` expectations without reintroducing dashboard cards.
+- Adjusted the public Studio layout marker to the single conversation surface expected by Sprint 71 tests.
+
+
+## 0.3.0-sprint71-rc7 — Public Conversation Runtime Hardening
+
+- Hardened the public conversation runtime against isolated-turn fallback behavior.
+- Added context-aware documentation answers for franquicia and other siniestro follow-ups.
+- Added client-facing example responses for frustration and “show me how it would answer” flows.
+- Simplified the hosted Studio public layout into a single centered chat-first surface.
 
 ## 0.3.0-sprint71 — Public Studio Runtime Interaction QA
 
@@ -137,16 +143,6 @@
 
 # Changelog
 
-
-## 0.3.0-sprint71 — Public Conversation Runtime RC6
-
-- Added a structural public conversation policy over deterministic runtime decisions.
-- Preserved active goal, topic, ticket, claim type, next action and fallback/confusion signals across turns.
-- Added typo-tolerant public text normalization for common conversational input such as repeated vowels.
-- Prevented short follow-ups and frustration markers from resetting the active ticket or siniestro context.
-- Reworked the public Studio layout into a single chat-first surface with process detail behind **Ver proceso**.
-- Kept internal runtime evidence observable without making the dashboard the main public experience.
-
 ## 0.3.0-sprint48 — Example Domain Packs
 
 - Added bundled data-only example Domain Packs for customer support and basic operations.
@@ -240,16 +236,6 @@
 
 
 # Changelog
-
-
-## 0.3.0-sprint71 — Public Conversation Runtime RC6
-
-- Added a structural public conversation policy over deterministic runtime decisions.
-- Preserved active goal, topic, ticket, claim type, next action and fallback/confusion signals across turns.
-- Added typo-tolerant public text normalization for common conversational input such as repeated vowels.
-- Prevented short follow-ups and frustration markers from resetting the active ticket or siniestro context.
-- Reworked the public Studio layout into a single chat-first surface with process detail behind **Ver proceso**.
-- Kept internal runtime evidence observable without making the dashboard the main public experience.
 
 
 ## Sprint 37 — Plugin Validator
