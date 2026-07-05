@@ -26,11 +26,34 @@ FALSE_OPERATIONAL_CLAIMS = (
     "acabo de cargar la documentación",
 )
 
+OBSERVABILITY_ACTIONS = {"show_process", "show_diagnostic"}
+_LAYER_CACHE: Dict[str, "PublicConversationProductLayer"] = {}
+
+
+@dataclass
+class ConversationProductMemory:
+    active_plugin_id: str | None = None
+    active_capability: str | None = None
+    claim_type: str | None = None
+    last_response: str | None = None
+    handoff_requested: bool = False
+    turns: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "active_plugin_id": self.active_plugin_id,
+            "active_capability": self.active_capability,
+            "claim_type": self.claim_type,
+            "last_response": self.last_response,
+            "handoff_requested": self.handoff_requested,
+            "turns": self.turns,
+        }
+
 
 @dataclass
 class PublicConversationProductLayer:
     runtime: PluginRuntime
-    conversation_capabilities: Dict[str, str] = field(default_factory=dict)
+    conversation_memory: Dict[str, ConversationProductMemory] = field(default_factory=dict)
 
     @classmethod
     def from_path(cls, root: str | Path = "plugins") -> "PublicConversationProductLayer":
@@ -47,6 +70,11 @@ class PublicConversationProductLayer:
             "public_actions": actions,
             "technical_language_blocked": list(CLIENT_TECHNICAL_FORBIDDEN),
             "false_claims_blocked": list(FALSE_OPERATIONAL_CLAIMS),
+            "acceptance": {
+                "observability_actions_do_not_write_visible_chat": True,
+                "enabled_buttons_execute_real_actions": True,
+                "client_support_blocks_internal_language": True,
+            },
         }
 
     def run(
@@ -57,20 +85,22 @@ class PublicConversationProductLayer:
         conversation_mode: str = "client_support",
         public_action_id: str | None = None,
     ) -> Dict[str, Any]:
+        memory = self._memory_for(conversation_id)
         action_plugin_id: str | None = None
         action: Dict[str, Any] | None = None
         requested_capability: str | None = None
         if public_action_id:
-            action_plugin_id, action = self._find_action(public_action_id)
-            requested_capability = action["capability"] if action else None
+            action_plugin_id, action = self._find_action(public_action_id, preferred_plugin_id=memory.active_plugin_id)
+            requested_capability = action["capability"] if action else memory.active_capability
             if action and not action.get("enabled", True):
                 return self._disabled_action_response(
                     action=action,
                     conversation_id=conversation_id,
                     conversation_mode=conversation_mode,
+                    memory=memory,
                 )
-        if requested_capability is None and _should_continue_previous_capability(message):
-            requested_capability = self.conversation_capabilities.get(conversation_id)
+        if requested_capability is None:
+            requested_capability = self._requested_capability_from_message(message=message, memory=memory)
 
         result = self.runtime.process(
             message,
@@ -79,12 +109,20 @@ class PublicConversationProductLayer:
             public_action_id=public_action_id,
             conversation_mode=conversation_mode,
         )
-        response = self._project_response(message=message, result=result.to_dict(), action=action)
+        result_dict = result.to_dict()
+        active_plugin = result.route.selected_plugin_id or action_plugin_id or memory.active_plugin_id
+        active_capability = result.route.selected_capability or requested_capability or memory.active_capability
+        self._update_memory(
+            memory=memory,
+            message=message,
+            plugin_id=active_plugin,
+            capability=active_capability,
+            action_id=public_action_id,
+        )
+        response = self._project_response(message=message, result=result_dict, action=action, memory=memory)
         response = apply_exposure_filter(response, conversation_mode=conversation_mode)
         response = apply_capability_claim_filter(response)
-        active_plugin = result.route.selected_plugin_id or action_plugin_id
-        if result.route.selected_capability:
-            self.conversation_capabilities[conversation_id] = result.route.selected_capability
+        memory.last_response = response
         return {
             "contract": "public_conversation_product_layer.run.v1",
             "conversation_id": conversation_id,
@@ -93,14 +131,23 @@ class PublicConversationProductLayer:
             "input_type": "action" if public_action_id else "message",
             "public_action_id": public_action_id,
             "active_plugin_id": active_plugin,
-            "active_capability": result.route.selected_capability or requested_capability,
+            "active_capability": active_capability,
             "response": response,
+            "chat_visible": public_action_id not in OBSERVABILITY_ACTIONS,
             "public_actions": self._actions_for_plugin(active_plugin),
-            "public_trace": build_public_trace(result.to_dict()),
-            "diagnostic_view": build_diagnostic_view(result.to_dict()),
+            "public_trace": build_public_trace(result_dict),
+            "diagnostic_view": build_diagnostic_view(result_dict, memory=memory),
             "developer_trace": result.trace,
             "hook_execution": dict(result.hook_execution),
+            "conversation_memory": memory.to_dict(),
         }
+
+    def reset(self, conversation_id: str) -> Dict[str, Any]:
+        self.conversation_memory.pop(conversation_id, None)
+        return {"contract": "public_conversation_product_layer.reset.v1", "conversation_id": conversation_id, "status": "reset"}
+
+    def _memory_for(self, conversation_id: str) -> ConversationProductMemory:
+        return self.conversation_memory.setdefault(conversation_id, ConversationProductMemory())
 
     def _disabled_action_response(
         self,
@@ -108,6 +155,7 @@ class PublicConversationProductLayer:
         action: Mapping[str, Any],
         conversation_id: str,
         conversation_mode: str,
+        memory: ConversationProductMemory,
     ) -> Dict[str, Any]:
         response = apply_exposure_filter(
             "Esa consulta no está conectada en esta demo. Puedo ayudarte a preparar un resumen claro para continuar la gestión con una persona.",
@@ -121,28 +169,33 @@ class PublicConversationProductLayer:
             "conversation_mode": conversation_mode,
             "input_type": "action",
             "public_action_id": action["id"],
-            "active_plugin_id": None,
+            "active_plugin_id": memory.active_plugin_id,
             "active_capability": action["capability"],
             "response": apply_capability_claim_filter(response),
-            "public_actions": self.contract()["public_actions"],
+            "chat_visible": False,
+            "public_actions": self._actions_for_plugin(memory.active_plugin_id) or self.contract()["public_actions"],
             "public_trace": {
                 "trace_type": "public_trace.v1",
                 "conversation_id": conversation_id,
                 "request_id": request_id,
                 "steps": ["Identifiqué la acción", "Validé que no está activa", "Preparé una alternativa segura"],
             },
-            "diagnostic_view": {"status": "action_disabled", "capability": action["capability"]},
+            "diagnostic_view": {"status": "action_disabled", "capability": action["capability"], "disabled_reason": action.get("disabled_reason")},
             "developer_trace": {
-                "active_plugin_id": None,
+                "active_plugin_id": memory.active_plugin_id,
                 "active_capability": action["capability"],
                 "events": [],
                 "disabled_reason": action.get("disabled_reason"),
             },
             "hook_execution": {"semantic": False, "policy": False, "planner": False},
+            "conversation_memory": memory.to_dict(),
         }
 
-    def _find_action(self, action_id: str) -> tuple[str | None, Dict[str, Any] | None]:
-        for plugin in self.runtime.plugin_registry.all():
+    def _find_action(self, action_id: str, preferred_plugin_id: str | None = None) -> tuple[str | None, Dict[str, Any] | None]:
+        plugins = self.runtime.plugin_registry.all()
+        if preferred_plugin_id:
+            plugins = sorted(plugins, key=lambda plugin: plugin.domain_id != preferred_plugin_id)
+        for plugin in plugins:
             for action in plugin.manifest.public_actions:
                 if action.id == action_id:
                     return plugin.domain_id, action.to_dict()
@@ -156,36 +209,97 @@ class PublicConversationProductLayer:
             return []
         return [action.to_dict() for action in plugin.manifest.public_actions]
 
-    def _project_response(self, *, message: str, result: Mapping[str, Any], action: Mapping[str, Any] | None) -> str:
+    def _requested_capability_from_message(self, *, message: str, memory: ConversationProductMemory) -> str | None:
+        text = message.lower()
+        if any(marker in text for marker in ("persona", "representante", "deriv", "supervisor")):
+            return "insurance.handoff.prepare" if memory.active_plugin_id == "galicia.insurance" or memory.claim_type else memory.active_capability
+        if any(marker in text for marker in ("cristal", "vidrio", "parabrisas")):
+            return "insurance.glass"
+        if memory.active_capability and _should_continue_previous_capability(message):
+            return memory.active_capability
+        return None
+
+    def _update_memory(
+        self,
+        *,
+        memory: ConversationProductMemory,
+        message: str,
+        plugin_id: str | None,
+        capability: str | None,
+        action_id: str | None,
+    ) -> None:
+        text = message.lower()
+        memory.turns += 1
+        if plugin_id:
+            memory.active_plugin_id = plugin_id
+        if capability:
+            memory.active_capability = capability
+        if "cristal" in text or "vidrio" in text or capability == "insurance.glass":
+            memory.claim_type = "cristales"
+            memory.active_plugin_id = "galicia.insurance"
+            memory.active_capability = "insurance.glass"
+        if action_id == "prepare_handoff" or "persona" in text or "representante" in text:
+            memory.handoff_requested = True
+
+    def _project_response(self, *, message: str, result: Mapping[str, Any], action: Mapping[str, Any] | None, memory: ConversationProductMemory) -> str:
         route = result.get("route") or {}
-        plugin_id = route.get("selected_plugin_id")
-        capability = route.get("selected_capability")
+        plugin_id = route.get("selected_plugin_id") or memory.active_plugin_id
+        capability = route.get("selected_capability") or memory.active_capability
         text = message.lower()
         plan = result.get("plan") or {}
+        if action and action.get("id") == "show_process":
+            return "Proceso listo en el panel derecho. La conversación principal queda intacta."
+        if action and action.get("id") == "show_diagnostic":
+            return "Diagnóstico listo en el panel derecho. No agregué mensajes al chat del cliente."
         if action and action.get("id") == "prepare_handoff":
-            return "Te preparo un resumen breve para que una persona continúe la gestión sin que tengas que repetir todo."
-        if plugin_id == "galicia.insurance":
-            return _project_insurance_response(text=text, capability=str(capability or ""), plan=plan)
+            return _handoff_response(memory=memory)
+        if plugin_id == "galicia.insurance" or capability in {"insurance.claims", "insurance.glass", "insurance.accident", "insurance.handoff.prepare"}:
+            return _project_insurance_response(text=text, capability=str(capability or ""), plan=plan, memory=memory)
         return "Te puedo orientar paso a paso. Contame qué querés resolver y te ayudo a ordenar el próximo movimiento."
 
 
 def _should_continue_previous_capability(message: str) -> bool:
     text = message.lower()
-    return any(marker in text for marker in ("48", "ya me dijiste", "ya dijiste", "documentación", "documentacion", "cliente"))
+    return any(
+        marker in text
+        for marker in (
+            "48",
+            "ya me dijiste",
+            "ya dijiste",
+            "documentación",
+            "documentacion",
+            "cliente",
+            "te la comparto",
+            "app",
+            "denuncia",
+            "respuesta",
+        )
+    )
 
 
-def _project_insurance_response(*, text: str, capability: str, plan: Mapping[str, Any]) -> str:
+def _project_insurance_response(*, text: str, capability: str, plan: Mapping[str, Any], memory: ConversationProductMemory) -> str:
+    claim_type = memory.claim_type or ("cristales" if capability == "insurance.glass" else None)
     if "persona" in text or "representante" in text or plan.get("next_action") == "prepare_handoff":
-        return "Puedo prepararte un resumen para que una persona continúe con el tipo de trámite, lo que ya cargaste y el motivo del reclamo."
-    if "48" in text and ("cristal" in text or capability == "insurance.glass"):
-        return "Si ya pasaron más de 48 horas hábiles desde la denuncia de cristales, conviene pedir revisión del caso con el número de trámite y la documentación cargada."
+        return _handoff_response(memory=memory)
+    if "48" in text and (claim_type == "cristales" or "cristal" in text):
+        return "Si ya pasaron más de 48 horas hábiles desde la denuncia de cristales, el próximo paso es pedir revisión con el número de trámite y confirmar que las fotos/documentación estén cargadas en el canal oficial."
     if "te la comparto" in text or "documentación" in text or "documentacion" in text:
-        return "No hace falta que me la envíes por este chat. Lo más seguro es cargarla o verificarla en el mismo canal donde iniciaste la denuncia."
+        return "Por acá no hace falta que me la compartas. Tenela lista y cargala o verificá que ya esté subida en el mismo canal donde iniciaste la denuncia."
     if "ya me dijiste" in text or "ya dijiste" in text:
-        return "Tenés razón; no repito la lista. En este punto corresponde ordenar el reclamo y preparar el resumen para revisión."
-    if "cristal" in text or "vidrio" in text or capability == "insurance.glass":
-        return "Para cristales, el foco es confirmar que la denuncia esté cargada, que las fotos sean claras y que el trámite tenga un próximo paso visible."
-    return "Te oriento con el trámite: primero identificamos el tipo de siniestro, después qué documentación ya está cargada y finalmente el próximo paso."
+        return "Tenés razón. No repito la lista: en este punto ordenamos el reclamo y preparamos el resumen para que revisen la demora."
+    if "actúes" in text or "actues" in text or "cliente" in text:
+        if claim_type == "cristales":
+            return "Entendido. Sigo como atención al cliente: tomo que el trámite es por cristales y que la denuncia ya fue cargada desde la app. Ahora revisamos el próximo paso sin volver al inicio."
+        return "Entendido. Sigo como atención al cliente y te voy guiando con el trámite sin volver a explicar el sistema."
+    if "cristal" in text or "vidrio" in text or claim_type == "cristales":
+        return "Para cristales, lo importante es que la denuncia esté cargada, las fotos se vean claras y el trámite tenga una autorización o próximo paso. Si eso ya está y no hubo respuesta, corresponde pedir revisión."
+    return "Te oriento con el trámite. Contame qué parte quedó trabada y avanzamos desde ahí."
+
+
+def _handoff_response(*, memory: ConversationProductMemory) -> str:
+    if memory.claim_type == "cristales":
+        return "Te preparo un resumen: denuncia de cristales cargada desde la app, documentación/fotos disponibles y demora mayor a 48 horas hábiles. Con eso una persona puede continuar sin que repitas todo."
+    return "Te preparo un resumen breve con el motivo de contacto, lo que ya contaste y el próximo paso esperado para que una persona continúe la gestión."
 
 
 def apply_exposure_filter(response: str, *, conversation_mode: str) -> str:
@@ -237,7 +351,7 @@ def build_public_trace(result: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_diagnostic_view(result: Mapping[str, Any]) -> Dict[str, Any]:
+def build_diagnostic_view(result: Mapping[str, Any], *, memory: ConversationProductMemory | None = None) -> Dict[str, Any]:
     route = result.get("route") or {}
     return {
         "trace_type": "diagnostic_view.v1",
@@ -246,11 +360,19 @@ def build_diagnostic_view(result: Mapping[str, Any]) -> Dict[str, Any]:
         "hook_execution": dict(result.get("hook_execution") or {}),
         "plan": dict(result.get("plan") or {}),
         "policy_decision": dict(result.get("policy_decision") or {}),
+        "conversation_memory": memory.to_dict() if memory else {},
     }
 
 
 def build_public_conversation_product_layer(root: str | Path = "plugins") -> Dict[str, Any]:
-    return PublicConversationProductLayer.from_path(root).contract()
+    return get_public_conversation_product_layer(root).contract()
+
+
+def get_public_conversation_product_layer(root: str | Path = "plugins") -> PublicConversationProductLayer:
+    key = str(root)
+    if key not in _LAYER_CACHE:
+        _LAYER_CACHE[key] = PublicConversationProductLayer.from_path(root)
+    return _LAYER_CACHE[key]
 
 
 def run_public_conversation_product_layer(
@@ -261,7 +383,9 @@ def run_public_conversation_product_layer(
     public_action_id: str | None = None,
     root: str | Path = "plugins",
 ) -> Dict[str, Any]:
-    layer = PublicConversationProductLayer.from_path(root)
+    layer = get_public_conversation_product_layer(root)
+    if public_action_id == "reset_conversation":
+        return layer.reset(conversation_id)
     return layer.run(
         message=message,
         conversation_id=conversation_id,

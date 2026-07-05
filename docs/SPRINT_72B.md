@@ -36,3 +36,28 @@ Every `public_action` must point to an existing handled capability or a declared
 The public chat must not consume the developer trace directly.
 
 The plugin no longer only declares what it can do. It now participates in how ACA understands, decides, responds and presents itself.
+
+## RC2 — Public Demo Product Repair
+
+Sprint 72B-RC2 is an acceptance repair for the public demo. It does not add new product features before closing the broken public experience.
+
+### RC2 acceptance fixes
+
+- Replaced the public shell with a chat-left / actions-right layout.
+- Removed the visible public sidebar and phone-frame sizing that could cut off the input.
+- Kept the chat input visible on desktop `1366x768` and mobile `390x844` viewports.
+- Moved process and diagnostic actions into the right panel/modal instead of the chat.
+- Preserved client-support wording in the visible chat.
+- Kept observability actions from appending messages to the conversation.
+- Added persistent public conversation memory across hosted REST calls.
+- Repaired the multi-turn cristales flow so repeated context is not re-asked after the user already supplied it.
+
+### RC2 hard rules
+
+```text
+If Render loads but the chat speaks like the framework, it fails.
+If the input is cut off, it fails.
+If an observability action writes to visible chat, it fails.
+If an enabled button does not execute a real action, it fails.
+If the user already said cristales and ACA asks for the case type again, it fails.
+```

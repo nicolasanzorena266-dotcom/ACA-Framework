@@ -34,6 +34,13 @@ public_actions:
     requires_real_tool: false
     enabled: true
     disabled_reason: null
+  - id: show_diagnostic
+    label: Ver diagnóstico
+    capability: generic.open_chat
+    mode: observation
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null
   - id: reset_conversation
     label: Reiniciar conversación
     capability: generic.open_chat

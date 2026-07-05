@@ -40,6 +40,13 @@ public_actions:
     requires_real_tool: false
     enabled: true
     disabled_reason: null
+  - id: show_diagnostic
+    label: Ver diagnóstico
+    capability: insurance.claims
+    mode: observation
+    requires_real_tool: false
+    enabled: true
+    disabled_reason: null
   - id: prepare_handoff
     label: Preparar derivación
     capability: insurance.handoff.prepare

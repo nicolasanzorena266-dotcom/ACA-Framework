@@ -1,4 +1,12 @@
-﻿# Sprint 72A — ACA Platform Plugin Architecture
+# Sprint 72B-RC2 — Public Demo Product Repair
+
+- Repaired the public Studio layout into chat-left / actions-right without the cut-off phone shell.
+- Kept the chat input visible across desktop and mobile acceptance viewports.
+- Moved process, diagnostic and handoff actions into the right panel/modal instead of writing observability into the chat.
+- Added hosted public-layer conversation memory so cristales context survives across REST calls.
+- Hardened client-support wording and multi-turn cristales acceptance checks.
+
+# Sprint 72A — ACA Platform Plugin Architecture
 
 - Added business-agnostic `aca_core` platform plugin primitives.
 - Added `aca_plugin_sdk` public surface for plugin authors.
