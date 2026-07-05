@@ -1,0 +1,33 @@
+from aca_core.platform_plugins import (
+    CapabilityRegistry,
+    CapabilityRouter,
+    CorePolicy,
+    DomainPlugin,
+    DomainPolicy,
+    EvalHookRegistry,
+    PluginLoader,
+    PluginManifest,
+    PluginRegistry,
+    PluginRuntime,
+    PluginRuntimeResult,
+    PluginStateStore,
+    PluginTraceRecorder,
+    RouteDecision,
+)
+
+__all__ = [
+    "CapabilityRegistry",
+    "CapabilityRouter",
+    "CorePolicy",
+    "DomainPlugin",
+    "DomainPolicy",
+    "EvalHookRegistry",
+    "PluginLoader",
+    "PluginManifest",
+    "PluginRegistry",
+    "PluginRuntime",
+    "PluginRuntimeResult",
+    "PluginStateStore",
+    "PluginTraceRecorder",
+    "RouteDecision",
+]

@@ -1,0 +1,32 @@
+api_version: 1
+
+plugin:
+  id: galicia.insurance
+  type: domain
+  version: 1.0.0
+  display_name: Galicia Seguros
+
+requires:
+  aca_core: ">=0.4.0"
+  aca_plugin_sdk: "^1.0.0"
+
+exports:
+  semantic: true
+  planner: true
+  policy: true
+  prompts: true
+  knowledge: true
+  tools: false
+  evals: true
+  traces: true
+  assets: true
+
+handles:
+  - insurance.claims
+  - insurance.glass
+  - insurance.accident
+
+blocked_capabilities:
+  - real_claim_status_lookup
+  - real_document_upload
+  - real_representative_transfer

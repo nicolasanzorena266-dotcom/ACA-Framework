@@ -1,0 +1,27 @@
+api_version: 1
+
+plugin:
+  id: generic.open_chat
+  type: domain
+  version: 1.0.0
+  display_name: Open Chat
+
+requires:
+  aca_core: ">=0.4.0"
+  aca_plugin_sdk: "^1.0.0"
+
+exports:
+  semantic: true
+  planner: true
+  policy: true
+  prompts: true
+  knowledge: false
+  tools: false
+  evals: true
+  traces: true
+  assets: true
+
+handles:
+  - generic.open_chat
+
+blocked_capabilities:

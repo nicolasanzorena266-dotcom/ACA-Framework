@@ -1,0 +1,10 @@
+{
+  "plugin_id": "generic.open_chat",
+  "cases": [
+    {
+      "name": "fallback_available",
+      "input": "hola",
+      "expected_capability": "generic.open_chat"
+    }
+  ]
+}

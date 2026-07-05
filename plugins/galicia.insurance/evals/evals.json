@@ -1,0 +1,10 @@
+{
+  "plugin_id": "galicia.insurance",
+  "cases": [
+    {
+      "name": "glass_guidance_routes_to_plugin",
+      "input": "se me rompio el cristal",
+      "expected_capability": "insurance.glass"
+    }
+  ]
+}
