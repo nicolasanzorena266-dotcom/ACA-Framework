@@ -1,4 +1,14 @@
 
+## Sprint 70 — Public Demo Usability Fix
+
+- Replaced the public Studio JSON wall with a human-readable runtime explanation.
+- Added modal-only “Ver pensamiento” view with close control.
+- Added public demo usability contract and endpoints.
+- Wired visible Studio controls to real user actions.
+- Kept code and raw Runtime payloads out of the default public UI.
+- Updated project version to 0.3.0-sprint70.
+
+
 ## 0.3.0-sprint69 — Public Demo Release Candidate
 
 - Added public demo release candidate contract.

@@ -77,7 +77,7 @@ class PublicDemoReleaseCandidate:
                     "surface": "ACA Studio",
                     "target_platform": self.platform,
                     "public_base_url": base_url,
-                    "version_state": "0.3.0-sprint69",
+                    "version_state": "0.3.0-sprint70",
                     "external_ai_required": False,
                     "deterministic_runtime": True,
                 },

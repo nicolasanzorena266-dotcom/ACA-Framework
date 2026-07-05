@@ -7,7 +7,7 @@
     "surface": "ACA Studio",
     "target_platform": "render-web-service",
     "public_base_url": "https://aca-public-web-demo.onrender.com",
-    "version_state": "0.3.0-sprint69",
+    "version_state": "0.3.0-sprint70",
     "external_ai_required": false,
     "deterministic_runtime": true
   },

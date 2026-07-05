@@ -75,11 +75,13 @@ class StudioRuntimeRunBinding:
         trace = self.execution.get("execution_trace", {})
         introspection = self.execution.get("introspection", {})
         final_state = trace.get("final_state", {}) if isinstance(trace, Mapping) else {}
+        response = _humanize_runtime_response(self.execution)
         return sanitize(
             {
                 "contract": STUDIO_RUNTIME_RUN_CONTRACT,
                 "conversation_id": self.execution.get("conversation_id"),
-                "response": self.execution.get("response"),
+                "response": response,
+                "raw_response": self.execution.get("response"),
                 "status": self.execution.get("status"),
                 "progress": self.execution.get("progress"),
                 "trace": {
@@ -137,6 +139,37 @@ def build_studio_runtime_run_binding(
     refreshed_binding: Mapping[str, Any],
 ) -> Dict[str, Any]:
     return StudioRuntimeRunBinding(execution=execution, refreshed_binding=refreshed_binding).to_dict()
+
+
+def _humanize_runtime_response(execution: Mapping[str, Any]) -> str:
+    selected_program = str(execution.get("selected_program") or "runtime")
+    intent = execution.get("intent_match", {})
+    mission = execution.get("mission", {})
+    confidence = intent.get("confidence") if isinstance(intent, Mapping) else None
+
+    raw_response = str(execution.get("response") or "").strip()
+    if raw_response and selected_program != "fallback":
+        return raw_response
+
+    if selected_program == "fallback":
+        return (
+            "Entiendo la consulta, pero el runtime no encontró una regla de dominio suficientemente específica "
+            "para responder sin inventar. Para avanzar necesitaría un identificador verificable —por ejemplo número de ticket, "
+            "cliente o área responsable— y con eso podría encaminar la gestión dentro del dominio cargado."
+        )
+
+    goal = mission.get("goal") if isinstance(mission, Mapping) else None
+    status = mission.get("status") if isinstance(mission, Mapping) else None
+    parts = ["El runtime procesó la consulta con una ruta determinística."]
+    if selected_program:
+        parts.append(f"Programa aplicado: {selected_program}.")
+    if status:
+        parts.append(f"Estado de misión: {status}.")
+    if goal:
+        parts.append(f"Objetivo: {goal}.")
+    if confidence is not None:
+        parts.append(f"Confianza de intención: {confidence}.")
+    return " ".join(parts)
 
 
 def _as_int(value: Any, *, default: int = 0) -> int:

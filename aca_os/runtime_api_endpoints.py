@@ -20,6 +20,7 @@ from aca_os.render_deployment_config import build_render_deployment_config, vali
 from aca_os.hosted_runtime_hardening import build_hosted_runtime_hardening, validate_hosted_runtime_hardening
 from aca_os.public_demo_ux_qa import build_public_demo_ux_qa, validate_public_demo_ux_qa
 from aca_os.public_demo_release_candidate import build_public_demo_release_candidate, validate_public_demo_release_candidate
+from aca_os.public_demo_usability import build_public_demo_usability, build_public_demo_thought_view, validate_public_demo_usability
 from aca_os.studio_api import StudioAPIClient, build_studio_bootstrap
 from aca_os.studio_runtime_binding import build_studio_runtime_binding, build_studio_runtime_run_binding
 from aca_os.studio_ux_structure import build_studio_ux_structure
@@ -100,6 +101,9 @@ class RuntimeEndpointAPI:
         RuntimeEndpoint("GET", "/public-demo/ux-qa/validate", "Validate public ACA Studio UX QA report.", "public_demo.ux_qa.validate"),
         RuntimeEndpoint("GET", "/public-demo/release-candidate", "Return public demo release candidate contract.", "public_demo.release_candidate.read"),
         RuntimeEndpoint("GET", "/public-demo/release-candidate/validate", "Validate public demo release candidate readiness.", "public_demo.release_candidate.validate"),
+        RuntimeEndpoint("GET", "/public-demo/usability", "Return public demo human usability contract.", "public_demo.usability.read"),
+        RuntimeEndpoint("GET", "/public-demo/usability/validate", "Validate public demo human usability contract.", "public_demo.usability.validate"),
+        RuntimeEndpoint("POST", "/public-demo/thought", "Return a human-readable thought view for one public demo execution.", "public_demo.thought.read"),
         RuntimeEndpoint("GET", "/hosting/target", "Return platform-neutral hosting target contract.", "hosting.target.read"),
         RuntimeEndpoint("GET", "/hosting/target/validate", "Validate platform-neutral hosting target contract.", "hosting.target.validate"),
         RuntimeEndpoint("GET", "/hosting/healthcheck", "Return hosted Runtime healthcheck for public deployment.", "hosting.healthcheck.read"),
@@ -529,6 +533,15 @@ class RuntimeEndpointAPI:
     ) -> Dict[str, Any]:
         return validate_public_demo_release_candidate(project_root=project_root, candidate=candidate)
 
+    def public_demo_usability(self) -> Dict[str, Any]:
+        return build_public_demo_usability()
+
+    def validate_public_demo_usability(self, *, spec: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+        return validate_public_demo_usability(spec=spec)
+
+    def public_demo_thought_view(self, *, execution: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+        return build_public_demo_thought_view(execution=execution)
+
     def hosting_target_contract(
         self,
         *,
@@ -816,6 +829,12 @@ class RuntimeEndpointAPI:
             )
         if method == "GET" and path == "/public-demo/release-candidate/validate":
             return self.validate_public_demo_release_candidate(project_root=params.get("project_root") or ".")
+        if method == "GET" and path == "/public-demo/usability":
+            return self.public_demo_usability()
+        if method == "GET" and path == "/public-demo/usability/validate":
+            return self.validate_public_demo_usability()
+        if method == "POST" and path == "/public-demo/thought":
+            return self.public_demo_thought_view(execution=payload.get("execution") if isinstance(payload.get("execution"), Mapping) else payload)
         if method == "GET" and path == "/hosting/target":
             return self.hosting_target_contract(
                 app_name=params.get("app_name") or "aca-public-web-demo",
