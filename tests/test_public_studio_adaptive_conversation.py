@@ -47,7 +47,7 @@ def test_public_studio_layout_prioritizes_story_chat_without_cutting_dashboard()
     assert "Runtime</span><strong>" not in html
     assert "Componentes</span><strong>" not in html
     assert "Eventos</span><strong>" not in html
-    assert "width: min(46vh, 100%, 462px)" in html
-    assert "height: min(calc(46vh * 16 / 9), calc(100vh - 154px), 820px)" in html
-    assert "conversationId = `studio-domain-flow-${Date.now()}`" in html
-    assert "ACA responde como asistente de atención" in html
+    assert "chat-left-actions-right" in html
+    assert "viewport 1366x768" in html
+    assert "conversationId = `studio-public-${Date.now()}`" in html
+    assert "Asistente de atención" in html

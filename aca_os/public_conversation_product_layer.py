@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 from typing import Any, Dict, Mapping
 
 from aca_core import PluginRuntime
@@ -16,6 +17,7 @@ CLIENT_TECHNICAL_FORBIDDEN = (
     "herramienta no disponible",
     "tool unavailable",
     "capability blocked",
+    "en esta demo",
 )
 
 FALSE_OPERATIONAL_CLAIMS = (
@@ -56,11 +58,15 @@ INSURANCE_DOMAIN_TERMS = (
 
 REPETITION_MARKERS = (
     "ya te dije",
+    "ya te dijee",
+    "ya me dijiste",
+    "ya lo dijiste",
     "ya lo dije",
     "ya dije",
     "me estás repitiendo",
     "me estas repitiendo",
     "otra vez",
+    "bue",
 )
 
 _LAYER_CACHE: Dict[str, "PublicConversationProductLayer"] = {}
@@ -71,7 +77,17 @@ class ConversationProductMemory:
     active_plugin_id: str | None = None
     active_capability: str | None = None
     claim_type: str | None = None
+    domain: str | None = None
+    billing_issue: str | None = None
+    issue_focus: str | None = None
+    expected_amount: str | None = None
+    received_amount: str | None = None
+    explicit_amounts: list[str] = field(default_factory=list)
+    last_user_message: str | None = None
     last_response: str | None = None
+    last_prompt_kind: str | None = None
+    next_expected_user_input: str | None = None
+    frustration_signals: int = 0
     handoff_requested: bool = False
     turns: int = 0
 
@@ -80,7 +96,17 @@ class ConversationProductMemory:
             "active_plugin_id": self.active_plugin_id,
             "active_capability": self.active_capability,
             "claim_type": self.claim_type,
+            "domain": self.domain,
+            "billing_issue": self.billing_issue,
+            "issue_focus": self.issue_focus,
+            "expected_amount": self.expected_amount,
+            "received_amount": self.received_amount,
+            "explicit_amounts": list(self.explicit_amounts),
+            "last_user_message": self.last_user_message,
             "last_response": self.last_response,
+            "last_prompt_kind": self.last_prompt_kind,
+            "next_expected_user_input": self.next_expected_user_input,
+            "frustration_signals": self.frustration_signals,
             "handoff_requested": self.handoff_requested,
             "turns": self.turns,
         }
@@ -194,7 +220,7 @@ class PublicConversationProductLayer:
         memory: ConversationProductMemory,
     ) -> Dict[str, Any]:
         response = apply_exposure_filter(
-            "Esa consulta no está conectada en esta demo. Puedo ayudarte a preparar un resumen claro para continuar la gestión con una persona.",
+            "Esa consulta no está conectada acá. Puedo ayudarte a preparar un resumen claro para continuar la gestión con una persona.",
             conversation_mode=conversation_mode,
         )
         request_id = f"disabled-{conversation_id}-{action['id']}"
@@ -247,8 +273,10 @@ class PublicConversationProductLayer:
 
     def _requested_capability_from_message(self, *, message: str, memory: ConversationProductMemory) -> str | None:
         text = message.lower()
-        if _is_billing_message(text):
+        if _is_billing_message(text) or _is_billing_context_continuation(text, memory):
             return "generic.open_chat"
+        if memory.claim_type and (_is_repetition_marker(text) or _should_continue_previous_capability(message)):
+            return memory.active_capability
         if any(marker in text for marker in ("persona", "representante", "deriv", "supervisor")):
             return "insurance.handoff.prepare" if memory.active_plugin_id in {None, "galicia.insurance"} or memory.claim_type else memory.active_capability
         if any(marker in text for marker in ("cristal", "vidrio", "parabrisas")):
@@ -272,13 +300,43 @@ class PublicConversationProductLayer:
     ) -> None:
         text = message.lower()
         memory.turns += 1
+        memory.last_user_message = message
+        if _is_repetition_marker(text):
+            memory.frustration_signals += 1
         if plugin_id:
             memory.active_plugin_id = plugin_id
         if capability:
             memory.active_capability = capability
-        if _is_billing_message(text):
+
+        if _is_billing_message(text) or _is_billing_context_continuation(text, memory):
+            memory.domain = "billing"
             memory.active_plugin_id = "generic.open_chat"
             memory.active_capability = "generic.open_chat"
+        if any(term in text for term in ("importe", "monto", "valor")) or _extract_amounts(text):
+            if memory.domain == "billing" or _is_billing_message(text):
+                memory.issue_focus = "importe"
+                memory.billing_issue = memory.billing_issue or "importe_incorrecto"
+                memory.next_expected_user_input = "billing_amount_followup"
+        if any(term in text for term in ("mayor", "distinto", "diferente", "más alto", "mas alto")) and (memory.domain == "billing" or _is_billing_message(text)):
+            memory.billing_issue = "importe_mayor_al_esperado"
+            memory.issue_focus = memory.issue_focus or "importe"
+
+        amounts = _extract_amounts(text)
+        if amounts and (memory.domain == "billing" or _is_billing_message(text) or "me dijeron" in text):
+            for amount in amounts:
+                if amount not in memory.explicit_amounts:
+                    memory.explicit_amounts.append(amount)
+            if len(amounts) >= 2:
+                memory.expected_amount = memory.expected_amount or amounts[0]
+                memory.received_amount = memory.received_amount or amounts[1]
+                memory.billing_issue = "importe_incorrecto"
+                memory.issue_focus = "importe"
+                memory.domain = "billing"
+                memory.active_plugin_id = "generic.open_chat"
+                memory.active_capability = "generic.open_chat"
+            elif len(amounts) == 1 and memory.expected_amount is None:
+                memory.expected_amount = amounts[0]
+
         if "cristal" in text or "vidrio" in text or capability == "insurance.glass":
             memory.claim_type = "cristales"
             memory.active_plugin_id = "galicia.insurance"
@@ -315,19 +373,67 @@ def _is_repetition_marker(text: str) -> bool:
     return any(marker in text for marker in REPETITION_MARKERS)
 
 
-def _project_generic_response(*, text: str, memory: ConversationProductMemory) -> str:
+def _is_short_affirmation(text: str) -> bool:
+    return text.strip().lower().strip(". !¡¿?") in {"si", "sí", "dale", "ok", "okay"}
+
+
+def _extract_amounts(text: str) -> list[str]:
+    matches = re.findall(r"\$\s*[0-9][0-9.,]*", text)
+    return [re.sub(r"\s+", "", match) for match in matches]
+
+
+def _billing_context_exists(memory: ConversationProductMemory) -> bool:
+    return memory.domain == "billing" or memory.active_capability == "generic.open_chat" and bool(memory.billing_issue or memory.issue_focus or memory.expected_amount or memory.received_amount)
+
+
+def _is_billing_context_continuation(text: str, memory: ConversationProductMemory) -> bool:
+    if not _billing_context_exists(memory):
+        return False
+    stripped = text.strip().lower()
+    return bool(
+        _extract_amounts(text)
+        or _is_repetition_marker(stripped)
+        or _is_short_affirmation(stripped)
+        or stripped in {"el importe", "importe", "monto", "el monto", "valor", "el valor"}
+        or "me dijeron" in stripped
+        or "me llegó" in stripped
+        or "me llego" in stripped
+    )
+
+
+def _billing_amount_pair(memory: ConversationProductMemory) -> tuple[str | None, str | None]:
+    expected = memory.expected_amount
+    received = memory.received_amount
+    if (expected is None or received is None) and len(memory.explicit_amounts) >= 2:
+        expected = expected or memory.explicit_amounts[0]
+        received = received or memory.explicit_amounts[1]
+    return expected, received
+
+
+def _project_billing_response(*, text: str, memory: ConversationProductMemory) -> str:
+    expected, received = _billing_amount_pair(memory)
     if _is_repetition_marker(text):
-        if memory.active_capability == "generic.open_chat":
-            return "Tenés razón, ya lo dijiste. No te vuelvo a pedir lo mismo: el tema es la factura. Para orientarte mejor necesito saber si querés revisar importe, vencimiento, pago o un reclamo ya iniciado."
+        if expected and received:
+            return f"Tenés razón, ya lo dijiste. No te vuelvo a pedir lo mismo: el problema es la factura por diferencia de importe, porque te habían informado {expected} y llegó {received}. Avancemos sobre ese reclamo: conviene revisar período facturado, cargos aplicados, bonificación prometida y comprobante o mensaje donde figure {expected}."
+        return "Tenés razón, ya lo dijiste. No repito la misma pregunta: el tema es la factura y el foco es el importe. Avancemos ordenando monto esperado, monto cobrado y período facturado."
+    if expected and received:
+        if _is_short_affirmation(text):
+            return f"Bien. Entonces seguimos por el reclamo de importe: factura recibida por {received} contra un importe informado de {expected}. El próximo paso es reunir factura, período facturado y evidencia de la comunicación donde figuraba {expected}, para pedir revisión del cargo aplicado."
+        return f"Entiendo. Entonces el reclamo es por diferencia de importe: te habían informado {expected} y llegó una factura de {received}. El próximo paso es revisar si corresponde a cargos acumulados, cambio de plan, deuda previa, error de facturación o falta de aplicación de una bonificación. Tené a mano la factura, el período facturado y el mensaje o comprobante donde te informaron {expected}."
+    if memory.issue_focus == "importe" or "monto" in text or "importe" in text or "valor" in text:
+        return "Sobre la factura, el foco es el importe. Para ordenar el reclamo conviene comparar monto esperado contra monto cobrado, período facturado, cargos nuevos y si había una bonificación o acuerdo previo."
+    if "vencimiento" in text:
+        return "Sobre la factura, el punto es el vencimiento. Puedo ayudarte a ordenar qué dato necesitás revisar y qué información conviene tener a mano antes de continuar por el canal correspondiente."
+    if "pago" in text or "cobro" in text:
+        return "Sobre el pago de la factura, puedo ayudarte a ordenar la consulta de forma general: fecha de pago, medio utilizado, comprobante y período facturado. No tengo acceso operativo a un sistema de facturación desde acá."
+    return "Sobre la factura, puedo orientarte de forma general sin consultar un sistema de facturación. Para avanzar, decime si querés revisar importe, vencimiento, pago o un reclamo ya iniciado."
+
+
+def _project_generic_response(*, text: str, memory: ConversationProductMemory) -> str:
+    if _is_billing_message(text) or _is_billing_context_continuation(text, memory) or _billing_context_exists(memory):
+        return _project_billing_response(text=text, memory=memory)
+    if _is_repetition_marker(text):
         return "Tenés razón, ya lo dijiste. No repito la misma respuesta: ordenemos el punto concreto que querés resolver y avanzo sobre eso."
-    if _is_billing_message(text):
-        if "monto" in text or "importe" in text or "valor" in text:
-            return "Sobre la factura, entiendo que el problema es que el importe llegó distinto al esperado. Puedo ayudarte a ordenar el reclamo: conviene identificar período facturado, monto esperado, monto cobrado y si ya hubo un reclamo previo."
-        if "vencimiento" in text:
-            return "Sobre la factura, el punto es el vencimiento. Puedo ayudarte a ordenar qué dato necesitás revisar y qué información conviene tener a mano antes de continuar por el canal correspondiente."
-        if "pago" in text or "cobro" in text:
-            return "Sobre el pago de la factura, puedo ayudarte a ordenar la consulta de forma general: fecha de pago, medio utilizado, comprobante y período facturado. No tengo acceso operativo a un sistema de facturación desde esta demo."
-        return "Sobre la factura, puedo orientarte de forma general sin consultar un sistema de facturación. Para avanzar, decime si querés revisar importe, vencimiento, pago o un reclamo ya iniciado."
     return "Te puedo orientar paso a paso. Contame el tema concreto que querés resolver y te ayudo a ordenar el próximo movimiento."
 
 
@@ -337,6 +443,7 @@ def _should_continue_previous_capability(message: str) -> bool:
         marker in text
         for marker in (
             "48",
+            "ya te dije",
             "ya me dijiste",
             "ya dijiste",
             "documentación",
@@ -360,7 +467,7 @@ def _project_insurance_response(*, text: str, capability: str, plan: Mapping[str
         return "Si ya pasaron más de 48 horas hábiles desde la denuncia de cristales, el próximo paso es pedir revisión con el número de trámite y confirmar que las fotos/documentación estén cargadas en el canal oficial."
     if "te la comparto" in text or "documentación" in text or "documentacion" in text:
         return "Por acá no hace falta que me la compartas. Tenela lista y cargala o verificá que ya esté subida en el mismo canal donde iniciaste la denuncia."
-    if "ya me dijiste" in text or "ya dijiste" in text:
+    if _is_repetition_marker(text):
         return "Tenés razón. No repito la lista: en este punto ordenamos el reclamo y preparamos el resumen para que revisen la demora."
     if "actúes" in text or "actues" in text or "cliente" in text:
         if claim_type == "cristales":
@@ -390,6 +497,7 @@ def apply_exposure_filter(response: str, *, conversation_mode: str) -> str:
         "herramienta no disponible": "esa consulta no está conectada acá",
         "tool unavailable": "esa consulta no está conectada acá",
         "capability blocked": "esa acción no está habilitada acá",
+        "en esta demo": "acá",
     }
     for forbidden, replacement in replacements.items():
         filtered = filtered.replace(forbidden, replacement).replace(forbidden.capitalize(), replacement.capitalize())

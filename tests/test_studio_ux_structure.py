@@ -70,6 +70,6 @@ def test_web_runtime_serves_structured_light_studio_shell():
 
     assert "app-shell" in studio_html
     assert "sidebar" in studio_html
-    assert "Contexto para el runtime" in studio_html
-    assert "/studio/ux" in studio_html
+    assert "Proceso y acciones" in studio_html
+    assert "Contexto para el runtime" not in studio_html
     assert ux["contract"] == STUDIO_UX_STRUCTURE_CONTRACT

@@ -96,6 +96,7 @@ def test_web_runtime_serves_public_demo_ux_qa_shell():
         server.server_close()
         thread.join(timeout=5)
 
-    assert "Demo Polish / UX QA" in studio_html
+    assert "Calidad de experiencia" in studio_html
+    assert "Demo Polish / UX QA" not in studio_html
     assert "/public-demo/ux-qa" in studio_html
     assert qa["contract"] == PUBLIC_DEMO_UX_QA_CONTRACT

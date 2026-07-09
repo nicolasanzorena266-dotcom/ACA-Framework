@@ -15,9 +15,9 @@ def test_public_studio_refresh_resets_visible_conversation():
     html = open("studio/index.html", encoding="utf-8").read()
 
     assert "Reiniciar" in html
-    assert "function resetConversation()" in html
+    assert "async function resetConversation(" in html
     assert "conversation.innerHTML = ''" in html
-    assert "resetConversation();" in html
+    assert "await resetConversation(false);" in html
 
 
 def test_public_studio_uses_human_spanish_labels_without_main_run_control():
@@ -27,7 +27,7 @@ def test_public_studio_uses_human_spanish_labels_without_main_run_control():
     assert "Copiar output" not in html
     assert "No hay código fuente" not in html
     assert "La decisión queda observable" not in html
-    assert "Copiar resumen" in html
+    assert "Resumen del turno" in html
     assert "Ver proceso" in html
 
 
@@ -66,10 +66,10 @@ def test_public_studio_handles_identity_and_ai_limit_questions_without_repeating
 def test_public_studio_phone_has_real_cellphone_proportions_and_no_max_depth_leak():
     html = open("studio/index.html", encoding="utf-8").read()
 
-    assert "width: min(100%, 430px)" in html
-    assert "aspect-ratio: 9 / 16" in html
+    assert "width: 100%" in html
+    assert "chat-left-actions-right" in html
     assert "phone-status { display: none; }" in html
-    assert "indexOf('<max-depth>') === -1" in html
+    assert "<max-depth>" not in html
     assert "Probar ejemplo" in html
     assert "Runtime</span><strong>" not in html
     assert "Componentes</span><strong>" not in html
@@ -81,8 +81,8 @@ def test_public_studio_removes_dashboard_cards_and_prioritizes_story_chat():
 
     assert ".cards { display: none; }" in html
     assert "phone-status { display: none; }" in html
-    assert "aspect-ratio: 9 / 16" in html
-    assert "Resumen de la consulta" in html
+    assert "chat-left-actions-right" in html
+    assert "Resumen del turno" in html
     assert ">Runtime</span><strong>" not in html
     assert ">Componentes</span><strong>" not in html
     assert ">Eventos</span><strong>" not in html

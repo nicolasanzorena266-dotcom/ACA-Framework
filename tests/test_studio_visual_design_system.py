@@ -82,7 +82,7 @@ def test_web_runtime_serves_visual_design_and_aca_studio_shell():
         thread.join(timeout=5)
 
     assert "ACA Studio" in studio_html
-    assert "Visual Design System" in studio_html
-    assert "/studio/design" in studio_html
-    assert "brand-logo" in studio_html
+    assert "Visual Design System" not in studio_html
+    assert "ACA Hosted" in studio_html
+    assert "brand-logo" not in studio_html
     assert design["contract"] == STUDIO_VISUAL_DESIGN_CONTRACT

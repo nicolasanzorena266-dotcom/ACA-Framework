@@ -110,8 +110,9 @@ def test_web_runtime_serves_demo_domain_flow_and_studio_binding_mentions_endpoin
         server.server_close()
         thread.join(timeout=5)
 
-    assert "/demo/domain-flow" in studio_html
-    assert "Run Demo Domain Flow" in studio_html
+    assert "ACA Studio" in studio_html
+    assert "Probar ejemplo" in studio_html
+    assert "Run Demo Domain Flow" not in studio_html
     assert scenario["contract"] == DEMO_DOMAIN_RUNTIME_SCENARIO_CONTRACT
     assert result["contract"] == DEMO_DOMAIN_RUNTIME_FLOW_CONTRACT
     assert result["entities"]["case_id"] == "555"

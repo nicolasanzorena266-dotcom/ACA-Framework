@@ -35,9 +35,9 @@ def test_public_conversation_turns_frustration_into_ticket_client_answer():
 def test_public_studio_layout_uses_single_public_chat_surface():
     html = open("studio/index.html", encoding="utf-8").read()
 
-    assert "grid-template-columns: minmax(360px, 1fr)" in html
-    assert ".context-card { display: none;" in html
-    assert "width: min(390px, 100%)" in html
-    assert "height: min(700px, calc(100vh - 145px))" in html
+    assert "chat-left-actions-right" in html
+    assert "viewport 1366x768" in html
+    assert "viewport 390x844" in html
+    assert "Proceso y acciones" in html
     assert "Runtime</span><strong>" not in html
     assert "Componentes</span><strong>" not in html

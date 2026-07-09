@@ -83,3 +83,27 @@ If the user says ya te dije and ACA repeats the same template, it fails.
 If the response does not mention the semantic core of the user message, it fails.
 If generic.open_chat handles billing, it must not pretend to access billing systems.
 ```
+
+## RC4 — Conversational Memory and Public Surface Cleanup
+
+Sprint 72B-RC4 is an acceptance repair for public conversation continuity. It does not introduce the full cognitive state model, tools, handoffs or new domain plugins. It only fixes the broken public behavior exposed after RC3.
+
+### RC4 acceptance fixes
+
+- Public memory stores minimal billing facts: domain, issue focus, expected amount, received amount and frustration signals.
+- Explicit user data beats generic prompts. If the user gives `$110` and `$150000`, ACA must reuse those values.
+- Short follow-ups such as “el importe” and “sí” continue the active billing goal instead of resetting the conversation.
+- Repetition/frustration markers such as “ya te dije”, “ya te dijee” and “bue...” repair using the accumulated context.
+- Cristales follow-ups keep answering the actual question, including whether documentation should be shared through the chat and what to do after 48 business hours.
+- Public Studio removes old visible scaffolding from Sprint 64, Demo Polish, UX QA, `max-height: 590px` and runtime-link labels.
+
+### RC4 hard rules
+
+```text
+If ACA already knows the topic, asking “contame el tema concreto” fails.
+If the user gave concrete amounts, the response must reuse them.
+If the user selects “el importe”, ACA must advance on importe.
+If the user says “sí” after a billing next step, ACA must continue that step.
+If the user shows frustration, ACA must repair with context instead of restarting.
+If /studio exposes old Sprint 64 or layout scaffolding text, it fails.
+```

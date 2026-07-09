@@ -82,7 +82,8 @@ def test_web_runtime_serves_polished_public_demo_shell():
         server.server_close()
         thread.join(timeout=5)
 
-    assert "Ejecutar demo" in studio_html
-    assert "Demo Polish" in studio_html
+    assert "Probar ejemplo" in studio_html
+    assert "Calidad de experiencia" in studio_html
+    assert "Demo Polish" not in studio_html
     assert "/public-demo/polish" in studio_html
     assert polish["contract"] == PUBLIC_DEMO_POLISH_CONTRACT

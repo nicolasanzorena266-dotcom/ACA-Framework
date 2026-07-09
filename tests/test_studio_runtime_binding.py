@@ -88,8 +88,8 @@ def test_web_runtime_serves_bound_studio_and_binding_api():
         server.server_close()
         thread.join(timeout=5)
 
-    assert "/studio/binding" in studio_html
-    assert "/studio/binding/run" in studio_html
+    assert "ACA Studio" in studio_html
+    assert "Proceso y acciones" in studio_html
     assert binding["contract"] == STUDIO_RUNTIME_BINDING_CONTRACT
     assert binding["domain"]["pack_count"] >= 2
     assert executed["contract"] == STUDIO_RUNTIME_RUN_CONTRACT

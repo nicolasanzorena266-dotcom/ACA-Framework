@@ -25,6 +25,7 @@ def test_public_chat_ui_prioritizes_single_conversation_surface():
     assert "Componentes</span><strong>" not in html
     assert "Módulos</span><strong>" not in html
     assert "Eventos</span><strong>" not in html
-    assert ".main-grid { display: grid; grid-template-columns: 1fr" in html
-    assert ".context-card { display: none;" in html
+    assert ".main-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px)" in html
+    assert ".context-card { display: grid;" in html
+    assert "Proceso y acciones" in html
     assert "Enviar" in html

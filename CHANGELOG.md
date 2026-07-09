@@ -1,3 +1,12 @@
+# Sprint 72B-RC4 — Conversational Memory and Public Surface Cleanup
+
+- Added public conversation memory for explicit billing facts such as expected amount, received amount, issue focus and frustration signals.
+- Prevented billing follow-ups like “el importe”, “sí”, “ya te dije” and “bue...” from resetting into generic prompts when enough context exists.
+- Required responses to reuse concrete user data such as `$110` and `$150000` instead of asking for the topic again.
+- Kept cristales multi-turn repair clean for documentation sharing, repetition and 48-hour follow-up cases.
+- Removed old public Studio scaffolding such as Sprint 64, Demo Polish, UX QA, max-height 590px and visible runtime-link wording.
+- Added RC4 regression tests based on the failed public billing transcript and public-surface cleanup checks.
+
 # Sprint 72B-RC3 — Routing and Response Repair
 
 - Prevented explicit billing messages from routing into `insurance.claims`.
