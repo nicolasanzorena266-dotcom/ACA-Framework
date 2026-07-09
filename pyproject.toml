@@ -1,6 +1,6 @@
 [project]
 name = "aca-framework"
-version = "0.4.0-sprint72b-rc4"
+version = "0.4.0-sprint72b-rc5"
 description = "ACA deterministic cognitive runtime"
 requires-python = ">=3.10"
 

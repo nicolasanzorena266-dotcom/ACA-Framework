@@ -84,6 +84,27 @@ If the response does not mention the semantic core of the user message, it fails
 If generic.open_chat handles billing, it must not pretend to access billing systems.
 ```
 
+## RC5 — LLM Dialogue Controller Bridge
+
+Sprint 72B-RC5 is still an acceptance repair for the public conversation product. It does not add real tools, a billing plugin or the full CSM from Sprint 73. It adds the minimum bridge needed to stop encoding every user phrase as a one-off keyword rule.
+
+### RC5 acceptance fixes
+
+- A cognitive turn controller produces structured `domain`, `topic`, `dialogue_act`, `facts`, `goal`, `next_action` and `response_strategy`.
+- The public layer detects dialogue acts such as `user_named_topic`, `user_selected_option`, `user_confirmed_evidence`, `user_completed_step`, `user_requests_human`, `user_requests_capabilities`, `user_pinged_after_silence` and `user_frustrated`.
+- If the user says they have evidence, ACA advances to claim draft or handoff summary.
+- If the user says they already reviewed a step, ACA must not ask them to review the same step again.
+- If the user asks what else ACA can do, ACA lists real available actions and limits.
+- If the user names a trámite such as baja, ACA treats it as a concrete topic.
+- If a message is sent, the public chat must receive a visible response.
+- If frustration repeats, ACA escalates to a concrete action instead of repeating the same repair.
+
+### RC5 hard rules
+
+- Memory plus detected dialogue act must produce the next useful step, not another template.
+- The deterministic controller is an offline bridge; an LLM controller can replace it later if it preserves the same output shape and supervisor gates.
+- The runtime remains the supervisor: no false tool claims, no hidden transfer, no internal language leaks and no empty visible response.
+
 ## RC4 — Conversational Memory and Public Surface Cleanup
 
 Sprint 72B-RC4 is an acceptance repair for public conversation continuity. It does not introduce the full cognitive state model, tools, handoffs or new domain plugins. It only fixes the broken public behavior exposed after RC3.

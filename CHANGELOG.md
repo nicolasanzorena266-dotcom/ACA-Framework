@@ -1,3 +1,12 @@
+# Sprint 72B-RC5 — LLM Dialogue Controller Bridge
+
+- Added a structured cognitive turn controller bridge with `CognitiveTurnInput`, `CognitiveTurnOutput` and an offline deterministic controller shaped like the future LLM controller output.
+- Introduced dialogue-act detection for named topics, option selection, evidence confirmation, completed steps, human requests, capability questions, pings and frustration.
+- Added next-action progression so confirmations like “lo tengo acá” and “ya lo revisé” advance to claim draft/summary instead of repeating orientation.
+- Added generic trámite handling for bajas without routing to insurance or asking for the same “tema concreto”.
+- Added capability and continuity responses for “podés hacer algo más?” and “hola?” with explicit real-system limits.
+- Added no-silent-turn and no-repeated-repair regression tests for RC5.
+
 # Sprint 72B-RC4 — Conversational Memory and Public Surface Cleanup
 
 - Added public conversation memory for explicit billing facts such as expected amount, received amount, issue focus and frustration signals.
