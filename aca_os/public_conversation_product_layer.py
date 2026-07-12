@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, Mapping, Protocol
 
 from aca_core import PluginRuntime
+from aca_core.text import normalize_search_text
 
 
 CLIENT_TECHNICAL_FORBIDDEN = (
@@ -219,7 +220,7 @@ class DeterministicDialogueController:
     """
 
     def decide(self, turn: CognitiveTurnInput) -> CognitiveTurnOutput:
-        text = turn.message.lower().strip()
+        text = normalize_search_text(turn.message)
         memory = turn.memory
         domain = _infer_domain_from_text_or_memory(text, memory)
         topic = _infer_topic_from_text_or_memory(text, memory)
@@ -452,7 +453,7 @@ class PublicConversationProductLayer:
         return [action.to_dict() for action in plugin.manifest.public_actions]
 
     def _requested_capability_from_message(self, *, message: str, memory: ConversationProductMemory) -> str | None:
-        text = message.lower()
+        text = normalize_search_text(message)
         if _is_billing_message(text) or _is_billing_context_continuation(text, memory) or _is_generic_service_message(text) or _is_generic_service_context_continuation(text, memory):
             return "generic.open_chat"
         if memory.claim_type and (_is_repetition_marker(text) or _should_continue_previous_capability(message)):
@@ -480,7 +481,8 @@ class PublicConversationProductLayer:
         capability: str | None,
         action_id: str | None,
     ) -> None:
-        text = message.lower()
+        text = normalize_search_text(message)
+        amount_text = message
         memory.turns += 1
         memory.last_user_message = message
         if _is_repetition_marker(text) or _is_frustration_marker(text):
@@ -512,7 +514,7 @@ class PublicConversationProductLayer:
             if selected_option in {"reclamo", "reclamo_iniciado"}:
                 memory.billing_issue = "reclamo_factura"
             memory.next_expected_user_input = "billing_" + selected_option
-        if any(term in text for term in ("importe", "monto", "valor")) or _extract_amounts(text):
+        if any(term in text for term in ("importe", "monto", "valor")) or _extract_amounts(amount_text):
             if memory.domain == "billing" or _is_billing_message(text):
                 memory.issue_focus = "importe"
                 memory.billing_issue = memory.billing_issue or "importe_incorrecto"
@@ -521,7 +523,7 @@ class PublicConversationProductLayer:
             memory.billing_issue = "importe_mayor_al_esperado"
             memory.issue_focus = memory.issue_focus or "importe"
 
-        amounts = _extract_amounts(text)
+        amounts = _extract_amounts(amount_text)
         if amounts and (memory.domain == "billing" or _is_billing_message(text) or "me dijeron" in text):
             for amount in amounts:
                 if amount not in memory.explicit_amounts:
@@ -548,7 +550,7 @@ class PublicConversationProductLayer:
         route = result.get("route") or {}
         plugin_id = route.get("selected_plugin_id") or memory.active_plugin_id
         capability = route.get("selected_capability") or memory.active_capability
-        text = message.lower()
+        text = normalize_search_text(message)
         plan = result.get("plan") or {}
         if action and action.get("id") == "show_process":
             return "Proceso listo en el panel derecho. La conversación principal queda intacta."
@@ -586,20 +588,20 @@ def _is_human_request(text: str) -> bool:
 
 
 def _is_short_affirmation(text: str) -> bool:
-    return text.strip().lower().strip(". !¡¿?") in {"si", "sí", "dale", "ok", "okay"}
+    return normalize_search_text(text) in {"si", "dale", "ok", "okay"}
 
 
 def _is_ping_after_silence(text: str) -> bool:
-    return text.strip().lower().strip() in {"hola?", "hola??", "estás?", "estas?", "seguís?", "seguis?"}
+    return normalize_search_text(text) in {"hola", "estas", "seguis"}
 
 
 def _is_evidence_confirmation(text: str) -> bool:
-    stripped = text.strip().lower()
+    stripped = normalize_search_text(text)
     return any(marker in stripped for marker in ("lo tengo", "tengo aca", "tengo acá", "lo tengo acá", "lo tengo aca"))
 
 
 def _is_completed_review(text: str) -> bool:
-    stripped = text.strip().lower()
+    stripped = normalize_search_text(text)
     return any(marker in stripped for marker in ("ya lo revise", "ya lo revisé", "lo revise", "lo revisé", "ya revisé", "ya revise"))
 
 
@@ -618,7 +620,7 @@ def _generic_service_context_exists(memory: ConversationProductMemory) -> bool:
 def _is_generic_service_context_continuation(text: str, memory: ConversationProductMemory) -> bool:
     if not _generic_service_context_exists(memory):
         return False
-    stripped = text.strip().lower()
+    stripped = normalize_search_text(text)
     return bool(
         _is_repetition_marker(stripped)
         or _is_human_request(stripped)
@@ -629,7 +631,7 @@ def _is_generic_service_context_continuation(text: str, memory: ConversationProd
 
 
 def _selected_billing_option(text: str) -> str | None:
-    stripped = text.strip().lower().strip(". !¡¿?")
+    stripped = normalize_search_text(text)
     if stripped in {"importe", "el importe", "monto", "el monto", "valor", "el valor"}:
         return "importe"
     if stripped in {"vencimiento", "el vencimiento", "fecha de vencimiento"}:
@@ -653,7 +655,7 @@ def _billing_context_exists(memory: ConversationProductMemory) -> bool:
 def _is_billing_context_continuation(text: str, memory: ConversationProductMemory) -> bool:
     if not _billing_context_exists(memory):
         return False
-    stripped = text.strip().lower()
+    stripped = normalize_search_text(text)
     return bool(
         _extract_amounts(text)
         or _is_repetition_marker(stripped)
@@ -871,7 +873,7 @@ def _project_generic_response(*, text: str, memory: ConversationProductMemory, c
 
 
 def _should_continue_previous_capability(message: str) -> bool:
-    text = message.lower()
+    text = normalize_search_text(message)
     return any(
         marker in text
         for marker in (

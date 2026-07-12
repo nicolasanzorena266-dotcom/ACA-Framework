@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import time
-import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Sequence
 
@@ -140,15 +138,6 @@ def make_trace_id(conversation_id: str, turn_count: int, message: str) -> str:
 
 def now_ms() -> int:
     return int(time.time() * 1000)
-
-
-def normalize_text(value: str) -> str:
-    text = value.lower().strip()
-    text = "".join(ch for ch in unicodedata.normalize("NFD", text) if unicodedata.category(ch) != "Mn")
-    text = re.sub(r"([aeiou])\1+", r"\1", text)
-    text = re.sub(r"([^aeiou\s])\1{2,}", r"\1", text)
-    text = re.sub(r"[^a-z0-9ñ\s]", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def contains_any(text: str, terms: Sequence[str]) -> bool:

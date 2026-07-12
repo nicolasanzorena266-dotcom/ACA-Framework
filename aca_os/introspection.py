@@ -152,8 +152,44 @@ def _state_summary(state: CognitiveState | None) -> Dict[str, Any]:
         "action_plan": state.facts.get("zero_cost_action_plan", {}),
         "execution_flow": state.facts.get("zero_cost_execution_flow", {}),
         "execution_plan": state.facts.get("zero_cost_execution_plan", {}),
+        "runtime_execution_engine": state.facts.get("runtime_execution_engine", {}),
+        "conversation_state_runtime": state.facts.get("conversation_state_runtime", {}),
+        "runtime_executor_shadow": state.facts.get("runtime_executor_shadow", {}),
+        "tool_executions": _tool_execution_summary(state),
         "fact_keys": sorted(state.facts.keys()),
     }
+
+
+def _tool_execution_summary(state: CognitiveState) -> list[Dict[str, Any]]:
+    executions = []
+    for outcome in state.facts.get("execution_step_outcomes", []):
+        if not isinstance(outcome, dict):
+            continue
+        result = outcome.get("result", {})
+        if not isinstance(result, dict):
+            continue
+        execution = result.get("tool_execution")
+        if isinstance(execution, dict) and execution:
+            contract = execution.get("execution_contract", {})
+            executions.append(
+                {
+                    "tool_name": execution.get("tool_name"),
+                    "mode": execution.get("mode"),
+                    "origin": execution.get("origin"),
+                    "runtime_engine": execution.get("runtime_engine"),
+                    "owner": execution.get("owner"),
+                    "action": execution.get("action"),
+                    "executed": execution.get("executed"),
+                    "reason": execution.get("reason"),
+                    "deterministic": contract.get("deterministic") if isinstance(contract, dict) else None,
+                    "has_side_effects": contract.get("has_side_effects") if isinstance(contract, dict) else None,
+                    "supports_dry_run": contract.get("supports_dry_run") if isinstance(contract, dict) else None,
+                    "supports_replay": contract.get("supports_replay") if isinstance(contract, dict) else None,
+                    "supports_shadow": contract.get("supports_shadow") if isinstance(contract, dict) else None,
+                    "idempotency": contract.get("idempotency") if isinstance(contract, dict) else None,
+                }
+            )
+    return executions
 
 
 

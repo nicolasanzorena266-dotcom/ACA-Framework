@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, Dict
 from uuid import uuid4
 from time import perf_counter
@@ -7,10 +8,13 @@ from aca_kernel.core.events import Event
 from aca_kernel.core.kernel import ACAKernel
 from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
+from aca_os.conversation_state import ConversationState
 from aca_os.conversation_manager import ConversationManager
 from aca_os.event_bus import EventBus
 from aca_os.introspection import RuntimeIntrospectionAPI, RuntimeIntrospectionSnapshot
 from aca_os.execution_trace import ExecutionTrace, monotonic_ms, utc_now_iso
+from aca_os.execution_authority import record_execution_authority
+from aca_os.legacy_runtime_executor import LegacyRuntimeExecutor
 from aca_os.memory_engine import MemoryEngine
 from aca_os.metrics_engine import MetricsEngine
 from aca_os.component_registry import ComponentRegistry, build_registry_from_runtime
@@ -22,14 +26,23 @@ from aca_os.domain_pack_runtime import DomainPackRuntime
 from aca_os.plugin_validator import PluginValidator
 from aca_os.mission_manager import MissionManager
 from aca_os.output import ACAOutput
+from aca_os.runtime_executor import RuntimeExecutor, compare_runtime_executions
 from aca_os.session import ExecutionSession
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
+from aca_os.step_handlers import (
+    StepExecutionContext,
+    StepHandlerRegistry,
+    StepRuntimeServices,
+    build_default_step_handler_registry,
+    plan_has_step,
+    step_from_plan,
+)
 from aca_os.studio import build_studio_view, export_studio_view
-from aca_os.tool_engine import ToolEngine, ToolRequest
+from aca_os.tool_engine import ToolEngine, ToolExecutionMode
 from zero_cost.action_planner import ActionPlanner
 from zero_cost.execution_plan import ExecutionPlan
 from zero_cost.flow_router import FlowRouter
-from zero_cost.intent_matcher import IntentMatcher
+from zero_cost.intent_matcher import IntentMatch, IntentMatcher
 from zero_cost.decision_graph import DecisionGraphEngine
 
 
@@ -56,6 +69,7 @@ class ACAOSRuntime:
         domain_pack_loader: DomainPackLoader | None = None,
         domain_pack_validator: DomainPackValidator | None = None,
         event_bus: EventBus | None = None,
+        step_handler_registry: StepHandlerRegistry | None = None,
         domain_context: Dict[str, Any] | None = None,
     ):
         self.kernel = kernel
@@ -147,6 +161,23 @@ class ACAOSRuntime:
             self.component_registry.activate("domain_pack_runtime")
         self.domain_context = domain_context or {}
         self.domain_context.setdefault("domain_packs", self.domain_pack_runtime.context())
+        self.step_services = StepRuntimeServices(
+            policy_manager=self.policy_manager,
+            tool_engine=self.tool_engine,
+            compiler=self.compiler,
+            kernel=self.kernel,
+            mission_manager=self.mission_manager,
+            memory_engine=self.memory_engine,
+            context_manager=self.context_manager,
+        )
+        self.step_handlers = step_handler_registry or build_default_step_handler_registry()
+        self.legacy_runtime = LegacyRuntimeExecutor(
+            handlers=self.step_handlers,
+            services=self.step_services,
+            conversation_manager=self.conversation_manager,
+            domain_context=self.domain_context,
+            emit=self._emit,
+        )
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
         self._traces: Dict[str, ExecutionTrace] = {}
@@ -156,60 +187,226 @@ class ACAOSRuntime:
         self._last_session: ExecutionSession | None = None
         self.introspection = RuntimeIntrospectionAPI(self)
 
-    def _collect_tool_evidence(self, policy_result: PolicyResult) -> Dict[str, Any]:
-        if policy_result.decision != PolicyDecision.USE_TOOL:
-            return {}
-        if not policy_result.tool_key:
-            return {}
-        request = ToolRequest(
-            tool_name="knowledge_base",
-            intent="lookup_concept",
-            payload={"key": policy_result.tool_key},
-        )
-        result = self.tool_engine.execute(request)
-        return result.evidence if result.success else {"tool_error": result.error}
-
-    def _finalize_state(
-        self,
-        state: CognitiveState,
-        policy_result: PolicyResult,
-        tool_evidence: Dict[str, Any],
-    ) -> CognitiveState:
-        mission_updated = self.mission_manager.after_kernel(state)
-        with_policy = mission_updated.evolve("POLICY_RESULT", policy_result=policy_result.to_dict())
-        with_tools = with_policy.evolve("TOOL_EVIDENCE", tool_evidence=tool_evidence)
-
-        consolidated_memory = self.memory_engine.consolidate(with_tools)
-        relevant_memory = self.memory_engine.relevant_for_state(with_tools)
-
-        with_memory = with_tools.evolve(
-            "MEMORY_CONSOLIDATE",
-            memory_snapshot={
-                "consolidated": consolidated_memory,
-                "relevant": relevant_memory,
-            },
-        )
-
-        context_bundle = self.context_manager.build(
-            with_memory,
-            memory=relevant_memory,
-            tool_evidence=tool_evidence,
-            domain_context=self.domain_context,
-        )
-
-        final_state = with_memory.evolve("CONTEXT_BUILD", context_bundle=context_bundle.to_dict())
-        return self.conversation_manager.after_process(final_state)
-
     def _emit(self, event_type: str, **payload: Any) -> None:
         self.event_bus.publish(event_type, payload, source="aca_os.runtime")
+
+    def _services_with_memory(self, memory_engine: MemoryEngine) -> StepRuntimeServices:
+        return StepRuntimeServices(
+            policy_manager=self.policy_manager,
+            tool_engine=self.tool_engine,
+            compiler=self.compiler,
+            kernel=self.kernel,
+            mission_manager=self.mission_manager,
+            memory_engine=memory_engine,
+            context_manager=self.context_manager,
+        )
+
+    def _apply_execution_step_outcomes(
+        self,
+        state: CognitiveState,
+        step_outcomes: list[Dict[str, Any]],
+    ) -> CognitiveState:
+        facts = dict(state.facts)
+        facts["execution_step_outcomes"] = list(step_outcomes)
+        with_outcomes = state.evolve("EXECUTION_STEP_OUTCOMES", facts=facts)
+        return self.conversation_manager.after_process(with_outcomes)
+
+    def _attach_conversation_state_runtime_record(self, state: CognitiveState) -> CognitiveState:
+        record = self.conversation_manager.conversation_state_runtime_record(state.conversation_id)
+        facts = dict(state.facts)
+        facts["conversation_state_runtime"] = record
+        updated = state.evolve("CONVERSATION_STATE_RUNTIME", facts=facts)
+        return self.conversation_manager.after_process(updated)
+
+    def _execute_runtime_executor_official(
+        self,
+        *,
+        event: Event,
+        prepared: CognitiveState,
+        execution_plan: ExecutionPlan,
+        policy_result: PolicyResult,
+        policy_outcome: Dict[str, Any] | None,
+        tool_evidence: Dict[str, Any],
+        conversation_state: ConversationState,
+        intent_match: Any,
+        action_plan: Any,
+        execution_flow: Any,
+    ) -> CognitiveState:
+        legacy_memory = _clone_memory_engine(self.memory_engine)
+        graph = None
+        selected_program = None
+        runtime_context: Dict[str, Any] = {
+            "intent_match": intent_match.to_dict(),
+            "action_plan": action_plan.to_dict(),
+            "execution_flow": execution_flow.to_dict(),
+            "execution_plan": execution_plan.to_dict(),
+            "policy_result": policy_result.to_dict(),
+            "tool_evidence": tool_evidence,
+            "conversation_state": conversation_state.to_dict(),
+        }
+        if policy_result.decision != PolicyDecision.ESCALATE:
+            graph = self.compiler.compile(event, prepared)
+            selected_program = graph.name
+            runtime_context["graph"] = graph
+        authorized = record_execution_authority(
+            prepared,
+            execution_plan=execution_plan,
+            selected_program=selected_program,
+            executor="runtime_executor",
+            policy_result=policy_result,
+            emit=self._emit,
+        )
+        runtime_context["execution_authority"] = authorized.facts.get("runtime_execution_authority", {})
+        executor_result = RuntimeExecutor(
+            handlers=self.step_handlers,
+            services=self.step_services,
+            domain_context=self.domain_context,
+        ).execute(
+            event=event,
+            state=authorized,
+            execution_plan=execution_plan,
+            initial_policy_result=policy_result,
+            initial_tool_evidence=tool_evidence,
+            initial_runtime_context=runtime_context,
+            conversation_state=conversation_state,
+            execution_mode=ToolExecutionMode.OFFICIAL,
+        )
+        official_state = self._apply_execution_step_outcomes(
+            executor_result.final_state or authorized,
+            executor_result.outcomes,
+        )
+        legacy_projection = self.legacy_runtime.with_services(
+            self._services_with_memory(legacy_memory)
+        ).project(
+            event=event,
+            prepared=prepared,
+            execution_plan=execution_plan,
+            policy_result=policy_result,
+            policy_outcome=policy_outcome,
+            tool_evidence=executor_result.tool_evidence or tool_evidence,
+            conversation_state=conversation_state,
+            intent_match=intent_match,
+            action_plan=action_plan,
+            execution_flow=execution_flow,
+        )
+        comparison = compare_runtime_executions(
+            official_state=official_state,
+            shadow_result=legacy_projection,
+            official_engine="runtime_executor",
+            shadow_engine="legacy_runtime_validation",
+        )
+        facts = dict(official_state.facts)
+        facts["runtime_executor_shadow"] = comparison.to_dict()
+        facts["runtime_executor_adoption"] = {
+            "contract": "runtime_executor_controlled_adoption.v1",
+            "slice": _adoption_slice_for_flow(execution_plan.flow),
+            "migrated_flows": _runtime_executor_official_flows(),
+            "flow": execution_plan.flow,
+            "kernel_program": execution_plan.kernel_program,
+        }
+        facts["runtime_execution_engine"] = self._runtime_execution_engine_record(
+            execution_plan=execution_plan,
+            official_engine="runtime_executor",
+            validation_engine="legacy_runtime_validation",
+            selection_reason=f"migrated_flow_{_adoption_slice_for_flow(execution_plan.flow)}",
+            comparison=comparison.to_dict(),
+        )
+        updated = official_state.evolve("RUNTIME_EXECUTOR_ADOPTION", facts=facts)
+        self._emit(
+            "runtime.executor_adoption_compared",
+            runtime_execution_engine=facts["runtime_execution_engine"],
+            runtime_executor_shadow=comparison.to_dict(),
+        )
+        return self.conversation_manager.after_process(updated)
+
+    def _record_runtime_executor_shadow(
+        self,
+        official_state: CognitiveState,
+        *,
+        event: Event,
+        shadow_start_state: CognitiveState,
+        execution_plan: ExecutionPlan,
+        conversation_state: ConversationState,
+    ) -> CognitiveState:
+        shadow_services = self._services_with_memory(_clone_memory_engine(self.memory_engine))
+        shadow = RuntimeExecutor(
+            handlers=self.step_handlers,
+            services=shadow_services,
+            domain_context=self.domain_context,
+        ).execute(
+            event=event,
+            state=shadow_start_state,
+            execution_plan=execution_plan,
+            initial_tool_evidence=official_state.tool_evidence,
+            conversation_state=conversation_state,
+            execution_mode=ToolExecutionMode.SHADOW,
+        )
+        comparison = compare_runtime_executions(
+            official_state=official_state,
+            shadow_result=shadow,
+            official_engine="legacy_runtime",
+            shadow_engine="runtime_executor_shadow",
+        )
+        facts = dict(official_state.facts)
+        facts["runtime_executor_shadow"] = comparison.to_dict()
+        facts["runtime_execution_engine"] = self._runtime_execution_engine_record(
+            execution_plan=execution_plan,
+            official_engine="legacy_runtime",
+            validation_engine="runtime_executor_shadow",
+            selection_reason="flow_not_migrated",
+            comparison=comparison.to_dict(),
+        )
+        updated = official_state.evolve("RUNTIME_EXECUTOR_SHADOW", facts=facts)
+        self._emit(
+            "runtime.executor_shadow_compared",
+            runtime_execution_engine=facts["runtime_execution_engine"],
+            runtime_executor_shadow=comparison.to_dict(),
+        )
+        return self.conversation_manager.after_process(updated)
+
+    def _runtime_execution_engine_record(
+        self,
+        *,
+        execution_plan: ExecutionPlan,
+        official_engine: str,
+        validation_engine: str,
+        selection_reason: str,
+        comparison: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        return {
+            "contract": "runtime_execution_engine.v1",
+            "official_engine": official_engine,
+            "validation_engine": validation_engine,
+            "selection_reason": selection_reason,
+            "flow": execution_plan.flow,
+            "kernel_program": execution_plan.kernel_program,
+            "tool_executions": _tool_executions_from_comparison(comparison),
+            "interruption": _interruption_from_comparison(comparison, official_engine=official_engine),
+            "comparison": {
+                "available": True,
+                "equivalent": bool(comparison.get("equivalent")),
+                "equivalence_score": comparison.get("equivalence_score"),
+                "equivalence_percentage": round(float(comparison.get("equivalence_score") or 0.0) * 100, 2),
+                "divergence_count": len(comparison.get("divergences", [])),
+                "divergences": [dict(divergence) for divergence in comparison.get("divergences", [])],
+            },
+        }
 
     def process(self, event: Event, state: CognitiveState | None = None) -> CognitiveState:
         started_perf = perf_counter()
         started_at = utc_now_iso()
         trace_id = str(uuid4())
         self._emit("runtime.process.started", trace_id=trace_id, input_event_type=event.type)
-        conversation_state = self.conversation_manager.before_process(event, state)
+        turn_context = self.conversation_manager.begin_turn(event, state)
+        conversation_state = turn_context.cognitive_state
+        operational_conversation_state = turn_context.conversation_state
         intent_match = self.intent_matcher.match(event.payload)
+        if turn_context.slot_resolutions:
+            intent_match = _intent_from_slot_resolution(
+                intent_match,
+                turn_context.slot_resolutions,
+                operational_conversation_state,
+            )
         with_intent = conversation_state.evolve("INTENT_MATCH", intent_match=intent_match.to_dict())
         self._emit("runtime.intent_matched", intent_match=intent_match.to_dict())
 
@@ -243,42 +440,69 @@ class ACAOSRuntime:
         with_decision_graph = with_execution_plan.evolve("DECISION_GRAPH", facts=facts)
         self._emit("runtime.decision_graph_created", decision_graph=decision_graph.to_dict())
 
-        prepared = self.mission_manager.before_kernel(event, with_decision_graph)
-
-        policy_result = self.policy_manager.evaluate(
-            prepared,
+        prepared = self.mission_manager.before_kernel(
             event,
-            domain_context=self.domain_context,
+            with_decision_graph,
+            conversation_state=operational_conversation_state,
         )
-        tool_evidence = self._collect_tool_evidence(policy_result)
+        operational_conversation_state = self.conversation_manager.project_from_cognitive_state(
+            prepared,
+            source="runtime.prepared_state",
+        )
+        policy_execution = self.step_handlers.resolve("policy").execute(
+            StepExecutionContext(
+                state=prepared,
+                event=event,
+                execution_plan=execution_plan,
+                step=step_from_plan(execution_plan, "policy"),
+                services=self.step_services,
+                conversation_state=operational_conversation_state,
+                domain_context=self.domain_context,
+            )
+        )
+        policy_result = policy_execution.policy_result or PolicyResult(decision=PolicyDecision.ALLOW, reason="missing_policy_result")
+        policy_outcome = policy_execution.outcome if plan_has_step(execution_plan, "policy") else None
         self._emit("runtime.policy_evaluated", policy_result=policy_result.to_dict())
 
-        if policy_result.decision == PolicyDecision.ESCALATE:
-            escalated = prepared.evolve(
-                "POLICY_ESCALATE",
-                response="No tengo acceso al expediente ni puedo confirmar estados reales. Puedo orientarte con informacion general o ayudarte a hablar con una persona.",
+        if _uses_runtime_executor_officially(execution_plan):
+            final_state = self._execute_runtime_executor_official(
+                event=event,
+                prepared=prepared,
+                execution_plan=execution_plan,
+                policy_result=policy_result,
+                policy_outcome=policy_outcome,
+                tool_evidence={},
+                conversation_state=operational_conversation_state,
+                intent_match=intent_match,
+                action_plan=action_plan,
+                execution_flow=execution_flow,
             )
-            final_state = self._finalize_state(escalated, policy_result, tool_evidence)
+            final_state = self._attach_conversation_state_runtime_record(final_state)
             self._emit("runtime.process.completed", trace_id=trace_id, final_version=final_state.version)
             self._record_trace(final_state, trace_id, started_at, started_perf, event)
             return final_state
 
-        graph = self.compiler.compile(event, prepared)
-        processed = self.kernel.run(
-            event,
-            graph,
-            prepared,
-            context={
-                "intent_match": intent_match.to_dict(),
-                "action_plan": action_plan.to_dict(),
-                "execution_flow": execution_flow.to_dict(),
-                "execution_plan": execution_plan.to_dict(),
-                "policy_result": policy_result.to_dict(),
-                "tool_evidence": tool_evidence,
-            },
+        legacy_result = self.legacy_runtime.execute(
+            event=event,
+            prepared=prepared,
+            execution_plan=execution_plan,
+            policy_result=policy_result,
+            policy_outcome=policy_outcome,
+            tool_evidence={},
+            conversation_state=operational_conversation_state,
+            intent_match=intent_match,
+            action_plan=action_plan,
+            execution_flow=execution_flow,
         )
-
-        final_state = self._finalize_state(processed, policy_result, tool_evidence)
+        final_state = legacy_result.final_state or prepared
+        final_state = self._record_runtime_executor_shadow(
+            final_state,
+            event=event,
+            shadow_start_state=prepared,
+            execution_plan=execution_plan,
+            conversation_state=operational_conversation_state,
+        )
+        final_state = self._attach_conversation_state_runtime_record(final_state)
         self._emit("runtime.process.completed", trace_id=trace_id, final_version=final_state.version)
         self._record_trace(final_state, trace_id, started_at, started_perf, event)
         return final_state
@@ -446,3 +670,118 @@ class ACAOSRuntime:
         left_session = self.load_session(left) if isinstance(left, str) else left
         right_session = self.load_session(right) if isinstance(right, str) else right
         return left_session.compare(right_session)
+
+
+def _uses_runtime_executor_officially(execution_plan: ExecutionPlan) -> bool:
+    return execution_plan.flow in _runtime_executor_official_flows()
+
+
+def _intent_from_slot_resolution(
+    original: IntentMatch,
+    slot_resolutions: tuple[Dict[str, Any], ...],
+    conversation_state: ConversationState,
+) -> IntentMatch:
+    actionable = [
+        resolution
+        for resolution in slot_resolutions
+        if not resolution.get("repeated")
+    ]
+    if not actionable and (conversation_state.active_mission or {}).get("missing"):
+        actionable = list(slot_resolutions)
+    if not actionable:
+        return original
+    mission_type = (conversation_state.active_mission or {}).get("type")
+    if mission_type == "auto_claim_guidance":
+        confidence = max(float(resolution.get("confidence") or 0.0) for resolution in actionable)
+        return IntentMatch(
+            intent="auto_claim_guidance",
+            confidence=round(max(confidence, 0.75), 2),
+            matched_terms=[str(resolution.get("slot")) for resolution in actionable],
+            reason="pending_question_answer",
+        )
+    return original
+
+
+def _runtime_executor_official_flows() -> list[str]:
+    return [
+        "fallback",
+        "guided_process",
+        "human_handoff",
+        "knowledge_lookup",
+        "safe_escalation",
+        "static_response",
+    ]
+
+
+def _adoption_slice_for_flow(flow: str) -> str:
+    if flow in {"human_handoff", "safe_escalation"}:
+        return "slice_4"
+    if flow == "knowledge_lookup":
+        return "slice_3"
+    if flow == "guided_process":
+        return "slice_2"
+    return "slice_1"
+
+
+def _tool_executions_from_comparison(comparison: Dict[str, Any]) -> list[Dict[str, Any]]:
+    executions = []
+    official = comparison.get("official", {})
+    if not isinstance(official, dict):
+        return executions
+    for outcome in official.get("outcomes", []):
+        if not isinstance(outcome, dict):
+            continue
+        result = outcome.get("result", {})
+        if not isinstance(result, dict):
+            continue
+        execution = result.get("tool_execution")
+        if isinstance(execution, dict) and execution:
+            executions.append(dict(execution))
+    return executions
+
+
+def _interruption_from_comparison(comparison: Dict[str, Any], *, official_engine: str) -> Dict[str, Any]:
+    official = comparison.get("official", {})
+    if not isinstance(official, dict):
+        return {"present": False}
+
+    outcomes = official.get("outcomes", [])
+    if not isinstance(outcomes, list):
+        return {"present": False}
+
+    policy_outcome = _first_outcome(outcomes, "policy")
+    interruption_outcome = _first_outcome(outcomes, "handoff") or _first_outcome(outcomes, "escalation")
+    source = policy_outcome or interruption_outcome
+    interruption = dict((source or {}).get("interruption") or {})
+    if not interruption:
+        return {"present": False}
+
+    execution_plan = official.get("execution_plan", {})
+    flow = str(execution_plan.get("flow", "")) if isinstance(execution_plan, dict) else ""
+    step = str((interruption_outcome or {}).get("step") or "")
+    return {
+        "present": True,
+        "type": flow or step,
+        "step": step,
+        "origin_component": str((policy_outcome or {}).get("executor") or "policy_manager"),
+        "executed_by": official_engine,
+        "reason": interruption.get("reason"),
+        "triggered_rules": list(interruption.get("triggered_rules") or []),
+        "result": dict((interruption_outcome or {}).get("result") or {}),
+    }
+
+
+def _first_outcome(outcomes: list[Any], step_name: str) -> Dict[str, Any] | None:
+    for outcome in outcomes:
+        if isinstance(outcome, dict) and outcome.get("step") == step_name:
+            return outcome
+    return None
+
+
+def _clone_memory_engine(memory_engine: MemoryEngine) -> MemoryEngine:
+    clone = MemoryEngine()
+    clone.working = deepcopy(memory_engine.working)
+    clone.episodic = deepcopy(memory_engine.episodic)
+    clone.semantic = deepcopy(memory_engine.semantic)
+    clone.procedural = deepcopy(memory_engine.procedural)
+    return clone

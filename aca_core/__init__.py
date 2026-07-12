@@ -16,6 +16,7 @@ from aca_core.platform_plugins import (
     PluginTraceRecorder,
     RouteDecision,
 )
+from aca_core.text import collapse_spaces, normalize_search_text, normalize_text, repair_mojibake
 
 __all__ = [
     "CapabilityRegistry",
@@ -34,4 +35,8 @@ __all__ = [
     "PluginStateStore",
     "PluginTraceRecorder",
     "RouteDecision",
+    "collapse_spaces",
+    "normalize_search_text",
+    "normalize_text",
+    "repair_mojibake",
 ]

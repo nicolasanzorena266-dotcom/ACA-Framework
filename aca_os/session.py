@@ -142,14 +142,20 @@ class ExecutionSession:
     def compare(self, other: "ExecutionSession") -> Dict[str, Any]:
         left_ops = list(self.trace.get("operations", []))
         right_ops = list(other.trace.get("operations", []))
+        left_canonical_ops = _canonical_operations_for_compare(left_ops)
+        right_canonical_ops = _canonical_operations_for_compare(right_ops)
         left_facts = set((self.state.get("facts") or {}).keys())
         right_facts = set((other.state.get("facts") or {}).keys())
         return {
             "left_session_id": self.session_id,
             "right_session_id": other.session_id,
             "same_response": self.output.get("response") == other.output.get("response"),
-            "same_operations": left_ops == right_ops,
+            "same_operations": left_canonical_ops == right_canonical_ops,
             "operation_delta": {
+                "left_only": [op for op in left_canonical_ops if op not in right_canonical_ops],
+                "right_only": [op for op in right_canonical_ops if op not in left_canonical_ops],
+            },
+            "raw_operation_delta": {
                 "left_only": [op for op in left_ops if op not in right_ops],
                 "right_only": [op for op in right_ops if op not in left_ops],
             },
@@ -159,3 +165,19 @@ class ExecutionSession:
             },
             "state_version_delta": (self.state.get("version") or 0) - (other.state.get("version") or 0),
         }
+
+
+def _canonical_operations_for_compare(operations: list[str]) -> list[str]:
+    ignored = {
+        "CONVERSATION_STATE_PROJECT",
+        "CONVERSATION_STATE_RUNTIME",
+    }
+    canonical: list[str] = []
+    for operation in operations:
+        if operation in ignored:
+            continue
+        if operation == "MISSION_LOAD_FROM_CONVERSATION_STATE":
+            canonical.append("MISSION_CREATE")
+        else:
+            canonical.append(operation)
+    return canonical

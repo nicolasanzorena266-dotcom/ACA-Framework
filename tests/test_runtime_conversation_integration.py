@@ -28,5 +28,33 @@ def test_runtime_tracks_conversation_session():
 
     assert session is not None
     assert session.active_state == state
+    assert session.conversation_state == conversation_manager.conversation_state("conv-runtime")
     assert len(session.turns) == 1
     assert state.active_mission["type"] == "auto_claim_guidance"
+
+
+def test_runtime_exposes_operational_conversation_state_record():
+    conversation_manager = ConversationManager()
+    runtime = ACAOSRuntime(
+        kernel=ACAKernel(build_default_registry()),
+        compiler=GraphCompiler(),
+        mission_manager=MissionManager(),
+        conversation_manager=conversation_manager,
+    )
+
+    state = runtime.process(
+        Event(
+            type="user_message",
+            payload="Me chocaron ayer",
+            metadata={"conversation_id": "conv-runtime-record"},
+        )
+    )
+    record = state.facts["conversation_state_runtime"]
+    snapshot = runtime.inspect_runtime().to_dict()
+
+    assert record["contract"] == "conversation_state_runtime.v1"
+    assert record["operational_owner"] == "conversation_manager"
+    assert record["initial_state"]["conversation_id"] == "conv-runtime-record"
+    assert record["final_state"]["active_mission"]["type"] == "auto_claim_guidance"
+    assert "mission_manager" in record["modifying_components"]
+    assert snapshot["last_state"]["conversation_state_runtime"]["available"] is True

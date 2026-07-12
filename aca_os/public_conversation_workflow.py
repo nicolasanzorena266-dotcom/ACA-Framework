@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from aca_core.text import normalize_search_text
 from aca_os.public_conversation_contracts import (
     InteractionSignals,
     PlannerDecision,
@@ -12,7 +13,6 @@ from aca_os.public_conversation_contracts import (
     TraceBundle,
     contains_any,
     make_trace_id,
-    normalize_text,
     now_ms,
 )
 from aca_os.public_conversation_state import PublicConversationState
@@ -41,7 +41,7 @@ class SemanticUnderstandingLayer:
     """
 
     def parse(self, *, message: str, state: PublicConversationState | None, entities: Mapping[str, Any] | None = None) -> SemanticParse:
-        text = normalize_text(message)
+        text = normalize_search_text(message, typo_tolerant=True)
         entities = dict(entities or {})
         known: list[str] = []
         missing: list[str] = []
@@ -508,7 +508,7 @@ def _public_context(*, state: PublicConversationState | None, merged: Mapping[st
 
 
 def _signature(text: str) -> str:
-    words = normalize_text(text).split()
+    words = normalize_search_text(text, typo_tolerant=True).split()
     return " ".join(words[:22])
 
 

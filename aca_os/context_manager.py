@@ -25,6 +25,15 @@ class ContextBundle:
             "domain_context": self.domain_context,
         }
 
+    def to_conversation_state(self, *, conversation_id: str = "derived-context", turn_count: int = 0):
+        from aca_os.conversation_state import ConversationState
+
+        return ConversationState.from_context_bundle(
+            self.to_dict(),
+            conversation_id=conversation_id,
+            turn_count=turn_count,
+        )
+
 
 class ContextManager:
     def build(

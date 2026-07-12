@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List
 
-from aca_os.text import normalize_text
+from aca_core.text import normalize_text
 
 
 @dataclass(frozen=True)

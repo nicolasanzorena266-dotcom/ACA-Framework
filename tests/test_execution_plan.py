@@ -14,6 +14,7 @@ def test_execution_plan_can_be_built_from_execution_flow():
 
     assert plan.flow == "knowledge_lookup"
     assert plan.source_action == "knowledge_lookup"
+    assert plan.kernel_program == "knowledge_lookup"
     assert plan.step_names() == [
         "policy",
         "tool_lookup",
@@ -45,6 +46,7 @@ def test_execution_plan_is_serializable():
             {"name": "output", "required": True, "payload": {}},
         ],
         "source_action": "safe_escalation",
+        "kernel_program": "fallback",
         "payload": {"reason": "requires_real_claim_data"},
         "reason": "zero_cost_execution_plan",
     }
@@ -54,3 +56,24 @@ def test_execution_plan_falls_back_to_output_step_when_flow_has_no_steps():
     plan = ExecutionPlan.from_flow({"flow": "fallback", "source_action": "fallback_response"})
 
     assert plan.step_names() == ["output"]
+
+
+def test_execution_plan_names_authorized_kernel_program():
+    greeting = ExecutionPlan.from_flow(
+        {
+            "flow": "static_response",
+            "steps": ["kernel", "memory", "context", "output"],
+            "source_action": "static_response",
+            "payload": {"message_key": "greeting"},
+        }
+    )
+    guided = ExecutionPlan.from_flow(
+        {
+            "flow": "guided_process",
+            "steps": ["policy", "kernel", "memory", "context", "output"],
+            "source_action": "process_guidance",
+        }
+    )
+
+    assert greeting.kernel_program == "greeting"
+    assert guided.kernel_program == "auto_claim_guidance"

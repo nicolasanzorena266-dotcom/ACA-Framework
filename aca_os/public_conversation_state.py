@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
+from aca_core.text import normalize_search_text, normalize_text
 
 @dataclass(frozen=True)
 class PublicConversationState:
@@ -51,6 +51,62 @@ class PublicConversationState:
             "last_response_signature": self.last_response_signature,
         }
 
+    def to_conversation_state(
+        self,
+        *,
+        semantic_parse: Mapping[str, Any] | None = None,
+        planner_decision: Mapping[str, Any] | None = None,
+        supervisor_result: Mapping[str, Any] | None = None,
+        context_bundle: Mapping[str, Any] | None = None,
+    ):
+        from aca_os.conversation_state import ConversationState
+
+        return ConversationState.from_public_state(
+            self,
+            semantic_parse=semantic_parse,
+            planner_decision=planner_decision,
+            supervisor_result=supervisor_result,
+            context_bundle=context_bundle,
+        )
+
+    @classmethod
+    def from_conversation_state(
+        cls,
+        conversation_state: Any,
+        *,
+        existing: "PublicConversationState | None" = None,
+    ) -> "PublicConversationState":
+        """Build the public-demo view from the canonical conversation contract."""
+
+        focus = dict(getattr(conversation_state, "focus", {}) or {})
+        product = dict(getattr(conversation_state, "product_state", {}) or {})
+        goals = list(getattr(conversation_state, "goals", []) or [])
+        slots = dict(getattr(conversation_state, "slots", {}) or {})
+        facts = dict(getattr(conversation_state, "confirmed_facts", {}) or {})
+        strategy = dict(getattr(conversation_state, "conversational_strategy", {}) or {})
+        signals = dict(getattr(conversation_state, "user_signals", {}) or {})
+        last_act = dict(getattr(conversation_state, "last_conversational_act", {}) or {})
+        base = existing or cls(conversation_id=str(getattr(conversation_state, "conversation_id", "public")))
+        return replace(
+            base,
+            conversation_id=str(getattr(conversation_state, "conversation_id", base.conversation_id)),
+            turn_count=int(getattr(conversation_state, "turn_count", base.turn_count) or 0),
+            active_goal=_first_goal_name(goals) or base.active_goal,
+            active_topic=focus.get("active_topic") or base.active_topic,
+            active_case_id=focus.get("active_case_id") or base.active_case_id,
+            active_claim_type=focus.get("active_claim_type") or base.active_claim_type,
+            last_category=last_act.get("category") or product.get("last_category") or base.last_category,
+            fallback_count=int(product.get("fallback_count", base.fallback_count) or 0),
+            confusion_count=int(product.get("confusion_count", base.confusion_count) or 0),
+            frustration_count=int(product.get("frustration_count", base.frustration_count) or 0),
+            known_facts=tuple(_fact_tokens(facts)),
+            missing_facts=tuple(name for name, slot in slots.items() if slot.get("status") == "pending"),
+            interaction_signals=signals or base.interaction_signals,
+            control_state=dict(product.get("control_state") or base.control_state or {}),
+            next_action_suggested=strategy.get("next_action") or base.next_action_suggested,
+            last_response_signature=product.get("last_response_signature") or base.last_response_signature,
+        )
+
 
 _STATES: dict[str, PublicConversationState] = {}
 
@@ -84,8 +140,7 @@ def update_public_conversation_state(
     next_action: str | None = None,
     response_text: str | None = None,
 ) -> PublicConversationState:
-    normalized = _norm(message)
-    readable = _readable_norm(message)
+    readable = normalize_text(message)
     semantic = dict(semantic_parse or {})
     semantic_entities = dict(semantic.get("entities") or {})
     case_id = str(entities.get("case_id") or semantic_entities.get("case_id") or state.active_case_id or "") or None
@@ -144,11 +199,11 @@ def update_public_conversation_state(
 
 
 def _detect_claim_type(normalized: str) -> str | None:
-    if any(word in normalized for word in ["choque", "colision", "colisión", "me chocaron", "accidente"]):
+    if any(word in normalized for word in ["choque", "colision", "colisiÃ³n", "me chocaron", "accidente"]):
         return "choque"
     if any(word in normalized for word in ["cristal", "vidrio", "parabrisas", "luneta"]):
         return "cristales"
-    if any(word in normalized for word in ["robo", "robaron", "rueda", "bateria", "batería", "estereo", "estéreo"]):
+    if any(word in normalized for word in ["robo", "robaron", "rueda", "bateria", "baterÃ­a", "estereo", "estÃ©reo"]):
         return "robo parcial"
     if "franqui" in normalized or "franquisia" in normalized:
         return "franquicia"
@@ -156,28 +211,39 @@ def _detect_claim_type(normalized: str) -> str | None:
 
 
 def _is_confusion_or_short_reply(normalized: str) -> bool:
-    return normalized.strip(" .!?¿¡") in {"eh", "ehh", "que", "qué", "bueno", "bue", "bueh", "ok", "okay", "y", "aja", "ajá"}
+    return normalized.strip(" .!?Â¿Â¡") in {"eh", "ehh", "que", "quÃ©", "bueno", "bue", "bueh", "ok", "okay", "y", "aja", "ajÃ¡"}
 
 
 def _is_frustrated(normalized: str) -> bool:
-    return any(phrase in normalized for phrase in ["bue", "no sirve", "inutil", "inútil", "solo podes", "solo podés", "no entendes", "no entendés", "no tenes ia", "no tenés ia", "no estas siendo", "ya me dijiste", "no ayuda", "mostrame"])
+    return any(phrase in normalized for phrase in ["bue", "no sirve", "inutil", "inÃºtil", "solo podes", "solo podÃ©s", "no entendes", "no entendÃ©s", "no tenes ia", "no tenÃ©s ia", "no estas siendo", "ya me dijiste", "no ayuda", "mostrame"])
 
 
 def _is_capability_question(normalized: str) -> bool:
-    compact = normalized.replace("¿", "").replace("?", "")
-    return any(phrase in compact for phrase in ["que podes hacer", "qué podés hacer", "que podés hacer", "que puedes hacer", "podes hacer algo", "podés hacer algo", "que haces", "qué haces"])
-
-
-def _readable_norm(value: str) -> str:
-    return "".join(ch for ch in unicodedata.normalize("NFD", value.lower()) if unicodedata.category(ch) != "Mn").strip()
-
-
-def _norm(value: str) -> str:
-    return value.lower().strip()
+    compact = normalize_search_text(normalized)
+    return any(phrase in compact for phrase in ["que podes hacer", "quÃ© podÃ©s hacer", "que podÃ©s hacer", "que puedes hacer", "podes hacer algo", "podÃ©s hacer algo", "que haces", "quÃ© haces"])
 
 
 def _signature(value: str | None) -> str | None:
     if not value:
         return None
-    words = _readable_norm(value).split()
+    words = normalize_text(value).split()
     return " ".join(words[:22])
+
+
+def _first_goal_name(goals: list[Mapping[str, Any]]) -> str | None:
+    for goal in goals:
+        if isinstance(goal, Mapping) and goal.get("name"):
+            return str(goal["name"])
+    return None
+
+
+def _fact_tokens(facts: Mapping[str, Any]) -> list[str]:
+    tokens: list[str] = []
+    for key, value in facts.items():
+        if key.startswith("entity."):
+            continue
+        if value is True:
+            tokens.append(str(key))
+        else:
+            tokens.append(f"{key}:{value}")
+    return tokens

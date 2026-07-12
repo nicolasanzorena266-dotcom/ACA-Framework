@@ -10,6 +10,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence
 
+from aca_core.text import normalize_search_text
+
 _PLUGIN_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
 _CAPABILITY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*(?:[._][a-z][a-z0-9_]*)*$")
 _SUPPORTED_API_VERSIONS = {1}
@@ -579,7 +581,7 @@ class CapabilityRouter:
         return RouteDecision(None, None, 0, "no_capability", ())
 
     def _route_by_text(self, text: str) -> RouteDecision:
-        normalized = _normalize(text)
+        normalized = normalize_search_text(text)
         if not normalized:
             return RouteDecision(None, None, 0, "empty_text", ())
 
@@ -590,10 +592,10 @@ class CapabilityRouter:
                 candidate = semantic_candidate
                 if best is None or candidate > best:
                     best = candidate
-            searchable = _normalize(" ".join([plugin.domain_id, plugin.manifest.plugin.display_name, *plugin.supported_capabilities]))
+            searchable = normalize_search_text(" ".join([plugin.domain_id, plugin.manifest.plugin.display_name, *plugin.supported_capabilities]))
             score = sum(1 for token in normalized.split() if token and token in searchable)
             for capability in plugin.supported_capabilities:
-                capability_words = _normalize(capability).split()
+                capability_words = normalize_search_text(capability).split()
                 score += sum(3 for word in capability_words if word and word in normalized)
                 if score > 0 and self.policy_engine.allows(plugin.domain_id, capability):
                     candidate = (score, plugin.domain_id, capability)
@@ -945,10 +947,6 @@ class PluginRuntime:
         if not callable(plan):
             return {}, False
         return dict(plan(context) or {}), True
-
-
-def _normalize(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
 def _safe_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:

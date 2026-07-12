@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping
 
+from aca_core.text import normalize_search_text, normalize_text
 from aca_os.execution_trace import sanitize
 from aca_os.representative_answer_composer import RepresentativeAnswerComposer
 from aca_os.public_conversation_state import (
@@ -207,7 +208,7 @@ def _select_pack(packs: Iterable[Mapping[str, Any]], *, pack_name: str | None, m
                 return pack
         raise KeyError(f"Domain Pack not found in loaded demo root: {pack_name}")
 
-    normalized = _norm(message)
+    normalized = normalize_text(message)
     if any(word in normalized for word in ["process", "workflow", "metric", "kpi", "bottleneck", "operation"]):
         for pack in pack_list:
             if pack.get("name") == "example.operations_basic":
@@ -220,13 +221,13 @@ def _select_pack(packs: Iterable[Mapping[str, Any]], *, pack_name: str | None, m
 
 def _match_intent(pack: Mapping[str, Any], message: str) -> Mapping[str, Any]:
     intents = _asset_items(pack, "intents", "intents")
-    normalized = _norm(message)
+    normalized = normalize_text(message)
     scored: list[tuple[int, Mapping[str, Any]]] = []
     for intent in intents:
         score = 0
         for utterance in intent.get("utterances", []):
-            words = [word for word in _norm(str(utterance)).split() if len(word) > 2]
-            if _norm(str(utterance)) in normalized:
+            words = [word for word in normalize_text(str(utterance)).split() if len(word) > 2]
+            if normalize_text(str(utterance)) in normalized:
                 score += 6
             score += sum(1 for word in words if word in normalized)
         name = str(intent.get("name", ""))
@@ -273,7 +274,7 @@ def _match_flow(pack: Mapping[str, Any], intent: Mapping[str, Any]) -> Mapping[s
 
 
 def _extract_entities(*, message: str, intent: Mapping[str, Any], pack: Mapping[str, Any], state: Any | None = None) -> Dict[str, Any]:
-    normalized = _norm(message)
+    normalized = normalize_text(message)
     entities: Dict[str, Any] = {}
     match = re.search(r"\b(?:case|ticket|request)?\s*#?\s*(\d{3,})\b", normalized)
     if match:
@@ -310,7 +311,7 @@ def _render_response(*, message: str, pack: Mapping[str, Any], intent: Mapping[s
 
 
 def _is_identity_question(normalized: str) -> bool:
-    compact = normalized.replace("¿", "").replace("?", "")
+    compact = normalize_search_text(normalized)
     return any(phrase in compact for phrase in [
         "sos un bot",
         "eres un bot",
@@ -323,7 +324,7 @@ def _is_identity_question(normalized: str) -> bool:
 
 
 def _is_capability_question(normalized: str) -> bool:
-    compact = normalized.replace("¿", "").replace("?", "")
+    compact = normalize_search_text(normalized)
     return any(phrase in compact for phrase in [
         "no tenes ia",
         "no tienes ia",
@@ -339,7 +340,7 @@ def _is_capability_question(normalized: str) -> bool:
 
 
 def _is_confusion_question(normalized: str) -> bool:
-    compact = normalized.strip().replace("¿", "").replace("?", "")
+    compact = normalize_search_text(normalized)
     return compact in {"eh", "ehh", "que", "cómo", "como", "no entiendo", "no entendi", "no entendí"}
 
 def _asset_items(pack: Mapping[str, Any], asset_name: str, list_key: str) -> list[Mapping[str, Any]]:
@@ -356,7 +357,3 @@ def _asset_items(pack: Mapping[str, Any], asset_name: str, list_key: str) -> lis
 def _default_flow_name(pack: Mapping[str, Any]) -> str:
     flows = _asset_items(pack, "flows", "flows")
     return str(flows[0].get("name")) if flows else "demo.no_flow"
-
-
-def _norm(value: str) -> str:
-    return value.lower().strip()

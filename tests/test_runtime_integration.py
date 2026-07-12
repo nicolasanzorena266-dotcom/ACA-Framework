@@ -33,6 +33,11 @@ def test_runtime_integrates_tool_evidence_and_context_bundle():
 
     state = runtime.process(Event(type="user_message", payload="Que es el convenio CLEAS?"))
 
+    assert state.selected_program == "knowledge_lookup"
+    assert state.active_mission["type"] == "knowledge_lookup"
+    assert state.active_mission["concept_key"] == "cleas"
+    assert state.active_mission["blockers"] == []
+    assert "Convenio entre aseguradoras" in state.response
     assert state.tool_evidence["cleas"]["summary"].startswith("Convenio entre aseguradoras")
     assert state.context_bundle["tool_evidence"]["cleas"]["summary"].startswith("Convenio entre aseguradoras")
     assert state.context_bundle["domain_context"]["domain"] == "galicia"
