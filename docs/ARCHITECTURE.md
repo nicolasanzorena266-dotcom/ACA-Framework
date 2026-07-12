@@ -163,6 +163,325 @@ Every runtime turn records `facts["conversation_state_runtime"]` with:
 - field-level changes and responsible components;
 - projections generated during the turn.
 
+## Conversational act recognition
+
+Before intent matching, ACA recognizes the conversational act of the incoming
+turn through `ConversationState`. This is not a replacement for intent
+matching. Intent matching still decides domain intent; conversational-act
+recognition decides what the user is doing inside the conversation.
+
+The contract is `conversational_act.v1`. Each act records:
+
+- `act`;
+- `confidence`;
+- `evidence`;
+- `component`;
+- `turn`;
+- `reason`;
+- `target`;
+- `impact`;
+- `alternatives`.
+
+Supported act types are:
+
+- `pending_answer`;
+- `confirmation`;
+- `negation`;
+- `correction`;
+- `clarification`;
+- `clarification_request`;
+- `topic_shift`;
+- `continuation`;
+- `recap_request`;
+- `simplification_request`;
+- `deepening_request`;
+- `closing`;
+- `new_information`;
+- `unknown`.
+
+The selected act is stored as `ConversationState.last_conversational_act` and
+projected into the runtime as `facts["conversation_act"]`. The full
+turn-scoped recognition trace is projected as
+`facts["conversation_act_recognition"]` and exposed through
+`conversation_state_runtime`.
+
+The act influences the next cognitive phases without becoming a second intent
+classifier:
+
+- pending answers guide slot resolution;
+- correction acts guide fact revision;
+- continuation and response-shaping acts preserve the active mission instead
+  of restarting the flow;
+- recap, simplification, deepening and topic-shift requests create explicit
+  conversational goals before response generation.
+
+## Conversational goals and strategy application
+
+Recognizing an act is not enough. ACA converts each recognized act into a
+`conversational_goal.v1` contract before entering the Kernel. The cycle is:
+
+```text
+ConversationalAct
+  -> ConversationalGoal
+  -> Strategy
+  -> Response
+  -> Fulfillment evaluation
+```
+
+Each goal records:
+
+- originating act;
+- conversational intention;
+- selected strategy;
+- success criteria;
+- abandonment criteria;
+- priority;
+- expected mission impact;
+- evidence used;
+- fulfillment status.
+
+Supported strategies are:
+
+- `respond`;
+- `simplify`;
+- `deepen`;
+- `summarize`;
+- `continue`;
+- `repair`;
+- `switch_topic`;
+- `close`;
+- `ask_clarification`.
+
+`ConversationState` owns goal creation. The Kernel consumes the generated
+strategy and response plan; it should not independently infer what a
+`simplification_request`, `recap_request` or `topic_shift` means.
+
+The active goal is projected as `facts["conversation_goal"]`. At turn commit,
+`ConversationManager` evaluates fulfillment against the generated response and
+updates the same goal trace with:
+
+- `satisfied`;
+- fulfillment status;
+- strategy checks;
+- whether a second attempt is needed;
+- whether strategy should change.
+
+This Sprint does not introduce advanced strategy repair, hypothesis revision or
+multi-step conversational planning. It makes strategy application explicit and
+observable for the acts ACA already recognizes.
+
+## Conversational focus and topic stack
+
+ACA operationalizes conversational focus through `topic_stack.v1`, owned by
+`ConversationState` and managed by `ConversationManager` at the beginning of
+each turn. The stack is not a loose `active_topic` string: each entry is a
+`conversation_topic.v1` object with:
+
+- `id`;
+- `type`;
+- associated mission type and mission goal;
+- associated conversational goal;
+- priority;
+- lifecycle status;
+- creation turn;
+- last active turn;
+- associated facts;
+- associated slots;
+- short operational summary.
+
+Topic lifecycle states are:
+
+- `active`;
+- `suspended`;
+- `resumed`;
+- `completed`;
+- `abandoned`.
+
+The stack supports explicit focus transitions:
+
+- starting a mission creates or updates the active mission topic;
+- a new-topic request suspends the active topic and creates an unresolved topic;
+- return requests such as `volvamos a la denuncia` resume the matching
+  suspended topic;
+- indirect references such as `sobre lo anterior` resolve to a suspended topic
+  when there is enough evidence;
+- continuation requests such as `seguimos` resume the suspended mission topic
+  when the active topic is an unresolved interruption.
+
+Each transition is projected as `facts["conversation_topic_stack"]` and exposed
+through `conversation_state_runtime`. The trace records the active topic,
+suspended topic, resumed topic, transition reason, ambiguity when present, and
+the updated topic summary.
+
+Kernel response planning consumes the active topic summary from the
+conversational-goal response plan. Recap requests summarize the operational
+topic summary instead of reconstructing the whole conversation from raw turns.
+
+## Conversational response quality
+
+ACA decomposes user turns through `conversational_intent_model.v1` before
+building the response plan. This is a pragmatic comprehension layer, not a
+replacement for Intent Matching. Intent Matching still selects domain intent;
+the conversational intent model describes what the user is trying to resolve in
+the conversation.
+
+The intent model records:
+
+- `explicit_questions`: what the user literally asked or stated;
+- `implicit_questions`: practical questions implied by that utterance;
+- `dominant_concern`: the concern ACA should address first;
+- `user_goal`: what the user is trying to accomplish;
+- `user_assumptions`: assumptions suggested by the wording;
+- `missing_information`: facts still needed before making stronger claims;
+- `response_objective`: what the response should accomplish.
+
+For example, `Puedo arreglar el auto?` is modeled as:
+
+- explicit question: whether the car can be repaired;
+- implicit question: whether repairing it could affect the claim;
+- dominant concern: preserving the claim while needing the vehicle;
+- missing information: authorization status and damage evidence;
+- response objective: reduce uncertainty and explain how to preserve evidence.
+
+ACA then builds a `conversational_response_plan.v1` before response generation.
+The plan is owned by `ConversationState` and projected to the Kernel as
+`facts["conversation_response_plan"]`. It does not replace Intent, Action,
+Flow, Mission or Topic Stack; it decides how the response should prioritize the
+user-facing need using the conversational intent model as input.
+
+Before the response plan is finalized, ACA builds an `information_gain_plan.v1`.
+This plan separates missing information from useful clarification. The
+framework may know several facts are missing, but it only selects a user-facing
+question when the answer can change a decision or unblock the next cognitive
+step.
+
+The information-gain plan records:
+
+- `candidate_questions`: all clarification candidates considered for the turn;
+- `expected_information_gain`: decision value of the selected question;
+- `affected_decisions`: decisions that depend on the selected answer;
+- `estimated_cost`: conversational cost of asking it;
+- `blocking_level`: whether the missing information blocks progress;
+- `clarification_priority`: deterministic cost/benefit score;
+- `selected_question`: the single question ACA should ask now, if any.
+
+`ConversationalResponsePlan` consumes this selection and exposes only the
+chosen clarification in `required_information`. The Kernel must not rank or
+choose between missing facts; it only renders the selected question with its
+recorded purpose. If no candidate changes the current decision enough, ACA
+answers with the information already available and asks nothing.
+
+After Information Gain, ACA builds a persistent `conversation_plan.v1`. This is
+the dynamic conversational plan for the active turn. It does not replace the
+mission lifecycle or the Runtime `ExecutionPlan`: the mission still describes
+the domain objective, and the `ExecutionPlan` still governs runtime execution.
+`ConversationPlan` decides how the conversation should continue when new
+evidence changes the path.
+
+The conversation plan records:
+
+- `active_plan`: ordered operational steps for the active mission/topic;
+- `completed_steps`: steps already satisfied by facts, slots or prior turns;
+- `pending_steps`: steps still needed;
+- `abandoned_steps`: previously pending steps no longer present after
+  replanning;
+- `replanning_reason`: why the plan changed or remained valid;
+- `inserted_steps`: temporary side steps such as answering a lateral question;
+- `skipped_steps`: questions or steps avoided because new evidence made them
+  unnecessary or lower value;
+- `conversation_progress`: completed-step ratio and mission progress.
+
+`conversation_plan.v1` is intentionally persistent across turns. At the start
+of a new turn, ACA compares the previous plan with the new plan after slot
+resolution, fact assimilation, topic handling and Information Gain. This makes
+replanning auditable:
+
+- if the user answers two pending questions in one sentence, both steps become
+  completed;
+- if the user says `ya cargue todo`, report/documentation questions are skipped
+  because the facts are already available;
+- if the user asks a lateral question such as `cuanto tarda normalmente`, ACA
+  inserts a side step, answers it, and preserves the main pending step.
+
+The Kernel must not reorganize conversational steps. It receives the updated
+conversation plan through `facts["conversation_plan"]` and the response plan
+through `facts["conversation_response_plan"]`.
+
+After the Kernel generates the response, `ConversationManager` asks
+`ConversationState` to evaluate `conversation_fulfillment.v1`. This closes the
+deterministic conversational loop:
+
+```text
+ConversationalIntentModel
+  -> InformationGainPlan
+  -> ConversationPlan
+  -> ConversationalResponsePlan
+  -> Response
+  -> ConversationFulfillment
+  -> ConversationState
+```
+
+The fulfillment contract records:
+
+- `fulfilled_goal`: whether the turn objective was fulfilled, partially
+  fulfilled, not fulfilled, or failed;
+- `fulfilled_steps`: plan steps or response objectives satisfied by the turn;
+- `pending_steps`: steps still waiting after the response;
+- `failed_steps`: expected steps the user did not satisfy;
+- `recovery_actions`: deterministic next action such as resume, continue,
+  reask/reformulate or close;
+- `fulfillment_confidence`: deterministic confidence score;
+- `completion_reason`: why the turn is considered fulfilled, partial or failed.
+
+Fulfillment evaluation is not performed by the Kernel. The Kernel produces the
+response; `ConversationState` evaluates whether that response satisfied the
+plan. For example:
+
+- `Cuando me van a contactar?` can close the objective if the response answers
+  the process-progress concern and no blocking clarification remains;
+- `No hubo lesionados` partially fulfills the turn, completes the injuries
+  step, and leaves role confirmation pending;
+- if ACA asked about injuries and the user answers something unrelated, the
+  injuries step is marked failed and recovery selects reask/reformulate;
+- if ACA answers a lateral timing question, fulfillment records the side step
+  as satisfied and selects `resume_main_plan`.
+
+The fulfillment trace is projected as `facts["conversation_fulfillment"]` and
+included in `conversation_state_runtime`. It remains introspection-only and is
+not exposed as user-facing text.
+
+The response plan records:
+
+- `primary_user_need`;
+- `secondary_needs`;
+- `dominant_concern`;
+- `information_gain_plan`;
+- `conversation_plan`;
+- `response_priority`;
+- `next_action`;
+- `required_information`;
+- `unresolved_questions`.
+
+Response planning follows two conversational quality principles:
+
+- Cognitive opacity: internal decisions such as strategy changes, topic
+  suspension, avoidance of repetition, or mission mechanics remain available in
+  introspection but must not be exposed as user-facing text.
+- Question justification: every question ACA asks must have a recorded purpose,
+  and when natural the response should expose that purpose to the user.
+
+The expected response order is:
+
+1. acknowledge the dominant user concern;
+2. answer the primary need;
+3. explain the reason briefly;
+4. ask only the next useful question or indicate the next concrete step.
+
+For example, when the user says `No se si mande las fotos, pero lo que mas me
+preocupa es si puedo arreglar el auto`, ACA prioritizes the repair concern
+before the secondary photo-upload concern, then asks any required mission
+question with a purpose.
+
 ## Slot lifecycle
 
 ACA now resolves pending questions through `ConversationState` before normal

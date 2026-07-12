@@ -1,0 +1,260 @@
+{
+  "benchmark": "aca_cognitive_conversation_benchmark.v1",
+  "description": "Initial permanent benchmark for evaluating ACA cognitive conversation behavior with the real runtime.",
+  "domain": "galicia_insurance",
+  "scenarios": [
+    {
+      "id": "denuncia_basica_sin_lesionados",
+      "title": "Denuncia simple with slot completion",
+      "tags": ["denuncias", "slots", "facts", "mission_advancement"],
+      "turns": [
+        {"user": "Me chocaron ayer saliendo de casa y no se como seguir."},
+        {"user": "No hubo lesionados."},
+        {"user": "Soy asegurado de Galicia."},
+        {"user": "La denuncia ya esta cargada."},
+        {"user": "Tengo toda la documentacion."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_slot_resolution", "conversation_fact_assimilation", "conversation_plan", "conversation_fulfillment"],
+        "max_questions": 5,
+        "should_replan": true
+      }
+    },
+    {
+      "id": "consulta_cobertura_cristales",
+      "title": "Coverage question about glass damage",
+      "tags": ["consultas_cobertura", "knowledge", "single_question"],
+      "turns": [
+        {"user": "Se me rompio el cristal del auto, queria saber si eso lo cubre el seguro o tengo que pagarlo yo."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_response_plan"],
+        "max_questions": 1
+      }
+    },
+    {
+      "id": "consulta_franquicia",
+      "title": "Franchise explanation",
+      "tags": ["franquicia", "knowledge", "simplification"],
+      "turns": [
+        {"user": "Me dijeron que mi poliza tiene franquicia y no entiendo que significa eso."},
+        {"user": "Explicamelo mas simple."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_goal", "conversation_response_plan", "conversation_fulfillment"],
+        "max_questions": 1
+      }
+    },
+    {
+      "id": "consulta_cleas",
+      "title": "CLEAS process question",
+      "tags": ["CLEAS", "knowledge", "deepening"],
+      "turns": [
+        {"user": "Me nombraron CLEAS en el siniestro, que es?"},
+        {"user": "Contame mas, porque no se si me conviene."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_response_plan"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "documentacion_pendiente",
+      "title": "Documentation guidance without over-questioning",
+      "tags": ["documentacion", "missing_information", "questions_avoided"],
+      "turns": [
+        {"user": "Ya hice la denuncia pero no se que documentos me faltan para que avance."},
+        {"user": "Tengo fotos y presupuesto, pero no se si cargue la cedula."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_information_gain_plan", "conversation_response_plan"],
+        "max_questions": 3
+      }
+    },
+    {
+      "id": "tiempos_contacto",
+      "title": "Timing question should be answered before asking for data",
+      "tags": ["tiempos", "partial_answer_without_question"],
+      "turns": [
+        {"user": "Cuando me van a contactar? Ya pasaron unos dias y no se si mi caso esta bien encaminado."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_fulfillment"],
+        "max_questions": 0,
+        "final_goal_status": "fulfilled"
+      }
+    },
+    {
+      "id": "usuario_ansioso_auto_para_trabajar",
+      "title": "Anxious user with dominant concern",
+      "tags": ["usuarios_ansiosos", "dominant_concern", "implicit_concern"],
+      "turns": [
+        {"user": "Estoy bastante nervioso, necesito el auto para trabajar y no se si puedo tocarlo antes de que me respondan."},
+        {"user": "No tengo autorizacion todavia, solo saque fotos."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_response_plan", "conversation_information_gain_plan"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "cambio_tema_y_vuelta_denuncia",
+      "title": "Topic shift and return",
+      "tags": ["usuarios_que_cambian_de_tema", "topic_stack", "focus_recovery"],
+      "turns": [
+        {"user": "Me chocaron y quiero hacer la denuncia."},
+        {"user": "Ah, otra cosa, tambien queria saber que es CLEAS."},
+        {"user": "Bueno, volvamos a la denuncia."},
+        {"user": "No hubo lesionados."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_topic_stack", "conversation_plan"],
+        "should_recover_focus": true,
+        "max_questions": 4
+      }
+    },
+    {
+      "id": "correccion_lesionados",
+      "title": "Correction of a previously active fact",
+      "tags": ["usuarios_que_corrigen_informacion", "fact_revision", "mission_advancement"],
+      "turns": [
+        {"user": "Me chocaron ayer."},
+        {"user": "No hubo lesionados."},
+        {"user": "Perdon, si hubo lesionados."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_fact_revision", "conversation_mission_advancement"],
+        "max_questions": 3
+      }
+    },
+    {
+      "id": "responde_varias_preguntas_juntas",
+      "title": "Multiple answers in one turn",
+      "tags": ["usuarios_que_responden_varias_preguntas_juntas", "slots", "facts", "replanning"],
+      "turns": [
+        {"user": "Necesito hacer la denuncia por un choque."},
+        {"user": "No hubo lesionados y soy asegurado de Galicia."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_slot_resolution", "conversation_fact_assimilation", "conversation_plan"],
+        "max_questions": 2,
+        "should_replan": true
+      }
+    },
+    {
+      "id": "respuesta_parcial",
+      "title": "Partial answer should not be overconfident",
+      "tags": ["usuarios_que_responden_parcialmente", "uncertainty", "slots"],
+      "turns": [
+        {"user": "Me chocaron."},
+        {"user": "Creo que no hubo lesionados, pero no estoy seguro."},
+        {"user": "Al final no, nadie se lastimo."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_slot_resolution", "conversation_fulfillment"],
+        "max_questions": 4
+      }
+    },
+    {
+      "id": "conversacion_larga_denuncia",
+      "title": "Long claim conversation with side questions and corrections",
+      "tags": ["conversaciones_largas", "topic_stack", "replanning", "facts", "error_recovery"],
+      "turns": [
+        {"user": "Me chocaron estacionado y estoy perdido."},
+        {"user": "No hubo lesionados."},
+        {"user": "Soy tercero, creo."},
+        {"user": "Cuanto suele tardar que me contacten?"},
+        {"user": "Tengo fotos, presupuesto y la patente del otro auto."},
+        {"user": "Perdon, en realidad soy asegurado de Galicia."},
+        {"user": "Resumime donde estamos."},
+        {"user": "Seguimos."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_topic_stack", "conversation_fact_revision", "conversation_plan", "conversation_fulfillment"],
+        "max_questions": 8,
+        "should_replan": true
+      }
+    },
+    {
+      "id": "interrupcion_lateral_tiempos",
+      "title": "Side timing question while main claim plan is active",
+      "tags": ["conversaciones_con_interrupciones", "replanning", "focus_recovery"],
+      "turns": [
+        {"user": "Me chocaron ayer."},
+        {"user": "No hubo lesionados."},
+        {"user": "Y cuanto tarda normalmente?"},
+        {"user": "Seguimos."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_plan", "conversation_fulfillment"],
+        "should_replan": true,
+        "max_questions": 5
+      }
+    },
+    {
+      "id": "recapitulacion",
+      "title": "Recap request should use operational conversation state",
+      "tags": ["recapitulaciones", "topic_stack", "fulfillment"],
+      "turns": [
+        {"user": "Me chocaron y quiero avanzar con la denuncia."},
+        {"user": "No hubo lesionados y soy asegurado."},
+        {"user": "La denuncia ya esta cargada."},
+        {"user": "Resumime ese tema."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_topic_stack", "conversation_goal", "conversation_fulfillment"],
+        "max_questions": 4
+      }
+    },
+    {
+      "id": "simplificacion",
+      "title": "Simplification request",
+      "tags": ["simplificacion", "conversation_goal", "response_quality"],
+      "turns": [
+        {"user": "Me explicas que pasa si arreglo el auto antes de que me autoricen?"},
+        {"user": "Explicamelo mas simple, por favor."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_goal", "conversation_response_plan"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "profundizacion",
+      "title": "Deepening on the same topic",
+      "tags": ["profundizacion", "topic_stack", "response_quality"],
+      "turns": [
+        {"user": "Que documentacion conviene tener para el siniestro?"},
+        {"user": "Contame mas sobre las fotos y el presupuesto."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_goal", "conversation_response_plan", "conversation_topic_stack"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "handoff_usuario_pide_persona",
+      "title": "User explicitly asks for human support",
+      "tags": ["handoff", "interruption", "policy"],
+      "turns": [
+        {"user": "No quiero seguir con el bot, necesito hablar con una persona."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["runtime_execution_engine"],
+        "max_questions": 1
+      }
+    },
+    {
+      "id": "prioridad_fotos_vs_reparacion",
+      "title": "Implicit concern behind a concrete question",
+      "tags": ["consultas_cobertura", "implicit_concern", "questions_avoided", "response_priority"],
+      "turns": [
+        {"user": "No se si mande las fotos... pero lo que mas me preocupa es si puedo arreglar el auto."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_information_gain_plan", "conversation_response_plan"],
+        "max_questions": 1
+      }
+    }
+  ]
+}

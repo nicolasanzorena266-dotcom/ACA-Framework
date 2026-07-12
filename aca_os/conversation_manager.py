@@ -43,10 +43,17 @@ class ConversationTurnContext:
     conversation_state: ConversationState
     cognitive_state: CognitiveState
     projections: tuple[Dict[str, Any], ...]
+    conversational_act: Dict[str, Any] = field(default_factory=dict)
+    conversational_goal: Dict[str, Any] = field(default_factory=dict)
+    conversational_intent_model: Dict[str, Any] = field(default_factory=dict)
+    information_gain_plan: Dict[str, Any] = field(default_factory=dict)
+    conversation_plan: Dict[str, Any] = field(default_factory=dict)
+    conversational_response_plan: Dict[str, Any] = field(default_factory=dict)
     slot_resolutions: tuple[Dict[str, Any], ...] = ()
     fact_assimilations: tuple[Dict[str, Any], ...] = ()
     fact_revisions: tuple[Dict[str, Any], ...] = ()
     mission_advancement: Dict[str, Any] | None = None
+    topic_transition: Dict[str, Any] | None = None
 
 
 class ConversationManager:
@@ -87,9 +94,16 @@ class ConversationManager:
             projection_sources=_append_unique(initial.projection_sources, "conversation_manager.begin_turn"),
         )
         turn_started_state = initial
+        initial, conversational_act = initial.recognize_conversational_act(event.payload)
         resolved, slot_resolutions = initial.resolve_pending_slot_answers(event.payload)
         initial = resolved
         initial, fact_assimilations, mission_advancement = initial.assimilate_user_facts(event.payload)
+        initial, topic_transition = initial.update_topic_stack(event.payload)
+        initial, conversational_goal = initial.apply_conversational_goal(event.payload)
+        initial, conversational_intent_model = initial.model_conversational_intent(event.payload)
+        initial, information_gain_plan = initial.plan_information_gain(event.payload)
+        initial, conversation_plan = initial.plan_conversation(event.payload)
+        initial, conversational_response_plan = initial.plan_conversational_response(event.payload)
         cognitive_state = initial.to_cognitive_state(
             base=state,
             source="conversation_manager.begin_turn",
@@ -107,6 +121,87 @@ class ConversationManager:
         session.turn_started_state = turn_started_state
         session.last_state_changes = []
         session.last_projection_log = [dict(projection) for projection in projections]
+        if conversational_act:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "UserMessage -> ConversationalAct",
+                    "reason": "conversational_act_recognition",
+                    "act": conversational_act.get("act"),
+                    "confidence": conversational_act.get("confidence"),
+                }
+            )
+        if conversational_goal:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "ConversationalAct -> ConversationalGoal",
+                    "reason": "conversational_goal",
+                    "act": conversational_goal.get("act"),
+                    "strategy": (conversational_goal.get("strategy") or {}).get("name"),
+                    "priority": conversational_goal.get("priority"),
+                }
+            )
+        if conversational_intent_model:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "UserMessage -> ConversationalIntentModel",
+                    "reason": "conversational_intent_decomposition",
+                    "dominant_concern": (
+                        conversational_intent_model.get("dominant_concern") or {}
+                    ).get("key"),
+                    "response_objective": (
+                        conversational_intent_model.get("response_objective") or {}
+                    ).get("key"),
+                    "implicit_question_count": len(conversational_intent_model.get("implicit_questions") or []),
+                }
+            )
+        if information_gain_plan:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "ConversationalIntentModel -> InformationGainPlan",
+                    "reason": "information_gain_planning",
+                    "candidate_question_count": len(information_gain_plan.get("candidate_questions") or []),
+                    "selected_slot": (
+                        information_gain_plan.get("selected_question") or {}
+                    ).get("slot"),
+                    "selection_reason": information_gain_plan.get("selection_reason"),
+                    "avoided_question_count": (
+                        information_gain_plan.get("question_count_metric") or {}
+                    ).get("avoided_question_count"),
+                }
+            )
+        if conversation_plan:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "InformationGainPlan -> ConversationPlan",
+                    "reason": "dynamic_conversation_planning",
+                    "replanning_reason": conversation_plan.get("replanning_reason"),
+                    "completed_step_count": len(conversation_plan.get("completed_steps") or []),
+                    "pending_step_count": len(conversation_plan.get("pending_steps") or []),
+                    "inserted_step_count": len(conversation_plan.get("inserted_steps") or []),
+                    "skipped_step_count": len(conversation_plan.get("skipped_steps") or []),
+                    "conversation_progress": conversation_plan.get("conversation_progress"),
+                }
+            )
+        if conversational_response_plan:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "ConversationalState -> ConversationalResponsePlan",
+                    "reason": "conversation_response_planning",
+                    "primary_user_need": (
+                        conversational_response_plan.get("primary_user_need") or {}
+                    ).get("key"),
+                    "dominant_concern": (
+                        conversational_response_plan.get("dominant_concern") or {}
+                    ).get("key"),
+                    "response_priority": list(conversational_response_plan.get("response_priority") or []),
+                }
+            )
         if slot_resolutions:
             session.last_projection_log.append(
                 {
@@ -154,15 +249,34 @@ class ConversationManager:
                     "next_act": mission_advancement.get("next_act"),
                 }
             )
+        if topic_transition:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "UserMessage -> TopicStack",
+                    "reason": "topic_stack_transition",
+                    "transition": (topic_transition.get("transition") or {}).get("type"),
+                    "active_topic_id": (topic_transition.get("active_topic") or {}).get("id"),
+                    "suspended_topic_id": (topic_transition.get("topic_suspended") or {}).get("id"),
+                    "resumed_topic_id": (topic_transition.get("topic_resumed") or {}).get("id"),
+                }
+            )
         return ConversationTurnContext(
             conversation_id=conversation_id,
             conversation_state=initial,
             cognitive_state=cognitive_state,
             projections=projections,
+            conversational_act=dict(conversational_act),
+            conversational_goal=dict(conversational_goal),
+            conversational_intent_model=dict(conversational_intent_model),
+            information_gain_plan=dict(information_gain_plan),
+            conversation_plan=dict(conversation_plan),
+            conversational_response_plan=dict(conversational_response_plan),
             slot_resolutions=tuple(dict(resolution) for resolution in slot_resolutions),
             fact_assimilations=tuple(dict(item) for item in fact_assimilations),
             fact_revisions=tuple(dict(item) for item in fact_revisions),
             mission_advancement=dict(mission_advancement) if mission_advancement else None,
+            topic_transition=dict(topic_transition) if topic_transition else None,
         )
 
     def after_process(self, state: CognitiveState) -> CognitiveState:
@@ -177,6 +291,36 @@ class ConversationManager:
             final_projection,
             previous=session.conversation_state,
         )
+        final_state, fulfillment = final_state.evaluate_conversational_goal_fulfillment(state.response)
+        if fulfillment:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "Response -> ConversationalGoal",
+                    "reason": "conversational_goal_fulfillment",
+                    "strategy": fulfillment.get("strategy"),
+                    "status": fulfillment.get("status"),
+                    "satisfied": fulfillment.get("satisfied"),
+                }
+            )
+        final_state, conversation_fulfillment = final_state.evaluate_conversation_fulfillment(state.response)
+        if conversation_fulfillment:
+            session.last_projection_log.append(
+                {
+                    "component": "conversation_state",
+                    "direction": "Response -> ConversationFulfillment",
+                    "reason": "conversation_plan_fulfillment",
+                    "status": (conversation_fulfillment.get("fulfilled_goal") or {}).get("status"),
+                    "fulfilled_step_count": len(conversation_fulfillment.get("fulfilled_steps") or []),
+                    "pending_step_count": len(conversation_fulfillment.get("pending_steps") or []),
+                    "failed_step_count": len(conversation_fulfillment.get("failed_steps") or []),
+                    "recovery_actions": [
+                        action.get("action")
+                        for action in conversation_fulfillment.get("recovery_actions") or []
+                    ],
+                    "fulfillment_confidence": conversation_fulfillment.get("fulfillment_confidence"),
+                }
+            )
         mutations = conversation_state_diff(session.turn_started_state, final_state)
         session.conversation_state = final_state
         session.last_state_changes = [mutation.to_dict() for mutation in mutations]
@@ -245,6 +389,19 @@ class ConversationManager:
             "initial_state": initial.to_dict() if initial else {},
             "final_state": final.to_dict() if final else {},
             "changes": [dict(change) for change in session.last_state_changes],
+            "conversation_act": (final.derived_state or {}).get("conversation_act", {}) if final else {},
+            "conversation_goal": (final.derived_state or {}).get("conversation_goal", {}) if final else {},
+            "conversation_intent_model": (final.derived_state or {}).get("conversation_intent_model", {}) if final else {},
+            "conversation_information_gain_plan": (final.derived_state or {}).get("conversation_information_gain_plan", {}) if final else {},
+            "conversation_plan": (final.derived_state or {}).get("conversation_plan", {}) if final else {},
+            "conversation_response_plan": (final.derived_state or {}).get("conversation_response_plan", {}) if final else {},
+            "conversation_fulfillment": (final.derived_state or {}).get("conversation_fulfillment", {}) if final else {},
+            "topic_stack": (final.derived_state or {}).get("topic_stack", {}) if final else {},
+            "active_topic": (
+                ((final.derived_state or {}).get("topic_stack", {}) or {}).get("active_topic")
+                if final
+                else {}
+            ),
             "fact_assimilation": (final.derived_state or {}).get("fact_assimilation", {}) if final else {},
             "fact_revision": (final.derived_state or {}).get("fact_revision", {}) if final else {},
             "mission_advancement": (final.derived_state or {}).get("mission_advancement", {}) if final else {},
@@ -302,6 +459,8 @@ class ConversationManager:
             slots=merge_slots(previous.slots, projection.slots),
             confirmed_facts=merge_confirmed_facts(previous.confirmed_facts, projection.confirmed_facts),
             refuted_facts=deep_merge(previous.refuted_facts, projection.refuted_facts),
+            topic_stack=projection.topic_stack if has_operational_topic_stack(projection.topic_stack) else previous.topic_stack,
+            focus=projection.focus if has_operational_topic_stack(projection.topic_stack) else previous.focus or projection.focus,
             conversation_summary=projection.conversation_summary or previous.conversation_summary,
             product_state=deep_merge(previous.product_state, projection.product_state),
             derived_state=merge_derived_state(previous.derived_state, projection.derived_state),
@@ -314,6 +473,13 @@ class ConversationManager:
         )
 
 
+def has_operational_topic_stack(values: list[Dict[str, Any]]) -> bool:
+    return any(
+        isinstance(topic, dict) and topic.get("contract") == "conversation_topic.v1"
+        for topic in values or []
+    )
+
+
 def deep_merge(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
     merged = dict(left or {})
     merged.update(dict(right or {}))
@@ -321,10 +487,17 @@ def deep_merge(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
 
 
 TURN_SCOPED_DERIVED_STATE_KEYS = {
+    "conversation_act",
+    "conversation_goal",
+    "conversation_intent_model",
+    "conversation_information_gain_plan",
+    "conversation_response_plan",
+    "conversation_fulfillment",
     "slot_resolution",
     "fact_assimilation",
     "fact_revision",
     "mission_advancement",
+    "topic_stack",
 }
 
 

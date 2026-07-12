@@ -188,6 +188,63 @@ VALID_CONVERSATIONAL_ACT_TYPES = {
 }
 
 
+class ConversationalStrategyType:
+    RESPOND = "respond"
+    SIMPLIFY = "simplify"
+    DEEPEN = "deepen"
+    SUMMARIZE = "summarize"
+    CONTINUE = "continue"
+    REPAIR = "repair"
+    SWITCH_TOPIC = "switch_topic"
+    CLOSE = "close"
+    ASK_CLARIFICATION = "ask_clarification"
+
+
+VALID_CONVERSATIONAL_STRATEGIES = {
+    ConversationalStrategyType.RESPOND,
+    ConversationalStrategyType.SIMPLIFY,
+    ConversationalStrategyType.DEEPEN,
+    ConversationalStrategyType.SUMMARIZE,
+    ConversationalStrategyType.CONTINUE,
+    ConversationalStrategyType.REPAIR,
+    ConversationalStrategyType.SWITCH_TOPIC,
+    ConversationalStrategyType.CLOSE,
+    ConversationalStrategyType.ASK_CLARIFICATION,
+}
+
+
+class TopicStatus:
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RESUMED = "resumed"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+
+
+VALID_TOPIC_STATUSES = {
+    TopicStatus.ACTIVE,
+    TopicStatus.SUSPENDED,
+    TopicStatus.RESUMED,
+    TopicStatus.COMPLETED,
+    TopicStatus.ABANDONED,
+}
+
+
+TOPIC_ACTIVE_STATUSES = {
+    TopicStatus.ACTIVE,
+    TopicStatus.RESUMED,
+}
+
+
+TOPIC_LIFECYCLE = {
+    TopicStatus.ACTIVE: (TopicStatus.SUSPENDED, TopicStatus.COMPLETED, TopicStatus.ABANDONED),
+    TopicStatus.SUSPENDED: (TopicStatus.RESUMED, TopicStatus.ABANDONED),
+    TopicStatus.RESUMED: (TopicStatus.ACTIVE, TopicStatus.SUSPENDED, TopicStatus.COMPLETED, TopicStatus.ABANDONED),
+    TopicStatus.COMPLETED: (),
+    TopicStatus.ABANDONED: (),
+}
+
+
 @dataclass(frozen=True)
 class ConversationFieldOwnership:
     field: str
@@ -254,6 +311,12 @@ class ConversationState:
     ) -> "ConversationState":
         active_mission = _mapping_or_none(getattr(state, "active_mission", None))
         focus = _focus_from_cognitive_state(state, active_mission)
+        topic_stack = _topic_stack_from_cognitive_facts(
+            dict(getattr(state, "facts", {}) or {}),
+            focus=focus,
+            active_mission=active_mission,
+            turn_count=turn_count,
+        )
         slots = _slots_from_mission(active_mission, source="active_mission")
         pending_questions = _pending_questions_from_slots(slots, source="active_mission")
         facts = _conversation_facts_from_cognitive_state(state)
@@ -267,7 +330,7 @@ class ConversationState:
             conversation_id=str(getattr(state, "conversation_id", "default")),
             turn_count=turn_count,
             focus=focus,
-            topic_stack=_topic_stack_from_focus(focus),
+            topic_stack=topic_stack,
             active_mission=active_mission,
             goals=goals,
             slots=slots,
@@ -429,6 +492,13 @@ class ConversationState:
             "zero_cost_decision_graph",
             "runtime_execution_engine",
             "conversation_act_recognition",
+            "conversation_goal",
+            "conversation_intent_model",
+            "conversation_information_gain_plan",
+            "conversation_plan",
+            "conversation_response_plan",
+            "conversation_fulfillment",
+            "conversation_topic_stack",
             "conversation_slot_resolution",
             "conversation_fact_assimilation",
             "conversation_fact_revision",
@@ -436,10 +506,37 @@ class ConversationState:
         ):
             if key in derived and key not in facts:
                 facts[key] = deepcopy(derived[key])
+        active_topic = _active_topic_from_stack(self.topic_stack)
+        if self.topic_stack:
+            facts["conversation_topic_stack"] = {
+                "contract": "topic_stack_projection.v1",
+                "component": "conversation_state",
+                "topics": deepcopy(self.topic_stack),
+                "active_topic": deepcopy(active_topic or {}),
+            }
+            if active_topic:
+                facts["conversation_active_topic"] = deepcopy(active_topic)
         if self.last_conversational_act:
             facts["conversation_act"] = deepcopy(self.last_conversational_act)
         if "conversation_act" in derived:
             facts["conversation_act_recognition"] = deepcopy(derived["conversation_act"])
+        if "conversation_goal" in derived:
+            facts["conversation_goal"] = deepcopy(derived["conversation_goal"])
+        if "conversation_intent_model" in derived:
+            facts["conversation_intent_model"] = deepcopy(derived["conversation_intent_model"])
+        if "conversation_information_gain_plan" in derived:
+            facts["conversation_information_gain_plan"] = deepcopy(derived["conversation_information_gain_plan"])
+        if "conversation_plan" in derived:
+            facts["conversation_plan"] = deepcopy(derived["conversation_plan"])
+        if "conversation_response_plan" in derived:
+            facts["conversation_response_plan"] = deepcopy(derived["conversation_response_plan"])
+        if "conversation_fulfillment" in derived:
+            facts["conversation_fulfillment"] = deepcopy(derived["conversation_fulfillment"])
+        if "topic_stack" in derived:
+            facts["conversation_topic_stack"] = deepcopy(derived["topic_stack"])
+            active_topic = _active_topic_from_stack(self.topic_stack)
+            if active_topic:
+                facts["conversation_active_topic"] = deepcopy(active_topic)
         if "slot_resolution" in derived:
             facts["conversation_slot_resolution"] = deepcopy(derived["slot_resolution"])
         if "fact_assimilation" in derived:
@@ -485,6 +582,30 @@ class ConversationState:
 
     def recognize_conversational_act(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
         return recognize_conversational_act(self, message)
+
+    def apply_conversational_goal(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return apply_conversational_goal(self, message)
+
+    def update_topic_stack(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return update_topic_stack(self, message)
+
+    def plan_conversational_response(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return plan_conversational_response(self, message)
+
+    def model_conversational_intent(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return model_conversational_intent(self, message)
+
+    def plan_information_gain(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return plan_information_gain(self, message)
+
+    def plan_conversation(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return plan_conversation(self, message)
+
+    def evaluate_conversational_goal_fulfillment(self, response: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return evaluate_conversational_goal_fulfillment(self, response)
+
+    def evaluate_conversation_fulfillment(self, response: Any) -> tuple["ConversationState", Dict[str, Any]]:
+        return evaluate_conversation_fulfillment(self, response)
 
 
 @dataclass(frozen=True)
@@ -801,6 +922,8 @@ def resolve_pending_slot_answers(
     normalized = normalize_text(message)
     if not normalized:
         return conversation_state, []
+    if _act_suppresses_slot_resolution(conversation_state.last_conversational_act):
+        return conversation_state, []
 
     slots = deepcopy(conversation_state.slots)
     pending_questions = [dict(question) for question in conversation_state.pending_questions]
@@ -946,6 +1069,2726 @@ def conversational_act_contract() -> Dict[str, Any]:
     }
 
 
+def conversational_goal_contract() -> Dict[str, Any]:
+    return {
+        "contract": "conversational_goal.v1",
+        "strategies": sorted(VALID_CONVERSATIONAL_STRATEGIES),
+        "required_fields": [
+            "originating_act",
+            "intention",
+            "strategy",
+            "success_criteria",
+            "abandonment_criteria",
+            "priority",
+            "mission_impact",
+            "evidence",
+            "fulfillment",
+        ],
+        "turn_scoped_projection": "conversation_goal",
+    }
+
+
+def topic_stack_contract() -> Dict[str, Any]:
+    return {
+        "contract": "topic_stack.v1",
+        "topic_contract": "conversation_topic.v1",
+        "statuses": sorted(VALID_TOPIC_STATUSES),
+        "active_statuses": sorted(TOPIC_ACTIVE_STATUSES),
+        "transitions": {
+            status: list(next_statuses)
+            for status, next_statuses in sorted(TOPIC_LIFECYCLE.items())
+        },
+        "required_topic_fields": [
+            "id",
+            "type",
+            "mission_type",
+            "conversational_goal",
+            "priority",
+            "status",
+            "created_turn",
+            "last_active_turn",
+            "associated_facts",
+            "associated_slots",
+            "summary",
+        ],
+        "transition_contract": "topic_stack_transition.v1",
+        "owner": "conversation_state",
+    }
+
+
+def conversational_response_plan_contract() -> Dict[str, Any]:
+    return {
+        "contract": "conversational_response_plan.v1",
+        "required_fields": [
+            "primary_user_need",
+            "secondary_needs",
+            "dominant_concern",
+            "response_priority",
+            "next_action",
+            "required_information",
+            "unresolved_questions",
+        ],
+        "principles": {
+            "cognitive_opacity": "Internal strategy and state-management decisions are introspection-only.",
+            "question_justification": "Every user-facing question must have an explicit purpose.",
+        },
+        "turn_scoped_projection": "conversation_response_plan",
+    }
+
+
+def conversational_intent_model_contract() -> Dict[str, Any]:
+    return {
+        "contract": "conversational_intent_model.v1",
+        "required_fields": [
+            "explicit_questions",
+            "implicit_questions",
+            "dominant_concern",
+            "user_goal",
+            "user_assumptions",
+            "missing_information",
+            "response_objective",
+        ],
+        "purpose": "Decompose what the user wrote into practical conversational intent before response planning.",
+        "turn_scoped_projection": "conversation_intent_model",
+    }
+
+
+def information_gain_plan_contract() -> Dict[str, Any]:
+    return {
+        "contract": "information_gain_plan.v1",
+        "required_fields": [
+            "candidate_questions",
+            "expected_information_gain",
+            "affected_decisions",
+            "estimated_cost",
+            "blocking_level",
+            "clarification_priority",
+            "selected_question",
+        ],
+        "principle": "Ask only when the answer can change a decision or unblock the next cognitive step.",
+        "turn_scoped_projection": "conversation_information_gain_plan",
+    }
+
+
+def conversation_plan_contract() -> Dict[str, Any]:
+    return {
+        "contract": "conversation_plan.v1",
+        "required_fields": [
+            "active_plan",
+            "completed_steps",
+            "pending_steps",
+            "abandoned_steps",
+            "replanning_reason",
+            "inserted_steps",
+            "skipped_steps",
+            "conversation_progress",
+        ],
+        "principle": "Conversation planning is dynamic: new evidence may complete, insert, skip or abandon steps without resetting the active goal.",
+        "persistent_projection": "conversation_plan",
+    }
+
+
+def conversation_fulfillment_contract() -> Dict[str, Any]:
+    return {
+        "contract": "conversation_fulfillment.v1",
+        "required_fields": [
+            "fulfilled_goal",
+            "fulfilled_steps",
+            "pending_steps",
+            "failed_steps",
+            "recovery_actions",
+            "fulfillment_confidence",
+            "completion_reason",
+        ],
+        "principle": "After every response, ACA evaluates whether the conversational objective was actually satisfied and which recovery action is needed.",
+        "turn_scoped_projection": "conversation_fulfillment",
+    }
+
+
+def model_conversational_intent(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    normalized = normalize_text(message)
+    model = _conversational_intent_model(conversation_state, message, normalized)
+    trace = {
+        "contract": "conversation_intent_model_trace.v1",
+        "component": "conversation_state",
+        "model": deepcopy(model),
+        "explicit_questions": deepcopy(model.get("explicit_questions") or []),
+        "implicit_questions": deepcopy(model.get("implicit_questions") or []),
+        "dominant_concern": deepcopy(model.get("dominant_concern") or {}),
+        "response_objective": deepcopy(model.get("response_objective") or {}),
+        "missing_information": deepcopy(model.get("missing_information") or []),
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_intent_model"] = trace
+    return (
+        replace(
+            conversation_state,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.conversational_intent_model",
+            ),
+        ),
+        model,
+    )
+
+
+def plan_information_gain(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    normalized = normalize_text(message)
+    plan = _information_gain_plan(conversation_state, message, normalized)
+    trace = {
+        "contract": "information_gain_plan_trace.v1",
+        "component": "conversation_state",
+        "plan": deepcopy(plan),
+        "candidate_questions": deepcopy(plan.get("candidate_questions") or []),
+        "selected_question": deepcopy(plan.get("selected_question") or {}),
+        "selection_reason": plan.get("selection_reason"),
+        "tie_break": deepcopy(plan.get("tie_break") or {}),
+        "question_count_metric": deepcopy(plan.get("question_count_metric") or {}),
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_information_gain_plan"] = trace
+    return (
+        replace(
+            conversation_state,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.information_gain_plan",
+            ),
+        ),
+        plan,
+    )
+
+
+def plan_conversation(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    normalized = normalize_text(message)
+    plan = _conversation_plan(conversation_state, message, normalized)
+    trace = {
+        "contract": "conversation_plan_trace.v1",
+        "component": "conversation_state",
+        "previous_plan": deepcopy(plan.get("previous_plan") or {}),
+        "plan": deepcopy(plan),
+        "active_plan": deepcopy(plan.get("active_plan") or {}),
+        "completed_steps": deepcopy(plan.get("completed_steps") or []),
+        "pending_steps": deepcopy(plan.get("pending_steps") or []),
+        "abandoned_steps": deepcopy(plan.get("abandoned_steps") or []),
+        "inserted_steps": deepcopy(plan.get("inserted_steps") or []),
+        "skipped_steps": deepcopy(plan.get("skipped_steps") or []),
+        "replanning_reason": plan.get("replanning_reason"),
+        "conversation_progress": plan.get("conversation_progress"),
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_plan"] = trace
+    return (
+        replace(
+            conversation_state,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.conversation_plan",
+            ),
+        ),
+        plan,
+    )
+
+
+def apply_conversational_goal(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    act = dict(conversation_state.last_conversational_act or {})
+    if not act:
+        return conversation_state, {}
+    goal = _conversational_goal_for_act(conversation_state, message, act)
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_goal"] = {
+        "contract": "conversation_goal_trace.v1",
+        "component": "conversation_state",
+        "goal": deepcopy(goal),
+        "fulfillment": deepcopy(goal.get("fulfillment") or {}),
+    }
+    topic_stack = _topic_stack_with_conversational_goal(
+        conversation_state.topic_stack,
+        goal=goal,
+        derived_state=derived_state,
+        turn=conversation_state.turn_count,
+    )
+    return (
+        replace(
+            conversation_state,
+            topic_stack=topic_stack,
+            conversational_strategy=deepcopy(goal.get("strategy") or {}),
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.conversational_goal",
+            ),
+        ),
+        goal,
+    )
+
+
+def plan_conversational_response(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    normalized = normalize_text(message)
+    intent_model = _intent_model_from_state(conversation_state)
+    needs = _detected_response_needs(conversation_state, message, normalized)
+    dominant_concern = _dominant_concern_from_needs(normalized, needs, intent_model)
+    primary_need = _primary_need_from(needs, dominant_concern, conversation_state)
+    secondary_needs = [
+        deepcopy(need)
+        for need in needs
+        if need.get("key") != primary_need.get("key")
+    ]
+    information_gain_plan = _information_gain_plan_from_state(conversation_state)
+    if not information_gain_plan:
+        information_gain_plan = _information_gain_plan(conversation_state, message, normalized)
+    conversation_plan = _conversation_plan_from_state(conversation_state)
+    if not conversation_plan:
+        conversation_plan = _conversation_plan(conversation_state, message, normalized)
+    required_candidates = _required_information_for_response(conversation_state, primary_need)
+    required_information = _selected_required_information(
+        required_candidates,
+        information_gain_plan,
+        conversation_plan=conversation_plan,
+        primary_need=primary_need,
+        conversational_act=conversation_state.last_conversational_act,
+    )
+    response_priority = _response_priority_for(
+        primary_need=primary_need,
+        secondary_needs=secondary_needs,
+        required_information=required_information,
+    )
+    plan = {
+        "contract": "conversational_response_plan.v1",
+        "primary_user_need": deepcopy(primary_need),
+        "secondary_needs": secondary_needs,
+        "dominant_concern": deepcopy(dominant_concern),
+        "intent_model": deepcopy(intent_model),
+        "information_gain_plan": deepcopy(information_gain_plan),
+        "conversation_plan": deepcopy(conversation_plan),
+        "response_priority": response_priority,
+        "next_action": _response_next_action(
+            conversation_state=conversation_state,
+            primary_need=primary_need,
+            required_information=required_information,
+        ),
+        "required_information": required_information,
+        "unresolved_questions": _unresolved_questions_for_response(needs, required_information),
+        "natural_response_order": [
+            "acknowledge_primary_concern",
+            "answer_primary_need",
+            "brief_reason",
+            "concrete_next_step",
+        ],
+        "principles": {
+            "cognitive_opacity": True,
+            "question_justification": True,
+        },
+        "evidence": {
+            "message": str(message),
+            "normalized_message": normalized,
+            "active_topic": deepcopy(_active_topic_from_stack(conversation_state.topic_stack) or {}),
+            "active_mission": deepcopy(conversation_state.active_mission or {}),
+            "conversational_act": deepcopy(conversation_state.last_conversational_act or {}),
+            "intent_model": deepcopy(intent_model),
+            "information_gain_plan": deepcopy(information_gain_plan),
+            "conversation_plan": deepcopy(conversation_plan),
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+    trace = {
+        "contract": "conversation_response_plan_trace.v1",
+        "component": "conversation_state",
+        "plan": deepcopy(plan),
+        "primary_user_need": deepcopy(primary_need),
+        "dominant_concern": deepcopy(dominant_concern),
+        "intent_model": deepcopy(intent_model),
+        "information_gain_plan": deepcopy(information_gain_plan),
+        "conversation_plan": deepcopy(conversation_plan),
+        "response_priority": list(response_priority),
+        "question_justifications": [
+            {
+                "question": item.get("question"),
+                "purpose": item.get("purpose"),
+                "slot": item.get("slot"),
+            }
+            for item in required_information
+        ],
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_response_plan"] = trace
+    return (
+        replace(
+            conversation_state,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.conversational_response_plan",
+            ),
+        ),
+        plan,
+    )
+
+
+def _information_gain_plan(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+) -> Dict[str, Any]:
+    intent_model = _intent_model_from_state(conversation_state)
+    needs = _detected_response_needs(conversation_state, message, normalized)
+    dominant_concern = _dominant_concern_from_needs(normalized, needs, intent_model)
+    primary_need = _primary_need_from(needs, dominant_concern, conversation_state)
+    candidate_questions = _scored_clarification_candidates(
+        _candidate_clarification_questions(
+            conversation_state=conversation_state,
+            primary_need=primary_need,
+            intent_model=intent_model,
+        ),
+        primary_need=primary_need,
+    )
+    selected_question, selection_reason, tie_break = _select_clarification_question(candidate_questions)
+    return {
+        "contract": "information_gain_plan.v1",
+        "candidate_questions": candidate_questions,
+        "expected_information_gain": float(selected_question.get("expected_information_gain") or 0.0),
+        "affected_decisions": list(selected_question.get("affected_decisions") or []),
+        "estimated_cost": float(selected_question.get("estimated_cost") or 0.0),
+        "blocking_level": str(selected_question.get("blocking_level") or "none"),
+        "clarification_priority": float(selected_question.get("clarification_priority") or 0.0),
+        "selected_question": deepcopy(selected_question),
+        "selection_reason": selection_reason,
+        "tie_break": tie_break,
+        "can_continue_without_question": not bool(selected_question),
+        "question_count_metric": {
+            "candidate_question_count": len(candidate_questions),
+            "selected_question_count": 1 if selected_question else 0,
+            "avoided_question_count": max(len(candidate_questions) - (1 if selected_question else 0), 0),
+        },
+        "evidence": {
+            "message": str(message),
+            "normalized_message": normalized,
+            "primary_user_need": deepcopy(primary_need),
+            "dominant_concern": deepcopy(dominant_concern),
+            "intent_missing_information": deepcopy(intent_model.get("missing_information") or []),
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _information_gain_plan_from_state(conversation_state: ConversationState) -> Dict[str, Any]:
+    trace = conversation_state.derived_state.get("conversation_information_gain_plan")
+    if isinstance(trace, Mapping):
+        plan = trace.get("plan")
+        if isinstance(plan, Mapping):
+            return deepcopy(dict(plan))
+        return deepcopy(dict(trace))
+    return {}
+
+
+def _conversation_plan(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+) -> Dict[str, Any]:
+    previous_plan = _previous_conversation_plan_for_replanning(conversation_state)
+    mission = deepcopy(conversation_state.active_mission or {})
+    fact_values = _active_fact_values(conversation_state.confirmed_facts)
+    intent_model = _intent_model_from_state(conversation_state)
+    information_gain_plan = _information_gain_plan_from_state(conversation_state)
+    base_steps = _mission_conversation_steps(
+        mission=mission,
+        slots=conversation_state.slots,
+        facts=fact_values,
+    )
+    inserted_steps = _inserted_conversation_steps(
+        conversation_state=conversation_state,
+        message=message,
+        normalized=normalized,
+        intent_model=intent_model,
+    )
+    active_steps = _conversation_steps_with_insertions(base_steps, inserted_steps)
+    previous_steps = _active_steps_from_previous_plan(previous_plan)
+    completed_steps = [deepcopy(step) for step in active_steps if step.get("status") == "completed"]
+    pending_steps = [deepcopy(step) for step in active_steps if step.get("status") == "pending"]
+    abandoned_steps = _abandoned_conversation_steps(previous_steps, active_steps)
+    skipped_steps = _skipped_conversation_steps(
+        previous_steps=previous_steps,
+        active_steps=active_steps,
+        information_gain_plan=information_gain_plan,
+    )
+    replanning_reason = _conversation_replanning_reason(
+        previous_plan=previous_plan,
+        inserted_steps=inserted_steps,
+        completed_steps=completed_steps,
+        abandoned_steps=abandoned_steps,
+        skipped_steps=skipped_steps,
+        derived_state=conversation_state.derived_state,
+    )
+    conversation_progress = _conversation_progress(active_steps, mission)
+    current_step = _current_conversation_step(active_steps)
+    return {
+        "contract": "conversation_plan.v1",
+        "active_plan": {
+            "contract": "active_conversation_plan.v1",
+            "mission_type": mission.get("type"),
+            "mission_goal": mission.get("goal"),
+            "current_step": deepcopy(current_step),
+            "steps": active_steps,
+            "source": "conversation_state",
+        },
+        "completed_steps": completed_steps,
+        "pending_steps": pending_steps,
+        "abandoned_steps": abandoned_steps,
+        "replanning_reason": replanning_reason,
+        "inserted_steps": inserted_steps,
+        "skipped_steps": skipped_steps,
+        "conversation_progress": conversation_progress,
+        "previous_plan": deepcopy(previous_plan),
+        "evidence": {
+            "message": str(message),
+            "normalized_message": normalized,
+            "active_mission": mission,
+            "facts": deepcopy(fact_values),
+            "intent_model": deepcopy(intent_model),
+            "information_gain_plan": deepcopy(information_gain_plan),
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _conversation_plan_from_state(conversation_state: ConversationState) -> Dict[str, Any]:
+    trace = conversation_state.derived_state.get("conversation_plan")
+    if isinstance(trace, Mapping):
+        plan = trace.get("plan")
+        if isinstance(plan, Mapping):
+            return deepcopy(dict(plan))
+        return deepcopy(dict(trace))
+    return {}
+
+
+def _previous_conversation_plan_for_replanning(conversation_state: ConversationState) -> Dict[str, Any]:
+    trace = conversation_state.derived_state.get("conversation_plan")
+    if not isinstance(trace, Mapping):
+        return {}
+    plan = trace.get("plan")
+    if not isinstance(plan, Mapping):
+        return deepcopy(dict(trace))
+    if int(plan.get("turn") or 0) == int(conversation_state.turn_count):
+        previous = plan.get("previous_plan")
+        return deepcopy(dict(previous)) if isinstance(previous, Mapping) else {}
+    return deepcopy(dict(plan))
+
+
+def _mission_conversation_steps(
+    *,
+    mission: Mapping[str, Any],
+    slots: Mapping[str, Mapping[str, Any]],
+    facts: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    mission_type = str(mission.get("type") or "")
+    if mission_type == "auto_claim_guidance":
+        steps = [
+            _conversation_step(
+                step_id="confirm_injuries",
+                step_type="slot",
+                label="confirmar si hubo lesionados",
+                status=_step_status_for_known_value(facts.get("injuries"), slots.get("injuries")),
+                mission=mission,
+                slot="injuries",
+                decision="safety_and_escalation_path",
+                order=10,
+            ),
+            _conversation_step(
+                step_id="confirm_user_role",
+                step_type="slot",
+                label="confirmar si es asegurado o tercero",
+                status=_step_status_for_known_value(facts.get("user_role"), slots.get("user_role")),
+                mission=mission,
+                slot="user_role",
+                decision="claim_guidance_path",
+                order=20,
+            ),
+            _conversation_step(
+                step_id="confirm_claim_report_loaded",
+                step_type="fact",
+                label="confirmar si la denuncia esta cargada",
+                status=_step_status_for_boolean_fact(facts.get("claim_report_loaded")),
+                mission=mission,
+                fact="claim_report_loaded",
+                decision="claim_report_or_documentation_path",
+                order=30,
+            ),
+            _conversation_step(
+                step_id="confirm_documentation_available",
+                step_type="fact",
+                label="confirmar si tiene documentacion",
+                status=_step_status_for_boolean_fact(facts.get("documentation_available")),
+                mission=mission,
+                fact="documentation_available",
+                decision="claim_follow_up_path",
+                order=40,
+            ),
+            _conversation_step(
+                step_id="provide_next_step_guidance",
+                step_type="response",
+                label="indicar siguiente paso util",
+                status="completed" if str(mission.get("next_act") or "") == "provide_next_step_guidance" else "pending",
+                mission=mission,
+                decision="final_guidance",
+                order=50,
+            ),
+        ]
+        if facts.get("claim_report_loaded") is False:
+            steps.insert(
+                3,
+                _conversation_step(
+                    step_id="complete_claim_report",
+                    step_type="repair_step",
+                    label="resolver carga de denuncia antes de avanzar",
+                    status="pending",
+                    mission=mission,
+                    fact="claim_report_loaded",
+                    decision="claim_report_or_documentation_path",
+                    order=35,
+                ),
+            )
+        if facts.get("documentation_available") is False:
+            steps.insert(
+                4,
+                _conversation_step(
+                    step_id="complete_documentation",
+                    step_type="repair_step",
+                    label="completar documentacion antes de seguimiento",
+                    status="pending",
+                    mission=mission,
+                    fact="documentation_available",
+                    decision="claim_follow_up_path",
+                    order=45,
+                ),
+            )
+        return sorted(steps, key=lambda item: int(item.get("order", 100) or 100))
+    if mission_type == "knowledge_lookup":
+        return [
+            _conversation_step(
+                step_id="provide_concept_explanation",
+                step_type="response",
+                label="explicar concepto usando evidencia",
+                status="pending",
+                mission=mission,
+                decision="knowledge_response",
+                order=10,
+            )
+        ]
+    if mission_type:
+        return [
+            _conversation_step(
+                step_id="understand_user_need",
+                step_type="clarification",
+                label="comprender necesidad principal",
+                status="pending",
+                mission=mission,
+                slot="user_need",
+                decision="response_prioritization",
+                order=10,
+            )
+        ]
+    return []
+
+
+def _conversation_step(
+    *,
+    step_id: str,
+    step_type: str,
+    label: str,
+    status: str,
+    mission: Mapping[str, Any],
+    decision: str,
+    order: int,
+    slot: str | None = None,
+    fact: str | None = None,
+) -> Dict[str, Any]:
+    step = {
+        "contract": "conversation_plan_step.v1",
+        "id": step_id,
+        "type": step_type,
+        "label": label,
+        "status": status,
+        "mission_type": mission.get("type"),
+        "mission_next_act": mission.get("next_act"),
+        "decision": decision,
+        "order": int(order),
+    }
+    if slot:
+        step["slot"] = slot
+    if fact:
+        step["fact"] = fact
+    return step
+
+
+def _step_status_for_known_value(value: Any, slot: Mapping[str, Any] | None) -> str:
+    if value is not None:
+        return "completed"
+    if slot and slot.get("status") in SLOT_CLOSED_STATUSES:
+        return "completed"
+    return "pending"
+
+
+def _step_status_for_boolean_fact(value: Any) -> str:
+    if value is True:
+        return "completed"
+    return "pending"
+
+
+def _inserted_conversation_steps(
+    *,
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+    intent_model: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    mission = conversation_state.active_mission or {}
+    if not mission:
+        return []
+    primary_need = str(((intent_model.get("response_objective") or {}).get("need_key")) or "")
+    inserted: list[Dict[str, Any]] = []
+    if primary_need in {"claim_status_or_payment", "claim_contact_progress"} or _mentions_status_or_payment_need(normalized):
+        inserted.append(
+            _conversation_step(
+                step_id="answer_lateral_process_timing",
+                step_type="side_question",
+                label="responder consulta lateral sobre tiempos o avance",
+                status="pending",
+                mission=mission,
+                decision="process_progress_confidence",
+                order=5,
+            )
+        )
+    if primary_need in {"vehicle_repair_authorization", "photo_upload_status", "photo_requirement_confidence"} and mission.get("type") == "auto_claim_guidance":
+        inserted.append(
+            _conversation_step(
+                step_id=f"answer_lateral_{primary_need}",
+                step_type="side_question",
+                label=str((intent_model.get("response_objective") or {}).get("label") or "responder consulta lateral"),
+                status="pending",
+                mission=mission,
+                decision=primary_need,
+                order=5,
+            )
+        )
+    if str((conversation_state.last_conversational_act or {}).get("act") or "") == ConversationalActType.TOPIC_SHIFT:
+        inserted.append(
+            _conversation_step(
+                step_id="handle_topic_shift",
+                step_type="focus_transition",
+                label="administrar cambio o recuperacion de foco",
+                status="pending",
+                mission=mission,
+                decision="focus_management",
+                order=4,
+            )
+        )
+    return _dedupe_steps(inserted)
+
+
+def _conversation_steps_with_insertions(
+    base_steps: Sequence[Mapping[str, Any]],
+    inserted_steps: Sequence[Mapping[str, Any]],
+) -> list[Dict[str, Any]]:
+    return sorted(
+        [deepcopy(dict(step)) for step in inserted_steps] + [deepcopy(dict(step)) for step in base_steps],
+        key=lambda item: int(item.get("order", 100) or 100),
+    )
+
+
+def _active_steps_from_previous_plan(previous_plan: Mapping[str, Any]) -> list[Dict[str, Any]]:
+    active_plan = previous_plan.get("active_plan") if isinstance(previous_plan, Mapping) else None
+    if not isinstance(active_plan, Mapping):
+        return []
+    steps = active_plan.get("steps")
+    if not isinstance(steps, Sequence) or isinstance(steps, (str, bytes)):
+        return []
+    return [deepcopy(dict(step)) for step in steps if isinstance(step, Mapping)]
+
+
+def _abandoned_conversation_steps(
+    previous_steps: Sequence[Mapping[str, Any]],
+    active_steps: Sequence[Mapping[str, Any]],
+) -> list[Dict[str, Any]]:
+    active_ids = {str(step.get("id") or "") for step in active_steps}
+    abandoned = []
+    for step in previous_steps:
+        step_id = str(step.get("id") or "")
+        if not step_id or step_id in active_ids:
+            continue
+        if step.get("status") == "completed":
+            continue
+        item = deepcopy(dict(step))
+        item["status"] = "abandoned"
+        item["reason"] = "not_present_after_replanning"
+        abandoned.append(item)
+    return abandoned
+
+
+def _skipped_conversation_steps(
+    *,
+    previous_steps: Sequence[Mapping[str, Any]],
+    active_steps: Sequence[Mapping[str, Any]],
+    information_gain_plan: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    skipped: list[Dict[str, Any]] = []
+    selected_slot = str(((information_gain_plan.get("selected_question") or {}).get("slot")) or "")
+    for candidate in information_gain_plan.get("candidate_questions") or []:
+        if not isinstance(candidate, Mapping):
+            continue
+        slot = str(candidate.get("slot") or "")
+        if not slot or slot == selected_slot:
+            continue
+        matching_step = _step_for_slot_or_fact(active_steps, slot)
+        if matching_step and matching_step.get("status") == "pending":
+            item = deepcopy(dict(matching_step))
+            item["status"] = "skipped_for_now"
+            item["reason"] = "lower_information_gain_than_selected_question"
+            item["candidate_question"] = deepcopy(dict(candidate))
+            skipped.append(item)
+    previous_by_id = {str(step.get("id") or ""): dict(step) for step in previous_steps if step.get("id")}
+    for step in active_steps:
+        step_id = str(step.get("id") or "")
+        previous = previous_by_id.get(step_id)
+        if not previous:
+            continue
+        if (
+            previous.get("status") == "pending"
+            and step.get("status") == "completed"
+            and step.get("type") in {"slot", "fact", "clarification"}
+        ):
+            item = deepcopy(dict(step))
+            item["status"] = "skipped_by_new_evidence"
+            item["reason"] = "user_supplied_information_before_question_was_asked"
+            skipped.append(item)
+    return _dedupe_steps(skipped)
+
+
+def _step_for_slot_or_fact(steps: Sequence[Mapping[str, Any]], key: str) -> Dict[str, Any] | None:
+    for step in steps:
+        if step.get("slot") == key or step.get("fact") == key:
+            return deepcopy(dict(step))
+    return None
+
+
+def _conversation_replanning_reason(
+    *,
+    previous_plan: Mapping[str, Any],
+    inserted_steps: Sequence[Mapping[str, Any]],
+    completed_steps: Sequence[Mapping[str, Any]],
+    abandoned_steps: Sequence[Mapping[str, Any]],
+    skipped_steps: Sequence[Mapping[str, Any]],
+    derived_state: Mapping[str, Any],
+) -> str:
+    if not previous_plan:
+        return "plan_initialized"
+    if inserted_steps:
+        return "side_step_inserted_preserve_active_plan"
+    if derived_state.get("fact_revision"):
+        return "facts_revised_replan_required"
+    if derived_state.get("fact_assimilation") or derived_state.get("mission_advancement"):
+        if skipped_steps:
+            return "new_evidence_completed_or_skipped_steps"
+        if completed_steps:
+            return "new_evidence_advanced_plan"
+        return "new_evidence_reviewed_plan"
+    if abandoned_steps:
+        return "steps_abandoned_after_replanning"
+    if skipped_steps:
+        return "question_selection_skipped_lower_value_steps"
+    return "plan_still_valid"
+
+
+def _conversation_progress(steps: Sequence[Mapping[str, Any]], mission: Mapping[str, Any]) -> Dict[str, Any]:
+    total = len([step for step in steps if step.get("type") != "side_question"])
+    completed = len([step for step in steps if step.get("type") != "side_question" and step.get("status") == "completed"])
+    ratio = round(completed / total, 4) if total else float(mission.get("progress") or 0.0)
+    mission_progress = float(mission.get("progress") or 0.0)
+    return {
+        "completed_steps": completed,
+        "total_steps": total,
+        "ratio": max(ratio, round(mission_progress, 4)),
+        "mission_progress": round(mission_progress, 4),
+    }
+
+
+def _current_conversation_step(steps: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    for step in steps:
+        if step.get("status") == "pending":
+            return deepcopy(dict(step))
+    return {}
+
+
+def _dedupe_steps(steps: Sequence[Mapping[str, Any]]) -> list[Dict[str, Any]]:
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for step in steps:
+        step_id = str(step.get("id") or "")
+        if not step_id:
+            continue
+        by_id[step_id] = deepcopy(dict(step))
+    return list(by_id.values())
+
+
+def _candidate_clarification_questions(
+    *,
+    conversation_state: ConversationState,
+    primary_need: Mapping[str, Any],
+    intent_model: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    candidates: list[Dict[str, Any]] = []
+    seen_slots: set[str] = set()
+    for item in _required_information_for_response(conversation_state, primary_need):
+        candidate = _candidate_from_required_information(item)
+        if not candidate:
+            continue
+        slot = str(candidate.get("slot") or "")
+        if not slot or slot in seen_slots:
+            continue
+        candidates.append(candidate)
+        seen_slots.add(slot)
+
+    fact_values = _active_fact_values(conversation_state.confirmed_facts)
+    for item in intent_model.get("missing_information") or []:
+        if not isinstance(item, Mapping):
+            continue
+        key = str(item.get("key") or "")
+        if not key or key in seen_slots:
+            continue
+        if fact_values.get(key) is not None:
+            continue
+        candidate = _candidate_from_missing_information(item, primary_need)
+        if not candidate:
+            continue
+        candidates.append(candidate)
+        seen_slots.add(key)
+    return candidates
+
+
+def _candidate_from_required_information(item: Mapping[str, Any]) -> Dict[str, Any]:
+    slot = str(item.get("slot") or "")
+    if not slot:
+        return {}
+    source_question = dict(item.get("source_question") or {})
+    source = str(source_question.get("source") or "pending_question")
+    return {
+        "contract": "candidate_clarification_question.v1",
+        "id": f"{slot}:{source}",
+        "slot": slot,
+        "question": str(item.get("question") or _justified_question_for_slot(slot)),
+        "purpose": str(item.get("purpose") or "tomar la siguiente decision sin inventar datos"),
+        "needed_for": str(item.get("needed_for") or _question_needed_for_slot(slot)),
+        "source": source,
+        "priority": int(item.get("priority", _slot_priority(slot)) or _slot_priority(slot)),
+        "source_question": deepcopy(source_question),
+    }
+
+
+def _candidate_from_missing_information(
+    item: Mapping[str, Any],
+    primary_need: Mapping[str, Any],
+) -> Dict[str, Any]:
+    key = str(item.get("key") or "")
+    question = _question_for_missing_information(key)
+    if not key or not question:
+        return {}
+    return {
+        "contract": "candidate_clarification_question.v1",
+        "id": f"{key}:intent_missing_information",
+        "slot": key,
+        "question": question,
+        "purpose": _purpose_for_missing_information(key, item, primary_need),
+        "needed_for": _decision_for_missing_information(key, primary_need),
+        "source": "intent_missing_information",
+        "priority": _missing_information_priority(key),
+        "source_question": deepcopy(dict(item)),
+    }
+
+
+def _scored_clarification_candidates(
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    primary_need: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    scored: list[Dict[str, Any]] = []
+    for index, candidate in enumerate(candidates):
+        slot = str(candidate.get("slot") or "")
+        source = str(candidate.get("source") or "")
+        profile = _information_gain_profile(slot, source, primary_need)
+        priority = int(candidate.get("priority", _slot_priority(slot)) or _slot_priority(slot))
+        clarification_priority = round(
+            float(profile["expected_information_gain"])
+            + _blocking_weight(str(profile["blocking_level"]))
+            - float(profile["estimated_cost"]),
+            4,
+        )
+        item = deepcopy(dict(candidate))
+        item.update(
+            {
+                "expected_information_gain": round(float(profile["expected_information_gain"]), 4),
+                "affected_decisions": list(profile["affected_decisions"]),
+                "estimated_cost": round(float(profile["estimated_cost"]), 4),
+                "blocking_level": str(profile["blocking_level"]),
+                "clarification_priority": clarification_priority,
+                "selection_threshold": float(profile["selection_threshold"]),
+                "can_continue_without_answer": bool(profile["can_continue_without_answer"]),
+                "order": index,
+                "tie_breakers": {
+                    "estimated_cost": round(float(profile["estimated_cost"]), 4),
+                    "priority": priority,
+                    "source_rank": _question_source_rank(source),
+                    "order": index,
+                },
+            }
+        )
+        scored.append(item)
+    return scored
+
+
+def _information_gain_profile(
+    slot: str,
+    source: str,
+    primary_need: Mapping[str, Any],
+) -> Dict[str, Any]:
+    primary_key = str(primary_need.get("key") or "")
+    if slot == "injuries":
+        return _gain_profile(0.95, 0.18, "critical", ["safety_and_escalation_path"], 0.6, False)
+    if slot == "user_role":
+        return _gain_profile(0.82, 0.25, "high", ["claim_guidance_path"], 0.62, False)
+    if slot in {"claim_report_loaded", "documentation_available"} and source != "intent_missing_information":
+        return _gain_profile(0.74, 0.2, "medium", [_question_needed_for_slot(slot)], 0.62, False)
+    if slot == "claim_authorization_status" and primary_key == "vehicle_repair_authorization":
+        return _gain_profile(0.76, 0.25, "medium", ["repair_authorization_guidance"], 0.62, False)
+    if slot == "photo_upload_evidence" and primary_key == "photo_upload_status":
+        return _gain_profile(0.82, 0.28, "medium", ["photo_upload_verification"], 0.62, False)
+    if slot == "reference_target":
+        return _gain_profile(0.9, 0.18, "high", ["reference_resolution"], 0.62, False)
+    if slot in {"claim_report_loaded", "documentation_complete"} and source == "intent_missing_information":
+        return _gain_profile(0.55, 0.2, "low", ["process_progress_confidence"], 0.62, True)
+    if slot == "damage_evidence_available":
+        return _gain_profile(0.64, 0.28, "low", ["evidence_preservation"], 0.62, True)
+    if slot in {"claim_type", "channel_checklist"}:
+        return _gain_profile(0.5, 0.3, "none", ["photo_requirement_confidence"], 0.62, True)
+    if slot == "user_need":
+        return _gain_profile(0.72, 0.22, "medium", ["response_prioritization"], 0.62, False)
+    return _gain_profile(0.55, 0.28, "low", [_question_needed_for_slot(slot)], 0.62, True)
+
+
+def _gain_profile(
+    expected_information_gain: float,
+    estimated_cost: float,
+    blocking_level: str,
+    affected_decisions: Sequence[str],
+    selection_threshold: float,
+    can_continue_without_answer: bool,
+) -> Dict[str, Any]:
+    return {
+        "expected_information_gain": expected_information_gain,
+        "estimated_cost": estimated_cost,
+        "blocking_level": blocking_level,
+        "affected_decisions": list(affected_decisions),
+        "selection_threshold": selection_threshold,
+        "can_continue_without_answer": can_continue_without_answer,
+    }
+
+
+def _blocking_weight(blocking_level: str) -> float:
+    return {
+        "critical": 0.35,
+        "high": 0.25,
+        "medium": 0.15,
+        "low": 0.05,
+        "none": 0.0,
+    }.get(blocking_level, 0.0)
+
+
+def _question_source_rank(source: str) -> int:
+    return {
+        "active_mission": 0,
+        "mission_next_act": 1,
+        "pending_question": 2,
+        "intent_missing_information": 3,
+    }.get(source, 9)
+
+
+def _select_clarification_question(
+    candidate_questions: Sequence[Mapping[str, Any]],
+) -> tuple[Dict[str, Any], str, Dict[str, Any]]:
+    eligible = [
+        deepcopy(dict(candidate))
+        for candidate in candidate_questions
+        if str(candidate.get("blocking_level") or "none") != "none"
+        and float(candidate.get("clarification_priority") or 0.0) >= float(candidate.get("selection_threshold") or 0.62)
+    ]
+    if not eligible:
+        return {}, "no_candidate_changes_current_decision_enough", {}
+    ordered = sorted(
+        eligible,
+        key=lambda item: (
+            -float(item.get("clarification_priority") or 0.0),
+            float(item.get("estimated_cost") or 0.0),
+            _int_with_default((item.get("tie_breakers") or {}).get("source_rank"), 9),
+            _int_with_default(item.get("priority"), 100),
+            _int_with_default((item.get("tie_breakers") or {}).get("order"), 1000),
+        ),
+    )
+    selected = deepcopy(dict(ordered[0]))
+    max_priority = float(selected.get("clarification_priority") or 0.0)
+    tied = [
+        dict(item)
+        for item in ordered
+        if abs(float(item.get("clarification_priority") or 0.0) - max_priority) < 0.0001
+    ]
+    tie_break = {}
+    selection_reason = "highest_information_gain"
+    if len(tied) > 1:
+        selection_reason = "highest_information_gain_with_deterministic_tie_break"
+        tie_break = {
+            "candidate_slots": [str(item.get("slot") or "") for item in tied],
+            "criteria": ["lower_estimated_cost", "source_rank", "slot_priority", "stable_order"],
+            "selected_slot": selected.get("slot"),
+        }
+    return selected, selection_reason, tie_break
+
+
+def _int_with_default(value: Any, default: int) -> int:
+    if value is None:
+        return default
+    return int(value)
+
+
+def _selected_required_information(
+    required_candidates: Sequence[Mapping[str, Any]],
+    information_gain_plan: Mapping[str, Any],
+    *,
+    conversation_plan: Mapping[str, Any] | None = None,
+    primary_need: Mapping[str, Any] | None = None,
+    conversational_act: Mapping[str, Any] | None = None,
+) -> list[Dict[str, Any]]:
+    selected = dict(information_gain_plan.get("selected_question") or {})
+    if not selected:
+        return []
+    selected_slot = str(selected.get("slot") or "")
+    for item in required_candidates:
+        if str(item.get("slot") or "") == selected_slot:
+            chosen = deepcopy(dict(item))
+            chosen["information_gain"] = _selected_question_information_gain(selected)
+            chosen = _maybe_reformulate_required_question(
+                chosen,
+                selected=selected,
+                conversation_plan=conversation_plan or {},
+                primary_need=primary_need or {},
+                conversational_act=conversational_act or {},
+            )
+            return [chosen]
+    return [
+        _maybe_reformulate_required_question(
+            _required_information_from_selected_question(selected),
+            selected=selected,
+            conversation_plan=conversation_plan or {},
+            primary_need=primary_need or {},
+            conversational_act=conversational_act or {},
+        )
+    ]
+
+
+def _maybe_reformulate_required_question(
+    required: Mapping[str, Any],
+    *,
+    selected: Mapping[str, Any],
+    conversation_plan: Mapping[str, Any],
+    primary_need: Mapping[str, Any],
+    conversational_act: Mapping[str, Any],
+) -> Dict[str, Any]:
+    item = deepcopy(dict(required))
+    slot = str(item.get("slot") or selected.get("slot") or "")
+    if not slot:
+        return item
+    if not _should_reformulate_selected_question(
+        slot,
+        conversation_plan=conversation_plan,
+        conversational_act=conversational_act,
+    ):
+        return item
+    reformulated = _reformulated_question_for_slot(slot, primary_need=primary_need)
+    if not reformulated:
+        return item
+    item["question"] = reformulated
+    item["question_was_reformulated"] = True
+    item["reformulated_from"] = str(selected.get("question") or required.get("question") or "")
+    item["reformulation_reason"] = "same_information_still_needed_after_unanswered_or_ambiguous_turn"
+    return item
+
+
+def _should_reformulate_selected_question(
+    slot: str,
+    *,
+    conversation_plan: Mapping[str, Any],
+    conversational_act: Mapping[str, Any],
+) -> bool:
+    reason = str(conversation_plan.get("replanning_reason") or "")
+    if reason == "side_step_inserted_preserve_active_plan":
+        return False
+    previous_current = dict(((conversation_plan.get("previous_plan") or {}).get("active_plan") or {}).get("current_step") or {})
+    if str(previous_current.get("slot") or "") == slot:
+        return True
+    act = str(conversational_act.get("act") or "")
+    return act in {
+        ConversationalActType.CONTINUATION,
+        ConversationalActType.CLARIFICATION,
+        ConversationalActType.CLARIFICATION_REQUEST,
+    }
+
+
+def _reformulated_question_for_slot(
+    slot: str,
+    *,
+    primary_need: Mapping[str, Any],
+) -> str:
+    primary_key = str(primary_need.get("key") or "")
+    if slot == "injuries":
+        return "Recordas si alguna persona resulto herida o necesito atencion medica despues del choque?"
+    if slot == "user_role":
+        return "Para seguir por el circuito correcto, el seguro Galicia es tuyo o estas reclamando como tercero?"
+    if slot == "claim_report_loaded":
+        if primary_key == "claim_status_or_payment":
+            return "Para ubicar mejor los tiempos, la denuncia figura cargada en el canal?"
+        if primary_key == "photo_upload_status":
+            return "Para revisar las fotos en el lugar correcto, la denuncia ya figura cargada?"
+        return "Para seguir con el tramite, la denuncia ya figura cargada en el canal?"
+    if slot == "documentation_available":
+        return "Tenes a mano fotos, presupuesto y la documentacion que te pidieron para el tramite?"
+    if slot == "user_need":
+        return "Que punto queres resolver primero: el arreglo, la denuncia, la documentacion o los tiempos?"
+    return ""
+
+
+def _selected_question_information_gain(selected: Mapping[str, Any]) -> Dict[str, Any]:
+    return {
+        "expected_information_gain": float(selected.get("expected_information_gain") or 0.0),
+        "affected_decisions": list(selected.get("affected_decisions") or []),
+        "estimated_cost": float(selected.get("estimated_cost") or 0.0),
+        "blocking_level": str(selected.get("blocking_level") or "none"),
+        "clarification_priority": float(selected.get("clarification_priority") or 0.0),
+    }
+
+
+def _required_information_from_selected_question(selected: Mapping[str, Any]) -> Dict[str, Any]:
+    slot = str(selected.get("slot") or "")
+    return {
+        "slot": slot,
+        "question": str(selected.get("question") or _justified_question_for_slot(slot)),
+        "purpose": str(selected.get("purpose") or "tomar la siguiente decision sin inventar datos"),
+        "needed_for": str(selected.get("needed_for") or (selected.get("affected_decisions") or ["next_action_selection"])[0]),
+        "priority": int(selected.get("priority", _slot_priority(slot)) or _slot_priority(slot)),
+        "source_question": deepcopy(dict(selected.get("source_question") or {})),
+        "information_gain": _selected_question_information_gain(selected),
+    }
+
+
+def _question_for_missing_information(key: str) -> str:
+    return {
+        "claim_authorization_status": "Ya tenes autorizacion o indicacion de la aseguradora para avanzar con el arreglo?",
+        "damage_evidence_available": "Tenes fotos, presupuesto o algun respaldo del dano antes de arreglarlo?",
+        "claim_report_loaded": "La denuncia ya esta cargada?",
+        "documentation_complete": "La documentacion quedo completa?",
+        "claim_type": "Que tipo de siniestro fue?",
+        "channel_checklist": "El canal te muestra alguna observacion o pendiente?",
+        "reference_target": "A que te referis con eso?",
+    }.get(key, "")
+
+
+def _purpose_for_missing_information(
+    key: str,
+    item: Mapping[str, Any],
+    primary_need: Mapping[str, Any],
+) -> str:
+    if key == "claim_authorization_status":
+        return "saber si conviene esperar una indicacion antes de reparar"
+    if key == "damage_evidence_available":
+        return "preservar evidencia si necesitas avanzar con el arreglo"
+    if key == "reference_target":
+        return "responder sobre el tema correcto"
+    purpose = str(item.get("purpose") or "")
+    if purpose:
+        return purpose
+    return _question_purpose_for_slot(key, primary_need)
+
+
+def _decision_for_missing_information(
+    key: str,
+    primary_need: Mapping[str, Any],
+) -> str:
+    return {
+        "claim_authorization_status": "repair_authorization_guidance",
+        "damage_evidence_available": "evidence_preservation",
+        "claim_report_loaded": "process_progress_confidence",
+        "documentation_complete": "process_progress_confidence",
+        "claim_type": "photo_requirement_confidence",
+        "channel_checklist": "photo_requirement_confidence",
+        "reference_target": "reference_resolution",
+    }.get(key, str(primary_need.get("key") or "next_action_selection"))
+
+
+def _missing_information_priority(key: str) -> int:
+    return {
+        "reference_target": 5,
+        "claim_authorization_status": 28,
+        "damage_evidence_available": 38,
+        "claim_report_loaded": 45,
+        "documentation_complete": 50,
+        "claim_type": 70,
+        "channel_checklist": 75,
+    }.get(key, 100)
+
+
+def _detected_response_needs(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+) -> list[Dict[str, Any]]:
+    needs: list[Dict[str, Any]] = []
+    intent_model = _intent_model_from_state(conversation_state)
+    objective = dict(intent_model.get("response_objective") or {})
+    if objective.get("need_key"):
+        needs.append(
+            _response_need(
+                key=str(objective["need_key"]),
+                label=str(objective.get("label") or objective.get("objective") or "resolver necesidad implicita"),
+                confidence=float(objective.get("confidence") or 0.86),
+                source="conversation_intent_model",
+                evidence=objective.get("evidence") or intent_model.get("evidence") or str(message),
+            )
+        )
+    if _mentions_vehicle_repair_need(normalized):
+        needs.append(
+            _response_need(
+                key="vehicle_repair_authorization",
+                label="saber si puede arreglar el auto sin perjudicar el tramite",
+                confidence=0.9,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_no_photo_request(normalized):
+        needs.append(
+            _response_need(
+                key="photo_requirement_confidence",
+                label="saber si no haber recibido pedido de fotos significa que hizo algo mal",
+                confidence=0.88,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_photo_upload_need(normalized):
+        needs.append(
+            _response_need(
+                key="photo_upload_status",
+                label="verificar si las fotos fueron enviadas",
+                confidence=0.82,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_contact_timing_need(normalized):
+        needs.append(
+            _response_need(
+                key="claim_contact_progress",
+                label="saber si el caso sigue correctamente el proceso",
+                confidence=0.84,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_claim_report_need(normalized):
+        needs.append(
+            _response_need(
+                key="claim_report_status",
+                label="saber si la denuncia esta cargada o como seguir",
+                confidence=0.78,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_documentation_need(normalized):
+        needs.append(
+            _response_need(
+                key="documentation_guidance",
+                label="saber que documentacion hace falta",
+                confidence=0.76,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if _mentions_status_or_payment_need(normalized):
+        needs.append(
+            _response_need(
+                key="claim_status_or_payment",
+                label="entender estado, plazos o pago del siniestro",
+                confidence=0.74,
+                source="user_message",
+                evidence=str(message),
+            )
+        )
+    if not needs and (conversation_state.active_mission or {}).get("type") == "auto_claim_guidance":
+        needs.append(
+            _response_need(
+                key="auto_claim_guidance",
+                label="orientacion sobre el siniestro automotor",
+                confidence=0.62,
+                source="active_mission",
+                evidence=(conversation_state.active_mission or {}).get("goal"),
+            )
+        )
+    if not needs:
+        needs.append(
+            _response_need(
+                key="understand_user_need",
+                label="comprender la necesidad del usuario",
+                confidence=0.45,
+                source="fallback",
+                evidence=str(message),
+            )
+        )
+    return _dedupe_needs(needs)
+
+
+def _response_need(*, key: str, label: str, confidence: float, source: str, evidence: Any) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "confidence": round(float(confidence), 4),
+        "source": source,
+        "evidence": {"text": str(evidence or "")},
+    }
+
+
+def _conversational_intent_model(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+) -> Dict[str, Any]:
+    explicit_questions = _explicit_questions_from_message(message, normalized)
+    implicit_questions: list[Dict[str, Any]] = []
+    user_assumptions: list[Dict[str, Any]] = []
+    missing_information: list[Dict[str, Any]] = []
+    matched_signals: list[str] = []
+
+    if _mentions_vehicle_repair_need(normalized):
+        matched_signals.append("vehicle_repair_need")
+        if not explicit_questions:
+            explicit_questions.append(
+                _intent_question(
+                    key="can_repair_vehicle",
+                    text="Puedo arreglar el auto?",
+                    source="inferred_from_repair_phrase",
+                    evidence=normalized,
+                    confidence=0.78,
+                )
+            )
+        implicit_questions.append(
+            _intent_question(
+                key="repair_affects_claim",
+                text="Arreglar el auto puede perjudicar la denuncia o evaluacion del siniestro?",
+                source="pragmatic_repair_concern",
+                evidence=normalized,
+                confidence=0.86,
+            )
+        )
+        user_assumptions.append(
+            _intent_assumption(
+                key="early_repair_may_affect_claim",
+                text="El usuario supone que reparar antes de una autorizacion podria afectar el tramite.",
+                evidence=normalized,
+                confidence=0.74,
+            )
+        )
+        missing_information.extend(
+            [
+                _intent_missing_information(
+                    key="claim_authorization_status",
+                    label="estado de autorizacion o indicacion de la aseguradora",
+                    purpose="definir si reparar ahora puede afectar la evaluacion",
+                ),
+                _intent_missing_information(
+                    key="damage_evidence_available",
+                    label="fotos, presupuesto o respaldo del dano",
+                    purpose="preservar evidencia antes de reparar",
+                ),
+            ]
+        )
+
+    if _mentions_contact_timing_need(normalized):
+        matched_signals.append("contact_timing_need")
+        implicit_questions.append(
+            _intent_question(
+                key="case_following_process",
+                text="Mi caso sigue correctamente el proceso o quedo trabado?",
+                source="pragmatic_contact_timing_concern",
+                evidence=normalized,
+                confidence=0.84,
+            )
+        )
+        user_assumptions.append(
+            _intent_assumption(
+                key="lack_of_contact_may_indicate_problem",
+                text="El usuario supone que si no lo contactan puede haber un problema con el tramite.",
+                evidence=normalized,
+                confidence=0.72,
+            )
+        )
+        missing_information.extend(
+            [
+                _intent_missing_information(
+                    key="claim_report_loaded",
+                    label="si la denuncia esta cargada",
+                    purpose="verificar si el caso inicio el circuito esperado",
+                ),
+                _intent_missing_information(
+                    key="documentation_complete",
+                    label="si la documentacion quedo completa",
+                    purpose="identificar bloqueos posibles antes del contacto",
+                ),
+            ]
+        )
+
+    if _mentions_no_photo_request(normalized):
+        matched_signals.append("no_photo_request")
+        implicit_questions.append(
+            _intent_question(
+                key="missed_required_step",
+                text="Hice algo mal o me falto cargar fotos?",
+                source="pragmatic_missing_photo_request_concern",
+                evidence=normalized,
+                confidence=0.87,
+            )
+        )
+        user_assumptions.append(
+            _intent_assumption(
+                key="photos_should_have_been_requested",
+                text="El usuario supone que las fotos siempre deberian ser solicitadas.",
+                evidence=normalized,
+                confidence=0.78,
+            )
+        )
+        missing_information.extend(
+            [
+                _intent_missing_information(
+                    key="claim_type",
+                    label="tipo de siniestro",
+                    purpose="saber si las fotos son obligatorias en ese circuito",
+                ),
+                _intent_missing_information(
+                    key="channel_checklist",
+                    label="checklist o estado mostrado por el canal",
+                    purpose="confirmar si aparece alguna observacion pendiente",
+                ),
+            ]
+        )
+
+    if _mentions_photo_upload_need(normalized) and not _mentions_no_photo_request(normalized):
+        matched_signals.append("photo_upload_need")
+        implicit_questions.append(
+            _intent_question(
+                key="photos_loaded_correctly",
+                text="Las fotos quedaron cargadas correctamente?",
+                source="photo_upload_uncertainty",
+                evidence=normalized,
+                confidence=0.78,
+            )
+        )
+
+    if not explicit_questions and not implicit_questions:
+        if _is_ambiguous_reference(normalized):
+            matched_signals.append("ambiguous_reference")
+            missing_information.append(
+                _intent_missing_information(
+                    key="reference_target",
+                    label="a que se refiere el usuario",
+                    purpose="evitar inferir una preocupacion sin evidencia suficiente",
+                )
+            )
+        else:
+            matched_signals.append("literal_need_only")
+
+    dominant_concern = _intent_dominant_concern(
+        normalized=normalized,
+        explicit_questions=explicit_questions,
+        implicit_questions=implicit_questions,
+        matched_signals=matched_signals,
+    )
+    user_goal = _intent_user_goal(dominant_concern)
+    response_objective = _intent_response_objective(dominant_concern)
+    return {
+        "contract": "conversational_intent_model.v1",
+        "explicit_questions": explicit_questions,
+        "implicit_questions": implicit_questions,
+        "dominant_concern": dominant_concern,
+        "user_goal": user_goal,
+        "user_assumptions": user_assumptions,
+        "missing_information": _dedupe_intent_items(missing_information),
+        "response_objective": response_objective,
+        "evidence": {
+            "message": str(message),
+            "normalized_message": normalized,
+            "matched_signals": matched_signals,
+            "active_mission_type": (conversation_state.active_mission or {}).get("type"),
+            "active_topic": deepcopy(_active_topic_from_stack(conversation_state.topic_stack) or {}),
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _explicit_questions_from_message(message: Any, normalized: str) -> list[Dict[str, Any]]:
+    questions: list[Dict[str, Any]] = []
+    if "?" in str(message) or normalized.startswith(("puedo ", "cuando ", "cuanto ", "que ", "como ", "donde ")):
+        if _mentions_vehicle_repair_need(normalized):
+            questions.append(
+                _intent_question(
+                    key="can_repair_vehicle",
+                    text="Puedo arreglar el auto?",
+                    source="explicit_question",
+                    evidence=str(message),
+                    confidence=0.9,
+                )
+            )
+        if _mentions_contact_timing_need(normalized):
+            questions.append(
+                _intent_question(
+                    key="when_will_contact_me",
+                    text="Cuando me van a contactar?",
+                    source="explicit_question",
+                    evidence=str(message),
+                    confidence=0.88,
+                )
+            )
+        if _mentions_photo_upload_need(normalized) and not _mentions_no_photo_request(normalized):
+            questions.append(
+                _intent_question(
+                    key="were_photos_sent",
+                    text="Las fotos fueron enviadas o cargadas?",
+                    source="explicit_question",
+                    evidence=str(message),
+                    confidence=0.82,
+                )
+            )
+    if _mentions_no_photo_request(normalized):
+        questions.append(
+            _intent_question(
+                key="photos_not_requested",
+                text="No me pidieron las fotos.",
+                source="explicit_statement",
+                evidence=str(message),
+                confidence=0.76,
+            )
+        )
+    return _dedupe_intent_items(questions)
+
+
+def _intent_question(*, key: str, text: str, source: str, evidence: str, confidence: float) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "text": text,
+        "source": source,
+        "confidence": round(float(confidence), 4),
+        "evidence": {"text": evidence},
+    }
+
+
+def _intent_assumption(*, key: str, text: str, evidence: str, confidence: float) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "text": text,
+        "confidence": round(float(confidence), 4),
+        "evidence": {"text": evidence},
+    }
+
+
+def _intent_missing_information(*, key: str, label: str, purpose: str) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "purpose": purpose,
+    }
+
+
+def _intent_dominant_concern(
+    *,
+    normalized: str,
+    explicit_questions: Sequence[Mapping[str, Any]],
+    implicit_questions: Sequence[Mapping[str, Any]],
+    matched_signals: Sequence[str],
+) -> Dict[str, Any]:
+    if "vehicle_repair_need" in matched_signals:
+        return {
+            "key": "preserve_claim_while_repairing_vehicle",
+            "need_key": "vehicle_repair_authorization",
+            "label": "necesita arreglar el auto sin perjudicar el tramite",
+            "confidence": 0.88,
+            "source": "implicit_question",
+            "evidence": {"explicit": [dict(item) for item in explicit_questions], "implicit": [dict(item) for item in implicit_questions]},
+        }
+    if "contact_timing_need" in matched_signals:
+        return {
+            "key": "case_may_not_be_progressing",
+            "need_key": "claim_contact_progress",
+            "label": "quiere saber si su caso sigue el proceso esperado",
+            "confidence": 0.84,
+            "source": "implicit_question",
+            "evidence": {"implicit": [dict(item) for item in implicit_questions]},
+        }
+    if "no_photo_request" in matched_signals:
+        return {
+            "key": "missed_photo_step",
+            "need_key": "photo_requirement_confidence",
+            "label": "quiere saber si hizo algo mal al no cargar fotos",
+            "confidence": 0.86,
+            "source": "implicit_question",
+            "evidence": {"implicit": [dict(item) for item in implicit_questions]},
+        }
+    if "ambiguous_reference" in matched_signals:
+        return {
+            "key": "ambiguous_reference",
+            "need_key": "understand_user_need",
+            "label": "referencia conversacional insuficiente",
+            "confidence": 0.42,
+            "source": "missing_reference",
+            "evidence": {"normalized_message": normalized},
+        }
+    if explicit_questions:
+        first = dict(explicit_questions[0])
+        return {
+            "key": first.get("key"),
+            "need_key": first.get("key"),
+            "label": first.get("text"),
+            "confidence": first.get("confidence", 0.5),
+            "source": "explicit_question",
+            "evidence": first.get("evidence", {}),
+        }
+    return {
+        "key": "literal_need",
+        "need_key": "",
+        "label": "necesidad literal del turno",
+        "confidence": 0.4,
+        "source": "fallback",
+        "evidence": {"normalized_message": normalized},
+    }
+
+
+def _intent_user_goal(dominant_concern: Mapping[str, Any]) -> Dict[str, Any]:
+    key = str(dominant_concern.get("key") or "")
+    goals = {
+        "preserve_claim_while_repairing_vehicle": "reparar o usar el vehiculo sin afectar el reclamo",
+        "case_may_not_be_progressing": "entender si el tramite avanza normalmente y que revisar",
+        "missed_photo_step": "confirmar si falta una accion propia y como corregirla",
+        "ambiguous_reference": "aclarar a que se refiere antes de responder",
+    }
+    return {
+        "key": key or "unknown",
+        "label": goals.get(key, str(dominant_concern.get("label") or "resolver la consulta")),
+        "source": dominant_concern.get("source"),
+        "confidence": dominant_concern.get("confidence"),
+    }
+
+
+def _intent_response_objective(dominant_concern: Mapping[str, Any]) -> Dict[str, Any]:
+    key = str(dominant_concern.get("key") or "")
+    need_key = str(dominant_concern.get("need_key") or "")
+    objectives = {
+        "preserve_claim_while_repairing_vehicle": "reducir incertidumbre sobre reparar el auto y explicar como preservar evidencia",
+        "case_may_not_be_progressing": "explicar que revisar para saber si el caso sigue el proceso esperado",
+        "missed_photo_step": "tranquilizar sin asumir error y explicar como verificar si las fotos son necesarias",
+        "ambiguous_reference": "pedir aclaracion minima antes de inferir",
+    }
+    return {
+        "key": key or "literal_response",
+        "need_key": need_key,
+        "label": objectives.get(key, str(dominant_concern.get("label") or "responder la consulta")),
+        "confidence": dominant_concern.get("confidence", 0.5),
+        "evidence": deepcopy(dict(dominant_concern.get("evidence") or {})),
+    }
+
+
+def _dedupe_intent_items(items: Sequence[Mapping[str, Any]]) -> list[Dict[str, Any]]:
+    by_key: Dict[str, Dict[str, Any]] = {}
+    for item in items:
+        key = str(item.get("key") or "")
+        if not key:
+            continue
+        existing = by_key.get(key)
+        if existing is None or float(item.get("confidence") or 0.0) > float(existing.get("confidence") or 0.0):
+            by_key[key] = deepcopy(dict(item))
+    return list(by_key.values())
+
+
+def _intent_model_from_state(conversation_state: ConversationState) -> Dict[str, Any]:
+    trace = conversation_state.derived_state.get("conversation_intent_model")
+    if isinstance(trace, Mapping):
+        model = trace.get("model")
+        if isinstance(model, Mapping):
+            return deepcopy(dict(model))
+        return deepcopy(dict(trace))
+    return {}
+
+
+def _dedupe_needs(needs: Sequence[Mapping[str, Any]]) -> list[Dict[str, Any]]:
+    by_key: Dict[str, Dict[str, Any]] = {}
+    for need in needs:
+        key = str(need.get("key") or "")
+        if not key:
+            continue
+        existing = by_key.get(key)
+        if existing is None or float(need.get("confidence") or 0.0) > float(existing.get("confidence") or 0.0):
+            by_key[key] = deepcopy(dict(need))
+    return sorted(by_key.values(), key=lambda item: float(item.get("confidence") or 0.0), reverse=True)
+
+
+def _dominant_concern_from_needs(
+    normalized: str,
+    needs: Sequence[Mapping[str, Any]],
+    intent_model: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
+    model_concern = dict((intent_model or {}).get("dominant_concern") or {})
+    model_need_key = str(model_concern.get("need_key") or "")
+    if model_need_key:
+        for need in needs:
+            if need.get("key") == model_need_key:
+                return {
+                    "key": model_need_key,
+                    "label": model_concern.get("label") or need.get("label"),
+                    "confidence": max(float(model_concern.get("confidence") or 0.0), float(need.get("confidence") or 0.0)),
+                    "source": "conversation_intent_model",
+                    "implicit_concern": deepcopy(model_concern),
+                }
+    explicit_concern = any(
+        phrase in normalized
+        for phrase in (
+            "lo que mas me preocupa",
+            "lo que más me preocupa",
+            "me preocupa",
+            "mi preocupacion",
+            "mi preocupación",
+            "lo principal",
+            "mi duda principal",
+        )
+    )
+    if explicit_concern:
+        concern_need = _need_for_dominant_clause(normalized, needs) or (dict(needs[0]) if needs else {})
+        return {
+            "key": concern_need.get("key", "explicit_user_concern"),
+            "label": concern_need.get("label", "preocupacion expresada por el usuario"),
+            "confidence": max(float(concern_need.get("confidence") or 0.0), 0.88),
+            "source": "explicit_concern_marker",
+        }
+    if needs:
+        first = dict(needs[0])
+        return {
+            "key": first.get("key"),
+            "label": first.get("label"),
+            "confidence": float(first.get("confidence") or 0.0),
+            "source": first.get("source"),
+        }
+    return {"key": "unknown", "label": "sin preocupacion dominante detectada", "confidence": 0.0, "source": "none"}
+
+
+def _need_for_dominant_clause(normalized: str, needs: Sequence[Mapping[str, Any]]) -> Dict[str, Any] | None:
+    markers = ("lo que mas me preocupa", "lo que más me preocupa", "me preocupa", "mi duda principal", "lo principal")
+    marker_index = min((normalized.find(marker) for marker in markers if marker in normalized), default=-1)
+    dominant_clause = normalized[marker_index:] if marker_index >= 0 else normalized
+    for need in needs:
+        key = str(need.get("key") or "")
+        if key == "vehicle_repair_authorization" and _mentions_vehicle_repair_need(dominant_clause):
+            return dict(need)
+        if key == "photo_upload_status" and _mentions_photo_upload_need(dominant_clause):
+            return dict(need)
+        if key == "claim_report_status" and _mentions_claim_report_need(dominant_clause):
+            return dict(need)
+        if key == "documentation_guidance" and _mentions_documentation_need(dominant_clause):
+            return dict(need)
+    return None
+
+
+def _primary_need_from(
+    needs: Sequence[Mapping[str, Any]],
+    dominant_concern: Mapping[str, Any],
+    conversation_state: ConversationState,
+) -> Dict[str, Any]:
+    concern_key = str(dominant_concern.get("key") or "")
+    for need in needs:
+        if need.get("key") == concern_key:
+            primary = deepcopy(dict(need))
+            primary["selected_reason"] = "dominant_concern"
+            return primary
+    if needs:
+        primary = deepcopy(dict(needs[0]))
+        primary["selected_reason"] = "highest_confidence_need"
+        return primary
+    if conversation_state.pending_questions:
+        question = dict(conversation_state.pending_questions[0])
+        return _response_need(
+            key=f"answer_pending_{question.get('slot')}",
+            label=str(question.get("reason") or question.get("slot") or "resolver pregunta pendiente"),
+            confidence=0.55,
+            source="pending_question",
+            evidence=question.get("prompt"),
+        )
+    return _response_need(
+        key="understand_user_need",
+        label="comprender la necesidad del usuario",
+        confidence=0.4,
+        source="fallback",
+        evidence="",
+    )
+
+
+def _required_information_for_response(
+    conversation_state: ConversationState,
+    primary_need: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    required: list[Dict[str, Any]] = []
+    for question in sorted(conversation_state.pending_questions, key=lambda item: int(item.get("priority", 100) or 100)):
+        slot = str(question.get("slot") or "")
+        if not slot:
+            continue
+        if slot == "user_need" and primary_need.get("key") != "understand_user_need":
+            continue
+        required.append(
+            {
+                "slot": slot,
+                "question": _justified_question_for_slot(slot),
+                "purpose": _question_purpose_for_slot(slot, primary_need),
+                "needed_for": _question_needed_for_slot(slot),
+                "priority": int(question.get("priority", _slot_priority(slot)) or _slot_priority(slot)),
+                "source_question": deepcopy(dict(question)),
+            }
+        )
+    mission = conversation_state.active_mission or {}
+    fact_values = _active_fact_values(conversation_state.confirmed_facts)
+    next_act = str(mission.get("next_act") or "")
+    existing_slots = {str(item.get("slot")) for item in required}
+    if next_act == "check_claim_report_loaded" and fact_values.get("claim_report_loaded") is None and "claim_report_loaded" not in existing_slots:
+        required.append(
+            {
+                "slot": "claim_report_loaded",
+                "question": _justified_question_for_slot("claim_report_loaded"),
+                "purpose": _question_purpose_for_slot("claim_report_loaded", primary_need),
+                "needed_for": _question_needed_for_slot("claim_report_loaded"),
+                "priority": 30,
+                "source_question": {
+                    "source": "mission_next_act",
+                    "next_act": next_act,
+                },
+            }
+        )
+    if next_act == "check_documentation_available" and fact_values.get("documentation_available") is None and "documentation_available" not in existing_slots:
+        required.append(
+            {
+                "slot": "documentation_available",
+                "question": _justified_question_for_slot("documentation_available"),
+                "purpose": _question_purpose_for_slot("documentation_available", primary_need),
+                "needed_for": _question_needed_for_slot("documentation_available"),
+                "priority": 35,
+                "source_question": {
+                    "source": "mission_next_act",
+                    "next_act": next_act,
+                },
+            }
+        )
+    if not required and primary_need.get("key") == "photo_upload_status":
+        required.append(
+            {
+                "slot": "photo_upload_evidence",
+                "question": "Podes revisar si la carga figura como enviada o mandarme una captura del estado?",
+                "purpose": "verificar si las fotos quedaron cargadas y si aparece alguna observacion",
+                "needed_for": "photo_upload_status",
+                "priority": 40,
+                "source_question": {},
+            }
+        )
+    return required
+
+
+def _justified_question_for_slot(slot: str) -> str:
+    return {
+        "injuries": "Hubo lesionados?",
+        "user_role": "Sos asegurado de Galicia o tercero damnificado?",
+        "claim_report_loaded": "La denuncia ya esta cargada?",
+        "documentation_available": "Tenes toda la documentacion?",
+        "user_need": "Que necesitas resolver primero?",
+    }.get(slot, f"Me confirmas {slot}?")
+
+
+def _question_purpose_for_slot(slot: str, primary_need: Mapping[str, Any]) -> str:
+    if slot == "injuries":
+        return "definir si corresponde priorizar asistencia o derivacion antes del tramite"
+    if slot == "user_role":
+        return "orientarte por el circuito que corresponde a tu rol"
+    if slot == "claim_report_loaded":
+        return "saber si corresponde completar la carga o revisar documentacion"
+    if slot == "documentation_available":
+        return "ver si corresponde seguimiento o preparar el resumen del tramite"
+    if slot == "user_need":
+        return "responder primero la preocupacion mas importante"
+    if primary_need.get("key") == "vehicle_repair_authorization":
+        return "evitar indicarte un paso que pueda afectar la evaluacion del arreglo"
+    return "elegir el siguiente paso sin inventar datos"
+
+
+def _question_needed_for_slot(slot: str) -> str:
+    return {
+        "injuries": "safety_and_escalation_path",
+        "user_role": "claim_guidance_path",
+        "claim_report_loaded": "claim_report_or_documentation_path",
+        "documentation_available": "claim_follow_up_path",
+        "user_need": "response_prioritization",
+    }.get(slot, "next_action_selection")
+
+
+def _response_priority_for(
+    *,
+    primary_need: Mapping[str, Any],
+    secondary_needs: Sequence[Mapping[str, Any]],
+    required_information: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    priority = [str(primary_need.get("key") or "primary_need")]
+    priority.extend(str(need.get("key")) for need in secondary_needs if need.get("key"))
+    if required_information:
+        priority.append("required_information")
+    priority.append("next_action")
+    return priority
+
+
+def _response_next_action(
+    *,
+    conversation_state: ConversationState,
+    primary_need: Mapping[str, Any],
+    required_information: Sequence[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    if primary_need.get("key") == "vehicle_repair_authorization":
+        return {
+            "type": "answer_then_collect_context",
+            "label": "responder sobre arreglo del auto y luego pedir el dato necesario",
+            "mission_next_act": (conversation_state.active_mission or {}).get("next_act"),
+        }
+    if required_information:
+        return {
+            "type": "ask_justified_question",
+            "label": required_information[0].get("question"),
+            "mission_next_act": (conversation_state.active_mission or {}).get("next_act"),
+        }
+    return {
+        "type": "answer",
+        "label": "responder la necesidad principal",
+        "mission_next_act": (conversation_state.active_mission or {}).get("next_act"),
+    }
+
+
+def _unresolved_questions_for_response(
+    needs: Sequence[Mapping[str, Any]],
+    required_information: Sequence[Mapping[str, Any]],
+) -> list[Dict[str, Any]]:
+    unresolved = [
+        {
+            "type": "required_information",
+            "slot": item.get("slot"),
+            "question": item.get("question"),
+            "purpose": item.get("purpose"),
+        }
+        for item in required_information
+    ]
+    for need in needs:
+        if need.get("key") == "photo_upload_status":
+            unresolved.append(
+                {
+                    "type": "secondary_need",
+                    "need": "photo_upload_status",
+                    "question": "confirmar si las fotos quedaron cargadas",
+                }
+            )
+    return unresolved
+
+
+def _mentions_vehicle_repair_need(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "arreglar el auto",
+            "arreglar mi auto",
+            "reparar el auto",
+            "reparar mi auto",
+            "puedo arreglar",
+            "puedo reparar",
+            "mandarlo al taller",
+            "llevarlo al taller",
+            "arreglo del auto",
+            "si arreglo el auto",
+            "arreglo el auto antes",
+            "antes de que me autoricen",
+            "antes de tener autorizacion",
+        )
+    )
+
+
+def _mentions_photo_upload_need(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "mande las fotos",
+            "mandé las fotos",
+            "envie las fotos",
+            "envié las fotos",
+            "subi las fotos",
+            "subí las fotos",
+            "cargue las fotos",
+            "cargué las fotos",
+            "subir fotos",
+            "las fotos",
+            "fotos",
+        )
+    )
+
+
+def _mentions_no_photo_request(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "no me pidieron las fotos",
+            "no pidieron las fotos",
+            "nunca me pidieron fotos",
+            "no me solicitaron las fotos",
+            "no me aparece cargar fotos",
+        )
+    )
+
+
+def _mentions_contact_timing_need(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "cuando me van a contactar",
+            "cuándo me van a contactar",
+            "cuando me contactan",
+            "cuándo me contactan",
+            "cuando me llaman",
+            "cuándo me llaman",
+            "nadie me contacto",
+            "nadie me contactó",
+            "no me contactaron",
+            "no me llamaron",
+        )
+    )
+
+
+def _mentions_claim_report_need(normalized: str) -> bool:
+    return "denuncia" in normalized or "siniestro cargado" in normalized or "tramite cargado" in normalized
+
+
+def _mentions_documentation_need(normalized: str) -> bool:
+    return "documentacion" in normalized or "documentación" in normalized or "documentos" in normalized
+
+
+def _mentions_status_or_payment_need(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "estado del siniestro",
+            "estado de mi siniestro",
+            "cuando me pagan",
+            "cuanto tardan",
+            "cuanto tarda",
+            "cuanto demora",
+            "cuanto demoran",
+            "plazo",
+            "plazos",
+            "novedades",
+            "aprobaron",
+            "rechazaron",
+        )
+    )
+
+
+def _is_ambiguous_reference(normalized: str) -> bool:
+    return normalized.strip(" .!?") in {
+        "eso esta bien",
+        "eso esta bien?",
+        "y eso",
+        "eso",
+        "esta bien",
+        "esta bien?",
+        "lo anterior",
+    }
+
+
+def update_topic_stack(
+    conversation_state: ConversationState,
+    message: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    normalized = normalize_text(message)
+    stack = [_normalize_topic(topic) for topic in conversation_state.topic_stack if isinstance(topic, Mapping)]
+    stack = [topic for topic in stack if topic]
+    active_before = _active_topic_from_stack(stack)
+    act = str((conversation_state.last_conversational_act or {}).get("act") or ConversationalActType.UNKNOWN)
+    direction = _topic_navigation_direction(normalized, conversation_state.last_conversational_act)
+    current_topic = (
+        None
+        if active_before
+        and _topic_is_unresolved_other(active_before)
+        and act not in {ConversationalActType.CONTINUATION, ConversationalActType.TOPIC_SHIFT, ConversationalActType.NEW_INFORMATION}
+        else _topic_from_current_state(conversation_state, message)
+    )
+    transition_type = ""
+    reason = ""
+    suspended_topic: Dict[str, Any] | None = None
+    resumed_topic: Dict[str, Any] | None = None
+    ambiguity: Dict[str, Any] | None = None
+
+    if act == ConversationalActType.TOPIC_SHIFT and direction == "new_topic":
+        if active_before:
+            stack = _replace_topic(stack, _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count))
+            suspended_topic = _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count)
+        new_topic = _new_unresolved_topic(conversation_state, message)
+        stack = _remove_topic(stack, str(new_topic["id"]))
+        stack.append(new_topic)
+        transition_type = "topic_switched"
+        reason = "user_requested_new_topic"
+    elif act == ConversationalActType.TOPIC_SHIFT and direction in {"resume_previous", "indirect_previous"}:
+        match, match_reason, ambiguity = _resolve_topic_reference(stack, normalized, conversation_state)
+        if match:
+            if active_before and active_before.get("id") != match.get("id"):
+                stack = _replace_topic(stack, _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count))
+                suspended_topic = _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count)
+            resumed_topic = _topic_with_status(
+                _topic_refreshed_from_state(match, conversation_state),
+                TopicStatus.RESUMED,
+                conversation_state.turn_count,
+            )
+            stack = _remove_topic(stack, str(resumed_topic["id"]))
+            stack.append(resumed_topic)
+            transition_type = "topic_resumed"
+            reason = match_reason
+        elif ambiguity:
+            transition_type = "topic_reference_ambiguous"
+            reason = "insufficient_evidence_to_resume_topic"
+    elif act == ConversationalActType.CONTINUATION:
+        if active_before and _topic_is_unresolved_other(active_before):
+            match, match_reason, ambiguity = _resolve_topic_reference(stack, normalized, conversation_state)
+            if match:
+                stack = _replace_topic(stack, _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count))
+                suspended_topic = _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count)
+                resumed_topic = _topic_with_status(
+                    _topic_refreshed_from_state(match, conversation_state),
+                    TopicStatus.RESUMED,
+                    conversation_state.turn_count,
+                )
+                stack = _remove_topic(stack, str(resumed_topic["id"]))
+                stack.append(resumed_topic)
+                transition_type = "topic_resumed"
+                reason = match_reason
+            elif ambiguity:
+                transition_type = "topic_reference_ambiguous"
+                reason = "continuation_has_multiple_suspended_candidates"
+        elif active_before:
+            refreshed = _topic_refreshed_from_state(active_before, conversation_state)
+            stack = _replace_topic(stack, _topic_with_status(refreshed, TopicStatus.ACTIVE, conversation_state.turn_count))
+            transition_type = "topic_continued"
+            reason = "user_requested_continuation"
+        elif current_topic:
+            stack.append(current_topic)
+            transition_type = "topic_created"
+            reason = "continuation_started_available_focus"
+    elif current_topic:
+        existing = _find_topic_by_id(stack, str(current_topic["id"]))
+        if existing:
+            updated = _topic_refreshed_from_state(existing, conversation_state)
+            if active_before and active_before.get("id") != updated.get("id"):
+                stack = _replace_topic(stack, _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count))
+                suspended_topic = _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count)
+            stack = _remove_topic(stack, str(updated["id"]))
+            stack.append(_topic_with_status(updated, TopicStatus.ACTIVE, conversation_state.turn_count))
+            transition_type = "topic_updated" if active_before else "topic_created"
+            reason = "current_focus_updated"
+        else:
+            if active_before:
+                stack = _replace_topic(stack, _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count))
+                suspended_topic = _topic_with_status(active_before, TopicStatus.SUSPENDED, conversation_state.turn_count)
+            stack.append(current_topic)
+            transition_type = "topic_created"
+            reason = "current_focus_created"
+
+    if not transition_type:
+        return conversation_state, {}
+
+    active_after = _active_topic_from_stack(stack)
+    trace = {
+        "contract": "topic_stack_transition.v1",
+        "component": "conversation_state",
+        "message": str(message),
+        "act": act,
+        "direction": direction,
+        "transition": {
+            "type": transition_type,
+            "reason": reason,
+            "from_topic_id": active_before.get("id") if active_before else None,
+            "to_topic_id": active_after.get("id") if active_after else None,
+        },
+        "active_topic": deepcopy(active_after or {}),
+        "topic_suspended": deepcopy(suspended_topic or {}),
+        "topic_resumed": deepcopy(resumed_topic or {}),
+        "ambiguity": deepcopy(ambiguity or {}),
+        "summary_updated": deepcopy((active_after or {}).get("summary")),
+        "topics": deepcopy(stack),
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["topic_stack"] = trace
+    focus = _focus_from_active_topic(active_after, fallback=conversation_state.focus)
+    return (
+        replace(
+            conversation_state,
+            focus=focus,
+            topic_stack=stack,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.topic_stack",
+            ),
+        ),
+        trace,
+    )
+
+
+def evaluate_conversational_goal_fulfillment(
+    conversation_state: ConversationState,
+    response: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    trace = deepcopy(dict(conversation_state.derived_state.get("conversation_goal") or {}))
+    goal = deepcopy(dict(trace.get("goal") or {}))
+    if not goal:
+        return conversation_state, {}
+    fulfillment = _evaluate_goal_fulfillment(goal, str(response or ""))
+    goal["fulfillment"] = fulfillment
+    trace["goal"] = goal
+    trace["fulfillment"] = fulfillment
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_goal"] = trace
+    return replace(conversation_state, derived_state=derived_state), fulfillment
+
+
+def evaluate_conversation_fulfillment(
+    conversation_state: ConversationState,
+    response: Any,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    fulfillment = _conversation_fulfillment(conversation_state, str(response or ""))
+    if not fulfillment:
+        return conversation_state, {}
+    trace = {
+        "contract": "conversation_fulfillment_trace.v1",
+        "component": "conversation_state",
+        "fulfillment": deepcopy(fulfillment),
+        "fulfilled_goal": deepcopy(fulfillment.get("fulfilled_goal") or {}),
+        "fulfilled_steps": deepcopy(fulfillment.get("fulfilled_steps") or []),
+        "pending_steps": deepcopy(fulfillment.get("pending_steps") or []),
+        "failed_steps": deepcopy(fulfillment.get("failed_steps") or []),
+        "recovery_actions": deepcopy(fulfillment.get("recovery_actions") or []),
+        "fulfillment_confidence": fulfillment.get("fulfillment_confidence"),
+        "completion_reason": fulfillment.get("completion_reason"),
+    }
+    derived_state = deepcopy(conversation_state.derived_state)
+    derived_state["conversation_fulfillment"] = trace
+    return (
+        replace(
+            conversation_state,
+            derived_state=derived_state,
+            projection_sources=_append_unique(
+                conversation_state.projection_sources,
+                "conversation_state.conversation_fulfillment",
+            ),
+        ),
+        fulfillment,
+    )
+
+
+def _conversation_fulfillment(
+    conversation_state: ConversationState,
+    response: str,
+) -> Dict[str, Any]:
+    conversation_plan = _conversation_plan_from_state(conversation_state)
+    response_plan = _response_plan_from_state(conversation_state)
+    if not conversation_plan and not response_plan:
+        return {}
+    normalized_response = normalize_text(response)
+    active_steps = _active_steps_from_previous_plan(conversation_plan)
+    plan_pending_steps = [deepcopy(dict(step)) for step in conversation_plan.get("pending_steps") or [] if isinstance(step, Mapping)]
+    response_fulfilled_steps = _response_fulfilled_steps(
+        conversation_state=conversation_state,
+        response_plan=response_plan,
+        conversation_plan=conversation_plan,
+        normalized_response=normalized_response,
+    )
+    failed_steps = _conversation_failed_steps(
+        conversation_state=conversation_state,
+        conversation_plan=conversation_plan,
+        normalized_response=normalized_response,
+    )
+    pending_steps = _conversation_fulfillment_pending_steps(
+        plan_pending_steps,
+        fulfilled_steps=response_fulfilled_steps,
+        failed_steps=failed_steps,
+    )
+    fulfilled_goal = _fulfilled_goal_for_response(
+        response_plan=response_plan,
+        conversation_plan=conversation_plan,
+        fulfilled_steps=response_fulfilled_steps,
+        pending_steps=pending_steps,
+        failed_steps=failed_steps,
+        normalized_response=normalized_response,
+    )
+    recovery_actions = _conversation_recovery_actions(
+        fulfilled_goal=fulfilled_goal,
+        pending_steps=pending_steps,
+        failed_steps=failed_steps,
+        response_plan=response_plan,
+        conversation_plan=conversation_plan,
+    )
+    confidence = _fulfillment_confidence(
+        fulfilled_goal=fulfilled_goal,
+        fulfilled_steps=response_fulfilled_steps,
+        pending_steps=pending_steps,
+        failed_steps=failed_steps,
+    )
+    return {
+        "contract": "conversation_fulfillment.v1",
+        "fulfilled_goal": fulfilled_goal,
+        "fulfilled_steps": response_fulfilled_steps,
+        "pending_steps": pending_steps,
+        "failed_steps": failed_steps,
+        "recovery_actions": recovery_actions,
+        "fulfillment_confidence": confidence,
+        "completion_reason": _completion_reason(
+            fulfilled_goal=fulfilled_goal,
+            recovery_actions=recovery_actions,
+            pending_steps=pending_steps,
+            failed_steps=failed_steps,
+        ),
+        "evaluated_plan": deepcopy(conversation_plan),
+        "evaluated_response_plan": deepcopy(response_plan),
+        "evidence": {
+            "response": response,
+            "normalized_response": normalized_response,
+            "active_steps": deepcopy(active_steps),
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _response_plan_from_state(conversation_state: ConversationState) -> Dict[str, Any]:
+    trace = conversation_state.derived_state.get("conversation_response_plan")
+    if isinstance(trace, Mapping):
+        plan = trace.get("plan")
+        if isinstance(plan, Mapping):
+            return deepcopy(dict(plan))
+        return deepcopy(dict(trace))
+    return {}
+
+
+def _response_fulfilled_steps(
+    *,
+    conversation_state: ConversationState,
+    response_plan: Mapping[str, Any],
+    conversation_plan: Mapping[str, Any],
+    normalized_response: str,
+) -> list[Dict[str, Any]]:
+    fulfilled: list[Dict[str, Any]] = []
+    for step in conversation_plan.get("completed_steps") or []:
+        if isinstance(step, Mapping):
+            item = deepcopy(dict(step))
+            item["fulfillment_source"] = "conversation_plan_completed"
+            fulfilled.append(item)
+    primary_need = dict(response_plan.get("primary_user_need") or {})
+    primary_answered = _primary_need_answered(primary_need, normalized_response)
+    if primary_answered:
+        fulfilled.append(
+            {
+                "contract": "conversation_fulfillment_step.v1",
+                "id": f"answer_primary_need:{primary_need.get('key') or 'unknown'}",
+                "type": "response_objective",
+                "status": "fulfilled",
+                "label": primary_need.get("label") or primary_need.get("key"),
+                "source": "conversation_response_plan",
+            }
+        )
+        for step in conversation_plan.get("pending_steps") or []:
+            if isinstance(step, Mapping) and step.get("id") == "understand_user_need":
+                item = deepcopy(dict(step))
+                item["status"] = "fulfilled"
+                item["fulfillment_source"] = "primary_need_answered"
+                fulfilled.append(item)
+    for step in conversation_plan.get("inserted_steps") or []:
+        if isinstance(step, Mapping) and _inserted_step_answered(step, normalized_response):
+            item = deepcopy(dict(step))
+            item["status"] = "fulfilled"
+            item["fulfillment_source"] = "response_answered_inserted_step"
+            fulfilled.append(item)
+    for item in response_plan.get("required_information") or []:
+        if not isinstance(item, Mapping):
+            continue
+        if _question_asked_in_response(item, normalized_response):
+            fulfilled.append(
+                {
+                    "contract": "conversation_fulfillment_step.v1",
+                    "id": f"ask_required_information:{item.get('slot')}",
+                    "type": "question_delivery",
+                    "status": "fulfilled",
+                    "slot": item.get("slot"),
+                    "question": item.get("question"),
+                    "purpose": item.get("purpose"),
+                    "source": "conversation_response_plan.required_information",
+                }
+            )
+    return _dedupe_steps(fulfilled)
+
+
+def _conversation_failed_steps(
+    *,
+    conversation_state: ConversationState,
+    conversation_plan: Mapping[str, Any],
+    normalized_response: str,
+) -> list[Dict[str, Any]]:
+    if not conversation_plan:
+        return []
+    if conversation_state.derived_state.get("slot_resolution") or conversation_state.derived_state.get("fact_assimilation"):
+        return []
+    previous_plan = conversation_plan.get("previous_plan")
+    if not isinstance(previous_plan, Mapping):
+        return []
+    previous_current = dict((previous_plan.get("active_plan") or {}).get("current_step") or {})
+    current_step = dict((conversation_plan.get("active_plan") or {}).get("current_step") or {})
+    if not previous_current or not current_step:
+        return []
+    if previous_current.get("id") != current_step.get("id"):
+        return []
+    if str(current_step.get("type") or "") not in {"slot", "fact", "clarification"}:
+        return []
+    failed = deepcopy(current_step)
+    failed["status"] = "failed"
+    failed["reason"] = "user_turn_did_not_satisfy_expected_step"
+    failed["evidence"] = {"normalized_response": normalized_response}
+    return [failed]
+
+
+def _conversation_fulfillment_pending_steps(
+    pending_steps: Sequence[Mapping[str, Any]],
+    *,
+    fulfilled_steps: Sequence[Mapping[str, Any]],
+    failed_steps: Sequence[Mapping[str, Any]],
+) -> list[Dict[str, Any]]:
+    fulfilled_ids = {str(step.get("id") or "") for step in fulfilled_steps}
+    failed_ids = {str(step.get("id") or "") for step in failed_steps}
+    pending = []
+    for step in pending_steps:
+        step_id = str(step.get("id") or "")
+        if step_id in fulfilled_ids:
+            continue
+        if step_id in failed_ids:
+            continue
+        pending.append(deepcopy(dict(step)))
+    return pending
+
+
+def _fulfilled_goal_for_response(
+    *,
+    response_plan: Mapping[str, Any],
+    conversation_plan: Mapping[str, Any],
+    fulfilled_steps: Sequence[Mapping[str, Any]],
+    pending_steps: Sequence[Mapping[str, Any]],
+    failed_steps: Sequence[Mapping[str, Any]],
+    normalized_response: str,
+) -> Dict[str, Any]:
+    primary_need = dict(response_plan.get("primary_user_need") or {})
+    primary_answered = _primary_need_answered(primary_need, normalized_response)
+    has_required_question = any(step.get("type") == "question_delivery" for step in fulfilled_steps)
+    has_pending_main = any(step.get("type") != "side_question" for step in pending_steps)
+    if failed_steps:
+        status = "failed"
+        satisfied = False
+    elif not has_pending_main and (primary_answered or not primary_need):
+        status = "fulfilled"
+        satisfied = True
+    elif primary_answered and any(step.get("type") == "side_question" for step in fulfilled_steps):
+        status = "partially_fulfilled"
+        satisfied = True
+    elif primary_answered and not has_required_question:
+        status = "fulfilled"
+        satisfied = True
+    elif has_required_question or fulfilled_steps:
+        status = "partially_fulfilled"
+        satisfied = True
+    else:
+        status = "not_fulfilled"
+        satisfied = False
+    return {
+        "contract": "fulfilled_conversation_goal.v1",
+        "status": status,
+        "satisfied": satisfied,
+        "primary_user_need": deepcopy(primary_need),
+        "conversation_plan_replanning_reason": conversation_plan.get("replanning_reason"),
+    }
+
+
+def _conversation_recovery_actions(
+    *,
+    fulfilled_goal: Mapping[str, Any],
+    pending_steps: Sequence[Mapping[str, Any]],
+    failed_steps: Sequence[Mapping[str, Any]],
+    response_plan: Mapping[str, Any],
+    conversation_plan: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    actions: list[Dict[str, Any]] = []
+    if failed_steps:
+        selected = dict((response_plan.get("information_gain_plan") or {}).get("selected_question") or {})
+        actions.append(
+            {
+                "contract": "conversation_recovery_action.v1",
+                "action": "reask_or_reformulate",
+                "reason": "expected_step_not_answered",
+                "target_step": deepcopy(dict(failed_steps[0])),
+                "selected_question": selected,
+            }
+        )
+        return actions
+    if any(step.get("type") == "side_question" for step in conversation_plan.get("inserted_steps") or []):
+        main_pending = [dict(step) for step in pending_steps if step.get("type") != "side_question"]
+        if main_pending:
+            actions.append(
+                {
+                    "contract": "conversation_recovery_action.v1",
+                    "action": "resume_main_plan",
+                    "reason": "lateral_question_answered",
+                    "target_step": deepcopy(main_pending[0]),
+                }
+            )
+    if pending_steps and not actions:
+        actions.append(
+            {
+                "contract": "conversation_recovery_action.v1",
+                "action": "continue_with_next_pending_step",
+                "reason": "conversation_goal_partially_fulfilled",
+                "target_step": deepcopy(dict(pending_steps[0])),
+            }
+        )
+    if not pending_steps and not actions:
+        actions.append(
+            {
+                "contract": "conversation_recovery_action.v1",
+                "action": "close_objective",
+                "reason": "conversation_goal_fulfilled",
+            }
+        )
+    return actions
+
+
+def _fulfillment_confidence(
+    *,
+    fulfilled_goal: Mapping[str, Any],
+    fulfilled_steps: Sequence[Mapping[str, Any]],
+    pending_steps: Sequence[Mapping[str, Any]],
+    failed_steps: Sequence[Mapping[str, Any]],
+) -> float:
+    if failed_steps:
+        return 0.34
+    status = str(fulfilled_goal.get("status") or "")
+    if status == "fulfilled":
+        return 0.9
+    if status == "partially_fulfilled":
+        return 0.68 if pending_steps else 0.76
+    if fulfilled_steps:
+        return 0.56
+    return 0.3
+
+
+def _completion_reason(
+    *,
+    fulfilled_goal: Mapping[str, Any],
+    recovery_actions: Sequence[Mapping[str, Any]],
+    pending_steps: Sequence[Mapping[str, Any]],
+    failed_steps: Sequence[Mapping[str, Any]],
+) -> str:
+    if failed_steps:
+        return "expected_step_not_satisfied_recovery_selected"
+    action = str((recovery_actions[0] if recovery_actions else {}).get("action") or "")
+    if action == "resume_main_plan":
+        return "lateral_question_fulfilled_main_plan_resumed"
+    if action == "continue_with_next_pending_step":
+        return "turn_partially_fulfilled_next_step_pending"
+    if not pending_steps and fulfilled_goal.get("status") == "fulfilled":
+        return "conversation_goal_fulfilled"
+    return "conversation_fulfillment_evaluated"
+
+
+def _primary_need_answered(primary_need: Mapping[str, Any], normalized_response: str) -> bool:
+    key = str(primary_need.get("key") or "")
+    if not key:
+        return False
+    if key == "claim_contact_progress":
+        return "siguiendo el circuito esperado" in normalized_response or "canal muestra" in normalized_response
+    if key == "claim_status_or_payment":
+        return "sobre los tiempos" in normalized_response or "dependen del estado" in normalized_response
+    if key == "vehicle_repair_authorization":
+        return "arreglar el auto" in normalized_response and "evaluacion del siniestro" in normalized_response
+    if key == "photo_requirement_confidence":
+        return "no significa necesariamente" in normalized_response and "fotos" in normalized_response
+    if key == "photo_upload_status":
+        return "fotos" in normalized_response and ("cargadas" in normalized_response or "observacion" in normalized_response)
+    if key == "claim_report_status":
+        return "denuncia" in normalized_response
+    if key in {"auto_claim_guidance", "understand_user_need"}:
+        return bool(normalized_response.strip())
+    return bool(normalized_response.strip())
+
+
+def _inserted_step_answered(step: Mapping[str, Any], normalized_response: str) -> bool:
+    step_id = str(step.get("id") or "")
+    decision = str(step.get("decision") or "")
+    if step_id == "answer_lateral_process_timing" or decision == "process_progress_confidence":
+        return "sobre los tiempos" in normalized_response or "siguiendo el circuito esperado" in normalized_response
+    if decision == "vehicle_repair_authorization":
+        return "arreglar el auto" in normalized_response
+    if decision in {"photo_upload_status", "photo_requirement_confidence"}:
+        return "fotos" in normalized_response
+    if decision == "focus_management":
+        return "retomo" in normalized_response or "contame mas" in normalized_response
+    return False
+
+
+def _question_asked_in_response(item: Mapping[str, Any], normalized_response: str) -> bool:
+    question = normalize_text(item.get("question") or "").strip(" .!?")
+    if not question:
+        return False
+    response = normalized_response.strip(" .!?")
+    return question in response
+
+
 def recognize_conversational_act(
     conversation_state: ConversationState,
     message: Any,
@@ -976,6 +3819,916 @@ def recognize_conversational_act(
         ),
         selected,
     )
+
+
+def _conversation_act_candidates(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+) -> list[Dict[str, Any]]:
+    candidates: list[Dict[str, Any]] = []
+    pending_slots = _ordered_pending_slot_names(conversation_state.slots, conversation_state.pending_questions)
+    has_pending_question = bool(pending_slots)
+    revisable_targets = _active_fact_targets_for_message(conversation_state, normalized)
+
+    if _looks_like_correction(normalized, revisable_targets):
+        ambiguous_withdrawal = _is_generic_withdrawal(normalized) and len(revisable_targets) != 1
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.CORRECTION,
+                confidence=0.91 if revisable_targets and not ambiguous_withdrawal else 0.8 if ambiguous_withdrawal else 0.68,
+                reason=(
+                    "correction_target_ambiguous"
+                    if ambiguous_withdrawal
+                    else "correction_cue_with_revisable_fact"
+                    if revisable_targets
+                    else "correction_cue_without_clear_target"
+                ),
+                signals=["correction_cue"],
+                target={"facts": revisable_targets},
+                impact={
+                    "fact_revision": True,
+                    "mission_reevaluation": True,
+                    "requires_clarification": ambiguous_withdrawal or not bool(revisable_targets),
+                },
+            )
+        )
+
+    if has_pending_question and _looks_like_pending_answer(normalized, pending_slots, conversation_state.pending_questions):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.PENDING_ANSWER,
+                confidence=0.9 if _is_minimal_affirmation_or_negation(normalized) else 0.82,
+                reason="message_answers_pending_question",
+                signals=["pending_question", "slot_answer"],
+                target={"slots": pending_slots, "primary_slot": pending_slots[0]},
+                impact={
+                    "slot_resolution": True,
+                    "intent_override": True,
+                    "mission_reevaluation": True,
+                },
+            )
+        )
+
+    if _mentions_simplification_request(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.SIMPLIFICATION_REQUEST,
+                confidence=0.94,
+                reason="user_requests_simpler_explanation",
+                signals=["simplification"],
+                impact={"response_style": "simpler", "preserve_mission": True, "intent_override": True},
+            )
+        )
+    if _mentions_recap_request(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.RECAP_REQUEST,
+                confidence=0.92,
+                reason="user_requests_recap",
+                signals=["recap"],
+                impact={"recap_requested": True, "preserve_mission": True, "intent_override": True},
+            )
+        )
+    if _mentions_topic_shift(normalized):
+        direction = _topic_navigation_direction(normalized)
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.TOPIC_SHIFT,
+                confidence=0.88,
+                reason="user_requests_topic_navigation",
+                signals=["topic_shift"],
+                target={"direction": direction},
+                impact={
+                    "topic_navigation": True,
+                    "preserve_mission": direction != "new_topic",
+                    "intent_override": True,
+                },
+            )
+        )
+    if _mentions_continuation(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.CONTINUATION,
+                confidence=0.86,
+                reason="user_requests_continuation",
+                signals=["continuation"],
+                impact={"continue_mission": True, "intent_override": True},
+            )
+        )
+    if _mentions_deepening_request(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.DEEPENING_REQUEST,
+                confidence=0.84,
+                reason="user_requests_more_detail",
+                signals=["deepening"],
+                impact={"response_style": "more_detail", "preserve_mission": True, "intent_override": True},
+            )
+        )
+    if _mentions_clarification_request(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.CLARIFICATION_REQUEST,
+                confidence=0.82,
+                reason="user_requests_clarification",
+                signals=["clarification_request"],
+                impact={"clarification_requested": True, "preserve_mission": True, "intent_override": True},
+            )
+        )
+    if _mentions_closing(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.CLOSING,
+                confidence=0.82,
+                reason="user_closes_or_thanks",
+                signals=["closing"],
+                impact={"close_or_pause": True},
+            )
+        )
+
+    if _is_affirmation(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.CONFIRMATION,
+                confidence=0.76 if not has_pending_question else 0.48,
+                reason="minimal_affirmation",
+                signals=["affirmation"],
+                impact={"may_confirm_previous_act": True, "intent_override": False},
+            )
+        )
+    if _is_negation(normalized):
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.NEGATION,
+                confidence=0.76 if not has_pending_question else 0.48,
+                reason="minimal_negation",
+                signals=["negation"],
+                impact={"may_deny_previous_act": True, "intent_override": False},
+            )
+        )
+
+    if not candidates and normalized:
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.NEW_INFORMATION,
+                confidence=0.52,
+                reason="content_turn_without_conversation_control_signal",
+                signals=["content"],
+                impact={"normal_pipeline": True},
+            )
+        )
+    if not candidates:
+        candidates.append(
+            _conversational_act_candidate(
+                conversation_state,
+                message,
+                normalized,
+                act=ConversationalActType.UNKNOWN,
+                confidence=0.0,
+                reason="empty_or_unclassified_turn",
+                signals=[],
+                impact={"normal_pipeline": True},
+            )
+        )
+    return candidates
+
+
+def _conversational_act_candidate(
+    conversation_state: ConversationState,
+    message: Any,
+    normalized: str,
+    *,
+    act: str,
+    confidence: float,
+    reason: str,
+    signals: Sequence[str],
+    target: Mapping[str, Any] | None = None,
+    impact: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
+    return {
+        "contract": "conversational_act.v1",
+        "act": act,
+        "confidence": round(float(confidence), 4),
+        "reason": reason,
+        "evidence": {
+            "raw_message": str(message),
+            "normalized_message": normalized,
+            "signals": list(signals),
+            "pending_question_count": len(conversation_state.pending_questions),
+            "active_mission_type": (conversation_state.active_mission or {}).get("type"),
+        },
+        "target": deepcopy(dict(target or {})),
+        "impact": deepcopy(dict(impact or {})),
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _select_conversational_act(candidates: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    priority = {
+        ConversationalActType.CORRECTION: 100,
+        ConversationalActType.PENDING_ANSWER: 95,
+        ConversationalActType.SIMPLIFICATION_REQUEST: 90,
+        ConversationalActType.RECAP_REQUEST: 88,
+        ConversationalActType.TOPIC_SHIFT: 86,
+        ConversationalActType.CONTINUATION: 84,
+        ConversationalActType.DEEPENING_REQUEST: 82,
+        ConversationalActType.CLARIFICATION_REQUEST: 80,
+        ConversationalActType.CLOSING: 70,
+        ConversationalActType.CONFIRMATION: 60,
+        ConversationalActType.NEGATION: 60,
+        ConversationalActType.NEW_INFORMATION: 40,
+        ConversationalActType.UNKNOWN: 0,
+    }
+    ordered = sorted(
+        (dict(candidate) for candidate in candidates),
+        key=lambda item: (float(item.get("confidence") or 0.0), priority.get(str(item.get("act")), 0)),
+        reverse=True,
+    )
+    selected = dict(ordered[0])
+    selected["alternatives"] = [
+        {
+            "act": item.get("act"),
+            "confidence": item.get("confidence"),
+            "reason": item.get("reason"),
+        }
+        for item in ordered[1:]
+    ]
+    return selected
+
+
+def _act_suppresses_slot_resolution(conversational_act: Mapping[str, Any]) -> bool:
+    act = str((conversational_act or {}).get("act") or "")
+    return act in {
+        ConversationalActType.CORRECTION,
+        ConversationalActType.CLARIFICATION_REQUEST,
+        ConversationalActType.TOPIC_SHIFT,
+        ConversationalActType.RECAP_REQUEST,
+        ConversationalActType.SIMPLIFICATION_REQUEST,
+        ConversationalActType.DEEPENING_REQUEST,
+        ConversationalActType.CLOSING,
+    }
+
+
+def _conversational_goal_for_act(
+    conversation_state: ConversationState,
+    message: Any,
+    act: Mapping[str, Any],
+) -> Dict[str, Any]:
+    act_name = str(act.get("act") or ConversationalActType.UNKNOWN)
+    strategy_name = _strategy_for_act(conversation_state, act)
+    return {
+        "contract": "conversational_goal.v1",
+        "originating_act": deepcopy(dict(act)),
+        "act": act_name,
+        "intention": _goal_intention_for(act_name, strategy_name),
+        "strategy": {
+            "name": strategy_name,
+            "response_plan": _response_plan_for_strategy(conversation_state, strategy_name),
+            "owner": "conversation_state",
+        },
+        "success_criteria": _success_criteria_for(strategy_name),
+        "abandonment_criteria": _abandonment_criteria_for(strategy_name),
+        "priority": _goal_priority_for(strategy_name),
+        "mission_impact": _mission_impact_for(conversation_state, strategy_name),
+        "evidence": {
+            "message": str(message),
+            "act_confidence": act.get("confidence"),
+            "active_mission": deepcopy(conversation_state.active_mission),
+            "confirmed_facts": _active_fact_values(conversation_state.confirmed_facts),
+            "pending_questions": [deepcopy(dict(item)) for item in conversation_state.pending_questions],
+        },
+        "fulfillment": {
+            "status": "pending",
+            "satisfied": False,
+            "needs_second_attempt": False,
+            "should_change_strategy": False,
+            "evidence": {},
+        },
+        "component": "conversation_state",
+        "turn": int(conversation_state.turn_count),
+    }
+
+
+def _strategy_for_act(conversation_state: ConversationState, act: Mapping[str, Any]) -> str:
+    act_name = str(act.get("act") or "")
+    if act_name == ConversationalActType.SIMPLIFICATION_REQUEST:
+        return ConversationalStrategyType.SIMPLIFY
+    if act_name == ConversationalActType.RECAP_REQUEST:
+        return ConversationalStrategyType.SUMMARIZE
+    if act_name == ConversationalActType.DEEPENING_REQUEST:
+        return ConversationalStrategyType.DEEPEN
+    if act_name == ConversationalActType.TOPIC_SHIFT:
+        return ConversationalStrategyType.SWITCH_TOPIC
+    if act_name == ConversationalActType.CONTINUATION:
+        return ConversationalStrategyType.CONTINUE
+    if act_name == ConversationalActType.CORRECTION:
+        if (conversation_state.active_mission or {}).get("next_act") == "clarify_fact_revision" or (
+            act.get("impact") or {}
+        ).get("requires_clarification"):
+            return ConversationalStrategyType.ASK_CLARIFICATION
+        return ConversationalStrategyType.REPAIR
+    if act_name == ConversationalActType.CLARIFICATION_REQUEST:
+        return ConversationalStrategyType.ASK_CLARIFICATION
+    if act_name == ConversationalActType.CLOSING:
+        return ConversationalStrategyType.CLOSE
+    return ConversationalStrategyType.RESPOND
+
+
+def _goal_intention_for(act_name: str, strategy_name: str) -> str:
+    return {
+        ConversationalStrategyType.SIMPLIFY: "make_current_guidance_easier_to_understand",
+        ConversationalStrategyType.SUMMARIZE: "summarize_confirmed_conversation_state",
+        ConversationalStrategyType.DEEPEN: "provide_more_detail_about_current_focus",
+        ConversationalStrategyType.CONTINUE: "continue_active_mission_from_current_next_act",
+        ConversationalStrategyType.REPAIR: "repair_conversation_state_after_user_correction",
+        ConversationalStrategyType.SWITCH_TOPIC: "recover_previous_available_focus_without_resetting_state",
+        ConversationalStrategyType.CLOSE: "acknowledge_user_closure_and_pause",
+        ConversationalStrategyType.ASK_CLARIFICATION: "ask_for_missing_conversational_target",
+    }.get(strategy_name, f"respond_to_{act_name}")
+
+
+def _success_criteria_for(strategy_name: str) -> list[str]:
+    criteria = {
+        ConversationalStrategyType.SIMPLIFY: [
+            "response_uses_simple_wording",
+            "response_preserves_active_mission",
+            "response_mentions_next_action",
+        ],
+        ConversationalStrategyType.SUMMARIZE: [
+            "response_contains_summary_marker",
+            "response_uses_confirmed_facts_only",
+        ],
+        ConversationalStrategyType.DEEPEN: [
+            "response_adds_detail",
+            "response_preserves_current_topic",
+        ],
+        ConversationalStrategyType.CONTINUE: [
+            "response_advances_current_next_act",
+            "mission_not_restarted",
+        ],
+        ConversationalStrategyType.REPAIR: [
+            "response_acknowledges_correction",
+            "mission_uses_revised_fact",
+        ],
+        ConversationalStrategyType.SWITCH_TOPIC: [
+            "response_acknowledges_topic_navigation",
+            "response_recovers_available_focus",
+        ],
+        ConversationalStrategyType.ASK_CLARIFICATION: [
+            "response_requests_specific_missing_target",
+            "state_not_changed_by_guessing",
+        ],
+        ConversationalStrategyType.CLOSE: [
+            "response_acknowledges_closure",
+        ],
+    }
+    return criteria.get(strategy_name, ["response_generated"])
+
+
+def _abandonment_criteria_for(strategy_name: str) -> list[str]:
+    if strategy_name == ConversationalStrategyType.ASK_CLARIFICATION:
+        return ["user_declines_to_clarify", "new_unrelated_topic_detected"]
+    if strategy_name == ConversationalStrategyType.SWITCH_TOPIC:
+        return ["no_previous_focus_available", "user_starts_new_topic"]
+    return ["user_changes_act", "strategy_cannot_use_available_state"]
+
+
+def _response_plan_for_strategy(conversation_state: ConversationState, strategy_name: str) -> Dict[str, Any]:
+    mission = deepcopy(conversation_state.active_mission or {})
+    direction = _topic_navigation_direction(
+        normalize_text(
+            ((conversation_state.last_conversational_act or {}).get("evidence") or {}).get("raw_message", "")
+        ),
+        conversation_state.last_conversational_act,
+    )
+    available_focus = _available_focus(conversation_state)
+    if direction:
+        available_focus["navigation_direction"] = direction
+    return {
+        "mode": strategy_name,
+        "mission_type": mission.get("type"),
+        "mission_next_act": mission.get("next_act"),
+        "mission_status": mission.get("lifecycle_status"),
+        "confirmed_facts": _active_fact_values(conversation_state.confirmed_facts),
+        "pending_questions": [deepcopy(dict(item)) for item in conversation_state.pending_questions],
+        "available_focus": available_focus,
+        "topic_navigation_direction": direction,
+    }
+
+
+def _goal_priority_for(strategy_name: str) -> int:
+    return {
+        ConversationalStrategyType.ASK_CLARIFICATION: 95,
+        ConversationalStrategyType.REPAIR: 92,
+        ConversationalStrategyType.SIMPLIFY: 82,
+        ConversationalStrategyType.SUMMARIZE: 80,
+        ConversationalStrategyType.DEEPEN: 78,
+        ConversationalStrategyType.SWITCH_TOPIC: 76,
+        ConversationalStrategyType.CONTINUE: 70,
+        ConversationalStrategyType.CLOSE: 50,
+        ConversationalStrategyType.RESPOND: 40,
+    }.get(strategy_name, 40)
+
+
+def _mission_impact_for(conversation_state: ConversationState, strategy_name: str) -> Dict[str, Any]:
+    mission = conversation_state.active_mission or {}
+    return {
+        "preserve_active_mission": strategy_name
+        in {
+            ConversationalStrategyType.SIMPLIFY,
+            ConversationalStrategyType.SUMMARIZE,
+            ConversationalStrategyType.DEEPEN,
+            ConversationalStrategyType.CONTINUE,
+            ConversationalStrategyType.SWITCH_TOPIC,
+            ConversationalStrategyType.ASK_CLARIFICATION,
+            ConversationalStrategyType.REPAIR,
+        },
+        "active_mission_type": mission.get("type"),
+        "next_act": mission.get("next_act"),
+        "may_change_mission_state": strategy_name in {ConversationalStrategyType.REPAIR, ConversationalStrategyType.CONTINUE},
+    }
+
+
+def _active_fact_values(facts: Mapping[str, Any]) -> Dict[str, Any]:
+    return {
+        str(key): _fact_value(value)
+        for key, value in facts.items()
+        if _is_active_fact_or_plain(value)
+    }
+
+
+def _available_focus(conversation_state: ConversationState) -> Dict[str, Any]:
+    active_topic = _active_topic_from_stack(conversation_state.topic_stack)
+    if active_topic:
+        focus = deepcopy(dict(active_topic))
+        if conversation_state.active_mission:
+            focus.setdefault("active_mission_type", conversation_state.active_mission.get("type"))
+            focus.setdefault("active_topic", conversation_state.active_mission.get("goal"))
+        focus.setdefault("summary", active_topic.get("summary"))
+        focus.setdefault("topic_id", active_topic.get("id"))
+        focus.setdefault("topic_status", active_topic.get("status"))
+        return focus
+    if conversation_state.focus:
+        focus = deepcopy(dict(conversation_state.focus))
+        if conversation_state.active_mission:
+            focus.setdefault("active_mission_type", conversation_state.active_mission.get("type"))
+            focus.setdefault("active_topic", conversation_state.active_mission.get("goal"))
+        return focus
+    if conversation_state.active_mission:
+        return {
+            "active_mission_type": conversation_state.active_mission.get("type"),
+            "active_topic": conversation_state.active_mission.get("goal"),
+            "source": "active_mission",
+        }
+    return {}
+
+
+def _evaluate_goal_fulfillment(goal: Mapping[str, Any], response: str) -> Dict[str, Any]:
+    strategy_name = str(((goal.get("strategy") or {}).get("name")) or "")
+    normalized_response = normalize_text(response)
+    checks = _fulfillment_checks(strategy_name, normalized_response)
+    satisfied = bool(response.strip()) and all(checks.values())
+    return {
+        "status": "satisfied" if satisfied else "needs_second_attempt",
+        "satisfied": satisfied,
+        "strategy": strategy_name,
+        "checks": checks,
+        "needs_second_attempt": not satisfied,
+        "should_change_strategy": False,
+        "evidence": {"response": response, "normalized_response": normalized_response},
+        "component": "conversation_state",
+    }
+
+
+def _fulfillment_checks(strategy_name: str, normalized_response: str) -> Dict[str, bool]:
+    if strategy_name == ConversationalStrategyType.SIMPLIFY:
+        return {
+            "simple_marker": "mas simple" in normalized_response,
+            "not_empty": bool(normalized_response),
+        }
+    if strategy_name == ConversationalStrategyType.SUMMARIZE:
+        return {
+            "summary_marker": "resumen" in normalized_response,
+            "uses_confirmed_facts": any(
+                term in normalized_response
+                for term in ("lesionados", "asegurado", "tercero", "denuncia", "documentacion")
+            ),
+        }
+    if strategy_name == ConversationalStrategyType.DEEPEN:
+        return {"detail_marker": "detalle" in normalized_response or "mas informacion" in normalized_response}
+    if strategy_name == ConversationalStrategyType.CONTINUE:
+        return {
+            "continues_next_act": any(
+                term in normalized_response
+                for term in ("denuncia", "documentacion", "avanzar", "seguimiento")
+            )
+        }
+    if strategy_name == ConversationalStrategyType.SWITCH_TOPIC:
+        return {"topic_marker": any(term in normalized_response for term in ("volver", "foco", "tema", "retomo", "denuncia"))}
+    if strategy_name == ConversationalStrategyType.ASK_CLARIFICATION:
+        return {"asks_question": "?" in normalized_response or "necesito" in normalized_response or "que dato" in normalized_response}
+    if strategy_name == ConversationalStrategyType.REPAIR:
+        return {"repair_marker": "correccion" in normalized_response or "tomo" in normalized_response}
+    if strategy_name == ConversationalStrategyType.CLOSE:
+        return {"closure_marker": any(term in normalized_response for term in ("listo", "gracias", "cierro"))}
+    return {"response_generated": bool(normalized_response)}
+
+
+def _topic_navigation_direction(normalized: str, act: Mapping[str, Any] | None = None) -> str:
+    if any(
+        phrase in normalized
+        for phrase in (
+            "otra cosa",
+            "cambiemos de tema",
+            "hablemos de otra cosa",
+            "cambiar de tema",
+        )
+    ):
+        return "new_topic"
+    if any(
+        phrase in normalized
+        for phrase in (
+            "volvamos",
+            "volver",
+            "lo anterior",
+            "tema anterior",
+            "sobre lo anterior",
+            "volvamos a eso",
+            "volver a eso",
+            "la denuncia",
+            "denuncia",
+        )
+    ):
+        if "sobre lo anterior" in normalized or "lo anterior" in normalized:
+            return "indirect_previous"
+        return "resume_previous"
+    if _mentions_continuation(normalized):
+        return "continue"
+    target = dict((act or {}).get("target") or {})
+    if target.get("direction"):
+        return str(target["direction"])
+    return "current"
+
+
+def _topic_from_current_state(conversation_state: ConversationState, message: Any) -> Dict[str, Any] | None:
+    mission = deepcopy(conversation_state.active_mission or {})
+    if mission.get("type"):
+        mission_type = str(mission["type"])
+        topic_id = f"mission:{mission_type}"
+        return {
+            "contract": "conversation_topic.v1",
+            "id": topic_id,
+            "type": mission_type,
+            "mission_type": mission_type,
+            "mission_goal": mission.get("goal"),
+            "conversational_goal": _topic_goal_snapshot(conversation_state.derived_state.get("conversation_goal")),
+            "priority": 80,
+            "status": TopicStatus.ACTIVE,
+            "created_turn": _topic_created_turn(conversation_state.topic_stack, topic_id, conversation_state.turn_count),
+            "last_active_turn": int(conversation_state.turn_count),
+            "associated_facts": _topic_associated_facts(conversation_state, mission_type),
+            "associated_slots": _topic_associated_slots(conversation_state, mission_type),
+            "summary": _topic_summary(conversation_state, mission_type=mission_type, message=message),
+        }
+    focus_topic = conversation_state.focus.get("active_topic")
+    if focus_topic:
+        topic_id = f"focus:{normalize_text(focus_topic).replace(' ', '_')}"
+        return {
+            "contract": "conversation_topic.v1",
+            "id": topic_id,
+            "type": "focus",
+            "mission_type": None,
+            "mission_goal": conversation_state.focus.get("active_topic"),
+            "conversational_goal": _topic_goal_snapshot(conversation_state.derived_state.get("conversation_goal")),
+            "priority": 50,
+            "status": TopicStatus.ACTIVE,
+            "created_turn": _topic_created_turn(conversation_state.topic_stack, topic_id, conversation_state.turn_count),
+            "last_active_turn": int(conversation_state.turn_count),
+            "associated_facts": _topic_associated_facts(conversation_state, ""),
+            "associated_slots": _topic_associated_slots(conversation_state, ""),
+            "summary": str(focus_topic),
+        }
+    return None
+
+
+def _new_unresolved_topic(conversation_state: ConversationState, message: Any) -> Dict[str, Any]:
+    topic_id = f"topic:unresolved:{int(conversation_state.turn_count)}"
+    summary = "Nuevo tema pendiente de definir"
+    normalized = normalize_text(message)
+    if normalized:
+        summary = f"Nuevo tema pendiente de definir: {str(message).strip()}"
+    return {
+        "contract": "conversation_topic.v1",
+        "id": topic_id,
+        "type": "unresolved_topic",
+        "mission_type": None,
+        "mission_goal": None,
+        "conversational_goal": _topic_goal_snapshot(conversation_state.derived_state.get("conversation_goal")),
+        "priority": 30,
+        "status": TopicStatus.ACTIVE,
+        "created_turn": int(conversation_state.turn_count),
+        "last_active_turn": int(conversation_state.turn_count),
+        "associated_facts": {},
+        "associated_slots": {},
+        "summary": summary,
+    }
+
+
+def _topic_refreshed_from_state(topic: Mapping[str, Any], conversation_state: ConversationState) -> Dict[str, Any]:
+    current = _topic_from_current_state(conversation_state, "")
+    if current and topic.get("mission_type") and current.get("mission_type") == topic.get("mission_type"):
+        refreshed = deepcopy(current)
+        refreshed["id"] = topic.get("id") or refreshed["id"]
+        refreshed["created_turn"] = topic.get("created_turn", refreshed["created_turn"])
+        return refreshed
+    refreshed = deepcopy(dict(topic))
+    refreshed["last_active_turn"] = int(conversation_state.turn_count)
+    if refreshed.get("mission_type"):
+        refreshed["associated_facts"] = _topic_associated_facts(conversation_state, str(refreshed.get("mission_type")))
+        refreshed["associated_slots"] = _topic_associated_slots(conversation_state, str(refreshed.get("mission_type")))
+        refreshed["summary"] = _topic_summary(conversation_state, mission_type=str(refreshed.get("mission_type")), message="")
+    return _normalize_topic(refreshed)
+
+
+def _topic_with_status(topic: Mapping[str, Any], status: str, turn: int) -> Dict[str, Any]:
+    updated = deepcopy(dict(topic))
+    updated["status"] = status
+    if status in TOPIC_ACTIVE_STATUSES:
+        updated["last_active_turn"] = int(turn)
+    return _normalize_topic(updated)
+
+
+def _topic_is_unresolved_other(topic: Mapping[str, Any]) -> bool:
+    return str(topic.get("type") or "") == "unresolved_topic"
+
+
+def _resolve_topic_reference(
+    stack: Sequence[Mapping[str, Any]],
+    normalized: str,
+    conversation_state: ConversationState,
+) -> tuple[Dict[str, Any] | None, str, Dict[str, Any] | None]:
+    candidates = [
+        deepcopy(dict(topic))
+        for topic in stack
+        if str(topic.get("status") or "") in {TopicStatus.SUSPENDED, TopicStatus.ACTIVE, TopicStatus.RESUMED}
+        and not _topic_is_unresolved_other(topic)
+    ]
+    if not candidates:
+        return None, "no_topic_available", None
+
+    scored: list[tuple[int, Dict[str, Any], list[str]]] = []
+    for topic in candidates:
+        score = int(topic.get("priority") or 0)
+        evidence: list[str] = []
+        text = " ".join(
+            normalize_text(value)
+            for value in (
+                topic.get("type"),
+                topic.get("mission_type"),
+                topic.get("mission_goal"),
+                topic.get("summary"),
+            )
+            if value
+        )
+        if str(topic.get("status")) == TopicStatus.SUSPENDED:
+            score += 15
+            evidence.append("suspended_topic")
+        if "denuncia" in normalized and (
+            "denuncia" in text or topic.get("mission_type") == "auto_claim_guidance"
+        ):
+            score += 45
+            evidence.append("denuncia_reference")
+        if any(term in normalized for term in ("lo anterior", "sobre lo anterior", "eso", "tema anterior")):
+            score += int(topic.get("last_active_turn") or 0)
+            evidence.append("previous_topic_reference")
+        if _mentions_continuation(normalized):
+            score += int(topic.get("last_active_turn") or 0)
+            evidence.append("continuation_reference")
+        if topic.get("mission_type") == (conversation_state.active_mission or {}).get("type"):
+            score += 10
+            evidence.append("active_mission_match")
+        scored.append((score, topic, evidence))
+
+    scored.sort(key=lambda item: (item[0], int(item[1].get("last_active_turn") or 0)), reverse=True)
+    best_score, best_topic, best_evidence = scored[0]
+    tied = [
+        topic
+        for score, topic, _ in scored
+        if score == best_score and topic.get("id") != best_topic.get("id")
+    ]
+    if tied and not best_evidence:
+        return None, "topic_reference_ambiguous", {
+            "reason": "multiple_topics_with_same_score",
+            "candidate_topic_ids": [best_topic.get("id")] + [topic.get("id") for topic in tied],
+        }
+    return best_topic, "+".join(best_evidence) or "most_recent_available_topic", None
+
+
+def _topic_stack_with_conversational_goal(
+    stack: Sequence[Mapping[str, Any]],
+    *,
+    goal: Mapping[str, Any],
+    derived_state: Dict[str, Any],
+    turn: int,
+) -> list[Dict[str, Any]]:
+    topics = [_normalize_topic(topic) for topic in stack if isinstance(topic, Mapping)]
+    active = _active_topic_from_stack(topics)
+    if not active:
+        return topics
+    updated_active = deepcopy(active)
+    updated_active["conversational_goal"] = _topic_goal_snapshot({"goal": goal})
+    updated_active["last_active_turn"] = int(turn)
+    topics = _replace_topic(topics, updated_active)
+    trace = derived_state.get("topic_stack")
+    if isinstance(trace, dict):
+        trace["active_topic"] = deepcopy(updated_active)
+        trace["topics"] = deepcopy(topics)
+        trace["summary_updated"] = updated_active.get("summary")
+    return topics
+
+
+def _topic_goal_snapshot(trace: Any) -> Dict[str, Any]:
+    if not isinstance(trace, Mapping):
+        return {}
+    goal = dict(trace.get("goal") or trace)
+    if not goal:
+        return {}
+    strategy = dict(goal.get("strategy") or {})
+    return {
+        "act": goal.get("act"),
+        "intention": goal.get("intention"),
+        "strategy": strategy.get("name"),
+        "priority": goal.get("priority"),
+        "turn": goal.get("turn"),
+    }
+
+
+def _topic_associated_facts(conversation_state: ConversationState, mission_type: str) -> Dict[str, Any]:
+    associated: Dict[str, Any] = {}
+    for fact_type, fact in conversation_state.confirmed_facts.items():
+        if isinstance(fact, Mapping) and fact.get("contract") == "conversational_fact.v1":
+            if mission_type and fact.get("mission_type") not in {mission_type, "", None}:
+                continue
+            if fact.get("status", FactStatus.ACTIVE) != FactStatus.ACTIVE:
+                continue
+            associated[str(fact_type)] = {
+                "value": deepcopy(fact.get("value")),
+                "confidence": fact.get("confidence"),
+                "turn": fact.get("revised_turn") or fact.get("acquired_turn"),
+            }
+        elif fact_type in {"injuries", "user_role", "claim_report_loaded", "documentation_available"}:
+            associated[str(fact_type)] = {"value": deepcopy(fact), "confidence": None, "turn": None}
+    return associated
+
+
+def _topic_associated_slots(conversation_state: ConversationState, mission_type: str) -> Dict[str, Any]:
+    associated: Dict[str, Any] = {}
+    for slot_name, slot in conversation_state.slots.items():
+        if mission_type and slot.get("mission_type") not in {mission_type, "", None}:
+            continue
+        associated[str(slot_name)] = {
+            "status": slot.get("status"),
+            "value": deepcopy(slot.get("value")),
+            "priority": slot.get("priority"),
+        }
+    return associated
+
+
+def _topic_summary(conversation_state: ConversationState, *, mission_type: str, message: Any) -> str:
+    if mission_type == "auto_claim_guidance":
+        facts = _active_fact_values(conversation_state.confirmed_facts)
+        pieces = ["Orientacion de denuncia de siniestro"]
+        if facts.get("injuries") is False:
+            pieces.append("no hubo lesionados")
+        elif facts.get("injuries") is True:
+            pieces.append("hubo lesionados")
+        if facts.get("user_role") == "insured":
+            pieces.append("sos asegurado")
+        elif facts.get("user_role") == "third_party":
+            pieces.append("sos tercero")
+        if facts.get("claim_report_loaded") is True:
+            pieces.append("la denuncia esta cargada")
+        elif facts.get("claim_report_loaded") is False:
+            pieces.append("la denuncia todavia no esta cargada")
+        if facts.get("documentation_available") is True:
+            pieces.append("tenes toda la documentacion")
+        elif facts.get("documentation_available") is False:
+            pieces.append("documentacion pendiente")
+        next_act = (conversation_state.active_mission or {}).get("next_act")
+        if next_act:
+            pieces.append(f"proximo paso: {next_act}")
+        return "; ".join(pieces)
+    text = str(message or "").strip()
+    return text or str((conversation_state.focus or {}).get("active_topic") or mission_type or "tema activo")
+
+
+def _topic_created_turn(stack: Sequence[Mapping[str, Any]], topic_id: str, default_turn: int) -> int:
+    existing = _find_topic_by_id(stack, topic_id)
+    if existing and existing.get("created_turn") is not None:
+        return int(existing.get("created_turn") or default_turn)
+    return int(default_turn)
+
+
+def _active_topic_from_stack(stack: Sequence[Mapping[str, Any]]) -> Dict[str, Any] | None:
+    for topic in reversed(list(stack or [])):
+        if str(topic.get("status") or "") in TOPIC_ACTIVE_STATUSES:
+            return deepcopy(dict(topic))
+    return None
+
+
+def _find_topic_by_id(stack: Sequence[Mapping[str, Any]], topic_id: str) -> Dict[str, Any] | None:
+    for topic in stack or ():
+        if str(topic.get("id") or "") == topic_id:
+            return deepcopy(dict(topic))
+    return None
+
+
+def _replace_topic(stack: Sequence[Mapping[str, Any]], replacement: Mapping[str, Any]) -> list[Dict[str, Any]]:
+    replacement_id = str(replacement.get("id") or "")
+    return [
+        deepcopy(dict(replacement)) if str(topic.get("id") or "") == replacement_id else deepcopy(dict(topic))
+        for topic in stack
+    ]
+
+
+def _remove_topic(stack: Sequence[Mapping[str, Any]], topic_id: str) -> list[Dict[str, Any]]:
+    return [deepcopy(dict(topic)) for topic in stack if str(topic.get("id") or "") != topic_id]
+
+
+def _normalize_topic(topic: Mapping[str, Any]) -> Dict[str, Any]:
+    data = deepcopy(dict(topic))
+    if not data:
+        return {}
+    if not data.get("id"):
+        topic_type = str(data.get("type") or "topic")
+        value = str(data.get("value") or data.get("mission_type") or data.get("mission_goal") or topic_type)
+        data["id"] = f"{topic_type}:{normalize_text(value).replace(' ', '_')}"
+    data.setdefault("contract", "conversation_topic.v1")
+    data.setdefault("type", data.get("mission_type") or data.get("active_mission_type") or "topic")
+    data.setdefault("mission_type", data.get("active_mission_type"))
+    data.setdefault("mission_goal", data.get("active_topic") or data.get("value"))
+    data.setdefault("conversational_goal", {})
+    data.setdefault("priority", 50)
+    if data.get("status") not in VALID_TOPIC_STATUSES:
+        data["status"] = TopicStatus.ACTIVE
+    data.setdefault("created_turn", 0)
+    data.setdefault("last_active_turn", data.get("created_turn", 0))
+    data.setdefault("associated_facts", {})
+    data.setdefault("associated_slots", {})
+    data.setdefault("summary", data.get("value") or data.get("mission_goal") or data.get("type") or "tema activo")
+    return data
+
+
+def _focus_from_active_topic(topic: Mapping[str, Any] | None, *, fallback: Mapping[str, Any]) -> Dict[str, Any]:
+    if not topic:
+        return deepcopy(dict(fallback or {}))
+    focus = deepcopy(dict(fallback or {}))
+    focus["active_topic_id"] = topic.get("id")
+    focus["active_topic"] = topic.get("summary") or topic.get("mission_goal") or topic.get("type")
+    focus["active_topic_type"] = topic.get("type")
+    focus["topic_status"] = topic.get("status")
+    if topic.get("mission_type"):
+        focus["active_mission_type"] = topic.get("mission_type")
+    focus["source"] = "topic_stack"
+    return focus
 
 
 def assimilate_user_facts(
@@ -1205,6 +4958,30 @@ def _candidate_facts_from_message(
     candidates: list[Dict[str, Any]] = []
     mission_type = _mission_type(conversation_state)
     acquired_turn = conversation_state.turn_count
+    all_required_loaded = _mentions_all_required_claim_information_loaded(normalized)
+    if all_required_loaded:
+        candidates.append(
+            _conversational_fact(
+                fact_type="claim_report_loaded",
+                value=True,
+                origin="user_message",
+                confidence=0.84,
+                mission_type=mission_type,
+                acquired_turn=acquired_turn,
+                evidence={"raw_message": str(message), "normalized_message": normalized, "reason": "all_required_claim_information_loaded"},
+            )
+        )
+        candidates.append(
+            _conversational_fact(
+                fact_type="documentation_available",
+                value=True,
+                origin="user_message",
+                confidence=0.82,
+                mission_type=mission_type,
+                acquired_turn=acquired_turn,
+                evidence={"raw_message": str(message), "normalized_message": normalized, "reason": "all_required_claim_information_loaded"},
+            )
+        )
     if _mentions_claim_report_loaded(normalized):
         candidates.append(
             _conversational_fact(
@@ -1217,7 +4994,7 @@ def _candidate_facts_from_message(
                 evidence={"raw_message": str(message), "normalized_message": normalized},
             )
         )
-    if _mentions_documentation_available(normalized):
+    if not all_required_loaded and _mentions_documentation_available(normalized):
         candidates.append(
             _conversational_fact(
                 fact_type="documentation_available",
@@ -1780,6 +5557,21 @@ def _mentions_claim_report_loaded(normalized: str) -> bool:
     )
 
 
+def _mentions_all_required_claim_information_loaded(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "ya cargue todo",
+            "ya esta todo cargado",
+            "ya subi todo",
+            "ya mande todo",
+            "ya complete todo",
+            "tengo todo cargado",
+            "cargue todo",
+        )
+    )
+
+
 def _mentions_claim_report_not_loaded(normalized: str, conversation_state: ConversationState) -> bool:
     explicit = any(
         phrase in normalized
@@ -1922,6 +5714,194 @@ def _has_correction_cue(normalized: str) -> bool:
     )
 
 
+def _looks_like_correction(normalized: str, revisable_targets: Sequence[str]) -> bool:
+    if _is_generic_withdrawal(normalized):
+        return True
+    if revisable_targets and _has_correction_cue(normalized):
+        return True
+    if revisable_targets and any(
+        phrase in normalized
+        for phrase in (
+            "si hubo lesionados",
+            "no hubo lesionados",
+            "soy tercero",
+            "soy tercera",
+            "soy asegurado",
+            "soy asegurada",
+            "todavia no",
+            "aun no",
+        )
+    ):
+        return True
+    return False
+
+
+def _active_fact_targets_for_message(conversation_state: ConversationState, normalized: str) -> list[str]:
+    targets: list[str] = []
+    facts = conversation_state.confirmed_facts
+    if "injuries" in facts and (_mentions_no_injuries(normalized) or _mentions_injuries_present(normalized)):
+        targets.append("injuries")
+    if "user_role" in facts and (_mentions_user_insured(normalized) or _mentions_user_third_party(normalized)):
+        targets.append("user_role")
+    if "claim_report_loaded" in facts and (
+        _mentions_claim_report_loaded(normalized)
+        or _mentions_claim_report_not_loaded(normalized, conversation_state)
+    ):
+        targets.append("claim_report_loaded")
+    if "documentation_available" in facts and (
+        _mentions_documentation_available(normalized)
+        or _mentions_documentation_not_available(normalized, conversation_state)
+    ):
+        targets.append("documentation_available")
+    if _is_generic_withdrawal(normalized):
+        targets.extend(_latest_active_fact_types(facts))
+    return sorted(set(targets))
+
+
+def _looks_like_pending_answer(
+    normalized: str,
+    pending_slots: Sequence[str],
+    pending_questions: Sequence[Mapping[str, Any]],
+) -> bool:
+    if not pending_slots:
+        return False
+    explicit = _explicit_slot_matches(normalized, pending_slots)
+    if explicit:
+        return True
+    contextual = _contextual_slot_match(normalized, pending_slots, pending_questions)
+    return contextual is not None
+
+
+def _is_minimal_affirmation_or_negation(normalized: str) -> bool:
+    return _is_affirmation(normalized) or _is_negation(normalized)
+
+
+def _is_affirmation(normalized: str) -> bool:
+    return normalized.strip(" .!?") in {
+        "si",
+        "sí",
+        "sip",
+        "claro",
+        "correcto",
+        "exacto",
+        "asi es",
+        "dale",
+    }
+
+
+def _is_negation(normalized: str) -> bool:
+    stripped = normalized.strip(" .!?")
+    return stripped in {
+        "no",
+        "nop",
+        "para nada",
+        "negativo",
+    } or stripped.startswith("no,") or stripped.startswith("no ")
+
+
+def _mentions_simplification_request(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "explicamelo mas simple",
+            "explicalo mas simple",
+            "mas simple",
+            "en simple",
+            "no entendi",
+            "no lo entendi",
+            "decimelo facil",
+        )
+    )
+
+
+def _mentions_recap_request(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "resumime",
+            "resumen",
+            "recapitulame",
+            "que dijimos",
+            "haceme un resumen",
+        )
+    )
+
+
+def _mentions_topic_shift(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "volvamos a lo anterior",
+            "volver a lo anterior",
+            "volvamos al tema anterior",
+            "volvamos a la denuncia",
+            "volver a la denuncia",
+            "sobre lo anterior",
+            "y sobre lo anterior",
+            "volvamos a eso",
+            "volver a eso",
+            "cambiemos de tema",
+            "cambiar de tema",
+            "otra cosa",
+            "hablemos de otra cosa",
+        )
+    )
+
+
+def _mentions_continuation(normalized: str) -> bool:
+    return normalized.strip(" .!?") in {
+        "seguimos",
+        "sigamos",
+        "continuemos",
+        "avancemos",
+        "seguí",
+        "segui",
+        "dale seguimos",
+        "dale sigamos",
+    }
+
+
+def _mentions_deepening_request(normalized: str) -> bool:
+    return any(
+        phrase in normalized
+        for phrase in (
+            "mas detalle",
+            "dame mas detalle",
+            "profundiza",
+            "explicamelo mejor",
+            "contame mas",
+            "mas informacion",
+        )
+    )
+
+
+def _mentions_clarification_request(normalized: str) -> bool:
+    if _mentions_simplification_request(normalized) or _mentions_deepening_request(normalized):
+        return False
+    return any(
+        phrase in normalized
+        for phrase in (
+            "que queres decir",
+            "a que te referis",
+            "me aclaras",
+            "aclarame",
+            "no entiendo",
+            "no me queda claro",
+        )
+    )
+
+
+def _mentions_closing(normalized: str) -> bool:
+    return normalized.strip(" .!?") in {
+        "gracias",
+        "listo",
+        "eso es todo",
+        "chau",
+        "adios",
+        "hasta luego",
+    }
+
+
 def _is_generic_withdrawal(normalized: str) -> bool:
     stripped = normalized.strip(" .!?")
     return stripped in {
@@ -1931,6 +5911,8 @@ def _is_generic_withdrawal(normalized: str) -> bool:
         "perdon, me confundi",
         "perdon me equivoque",
         "perdon, me equivoque",
+        "no, me equivoque",
+        "no me equivoque",
         "retiro lo dicho",
     }
 
@@ -2351,8 +6333,50 @@ def _topic_stack_from_focus(focus: Mapping[str, Any]) -> list[Dict[str, Any]]:
     stack = []
     for key in ("active_topic", "active_claim_type", "active_case_id", "active_mission_type", "active_concept"):
         if focus.get(key):
-            stack.append({"type": key, "value": focus[key], "status": "active"})
+            stack.append(_normalize_topic({"type": key, "value": focus[key], "status": TopicStatus.ACTIVE}))
     return stack
+
+
+def _topic_stack_from_cognitive_facts(
+    facts: Mapping[str, Any],
+    *,
+    focus: Mapping[str, Any],
+    active_mission: Mapping[str, Any] | None = None,
+    turn_count: int = 0,
+) -> list[Dict[str, Any]]:
+    projection = facts.get("conversation_topic_stack")
+    if isinstance(projection, Mapping):
+        topics = projection.get("topics") or projection.get("current_stack") or projection.get("topic_stack")
+        if isinstance(topics, Sequence) and not isinstance(topics, (str, bytes)):
+            return [
+                _normalize_topic(topic)
+                for topic in topics
+                if isinstance(topic, Mapping)
+            ]
+    active_topic = facts.get("conversation_active_topic")
+    if isinstance(active_topic, Mapping):
+        return [_normalize_topic(active_topic)]
+    if active_mission and active_mission.get("type"):
+        mission_type = str(active_mission.get("type"))
+        return [
+            _normalize_topic(
+                {
+                    "contract": "conversation_topic.v1",
+                    "id": f"mission:{mission_type}",
+                    "type": mission_type,
+                    "mission_type": mission_type,
+                    "mission_goal": active_mission.get("goal"),
+                    "priority": 80,
+                    "status": TopicStatus.ACTIVE,
+                    "created_turn": int(turn_count),
+                    "last_active_turn": int(turn_count),
+                    "associated_facts": {},
+                    "associated_slots": {},
+                    "summary": active_mission.get("goal") or mission_type,
+                }
+            )
+        ]
+    return _topic_stack_from_focus(focus)
 
 
 def _slot_with_defaults(
@@ -2481,6 +6505,16 @@ def _is_runtime_projection_key(key: str) -> bool:
         or key
         in {
             "conversation_state_runtime",
+            "conversation_act",
+            "conversation_act_recognition",
+            "conversation_goal",
+            "conversation_intent_model",
+            "conversation_information_gain_plan",
+            "conversation_plan",
+            "conversation_response_plan",
+            "conversation_fulfillment",
+            "conversation_active_topic",
+            "conversation_topic_stack",
             "execution_step_outcomes",
             "conversation_slot_resolution",
             "conversation_fact_assimilation",
@@ -2532,6 +6566,10 @@ def _goals_from_public_state(state: Any, semantic: Mapping[str, Any]) -> list[Di
 
 
 def _last_act_from_cognitive_state(state: Any) -> Dict[str, Any]:
+    facts = dict(getattr(state, "facts", {}) or {})
+    conversation_act = facts.get("conversation_act")
+    if isinstance(conversation_act, Mapping) and conversation_act.get("act"):
+        return deepcopy(dict(conversation_act))
     intent_match = getattr(state, "intent_match", None)
     if isinstance(intent_match, Mapping):
         return {
@@ -2586,6 +6624,14 @@ def _derived_state_from_cognitive_state(state: Any, context_bundle: Mapping[str,
         "zero_cost_execution_flow",
         "zero_cost_execution_plan",
         "runtime_execution_engine",
+        "conversation_act_recognition",
+        "conversation_goal",
+        "conversation_intent_model",
+        "conversation_information_gain_plan",
+        "conversation_plan",
+        "conversation_response_plan",
+        "conversation_fulfillment",
+        "conversation_topic_stack",
         "conversation_slot_resolution",
         "conversation_fact_assimilation",
         "conversation_fact_revision",
@@ -2595,6 +6641,14 @@ def _derived_state_from_cognitive_state(state: Any, context_bundle: Mapping[str,
         if value is not None:
             derived[
                 {
+                    "conversation_act_recognition": "conversation_act",
+                    "conversation_goal": "conversation_goal",
+                    "conversation_intent_model": "conversation_intent_model",
+                    "conversation_information_gain_plan": "conversation_information_gain_plan",
+                    "conversation_plan": "conversation_plan",
+                    "conversation_response_plan": "conversation_response_plan",
+                    "conversation_fulfillment": "conversation_fulfillment",
+                    "conversation_topic_stack": "topic_stack",
                     "conversation_slot_resolution": "slot_resolution",
                     "conversation_fact_assimilation": "fact_assimilation",
                     "conversation_fact_revision": "fact_revision",

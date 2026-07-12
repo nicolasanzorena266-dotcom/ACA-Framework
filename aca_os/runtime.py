@@ -8,7 +8,7 @@ from aca_kernel.core.events import Event
 from aca_kernel.core.kernel import ACAKernel
 from aca_kernel.compiler.compiler import GraphCompiler
 from aca_os.context_manager import ContextManager
-from aca_os.conversation_state import ConversationState
+from aca_os.conversation_state import ConversationState, ConversationalActType
 from aca_os.conversation_manager import ConversationManager
 from aca_os.event_bus import EventBus
 from aca_os.introspection import RuntimeIntrospectionAPI, RuntimeIntrospectionSnapshot
@@ -214,6 +214,22 @@ class ACAOSRuntime:
     def _attach_conversation_state_runtime_record(self, state: CognitiveState) -> CognitiveState:
         record = self.conversation_manager.conversation_state_runtime_record(state.conversation_id)
         facts = dict(state.facts)
+        if record.get("conversation_goal"):
+            facts["conversation_goal"] = record["conversation_goal"]
+        if record.get("conversation_intent_model"):
+            facts["conversation_intent_model"] = record["conversation_intent_model"]
+        if record.get("conversation_information_gain_plan"):
+            facts["conversation_information_gain_plan"] = record["conversation_information_gain_plan"]
+        if record.get("conversation_plan"):
+            facts["conversation_plan"] = record["conversation_plan"]
+        if record.get("conversation_response_plan"):
+            facts["conversation_response_plan"] = record["conversation_response_plan"]
+        if record.get("conversation_fulfillment"):
+            facts["conversation_fulfillment"] = record["conversation_fulfillment"]
+        if record.get("topic_stack"):
+            facts["conversation_topic_stack"] = record["topic_stack"]
+        if record.get("active_topic"):
+            facts["conversation_active_topic"] = record["active_topic"]
         facts["conversation_state_runtime"] = record
         updated = state.evolve("CONVERSATION_STATE_RUNTIME", facts=facts)
         return self.conversation_manager.after_process(updated)
@@ -401,6 +417,11 @@ class ACAOSRuntime:
         conversation_state = turn_context.cognitive_state
         operational_conversation_state = turn_context.conversation_state
         intent_match = self.intent_matcher.match(event.payload)
+        intent_match = _intent_from_conversation_act(
+            intent_match,
+            turn_context.conversational_act,
+            operational_conversation_state,
+        )
         if turn_context.slot_resolutions:
             intent_match = _intent_from_slot_resolution(
                 intent_match,
@@ -448,6 +469,14 @@ class ACAOSRuntime:
         operational_conversation_state = self.conversation_manager.project_from_cognitive_state(
             prepared,
             source="runtime.prepared_state",
+        )
+        operational_conversation_state, _ = operational_conversation_state.model_conversational_intent(event.payload)
+        operational_conversation_state, _ = operational_conversation_state.plan_information_gain(event.payload)
+        operational_conversation_state, _ = operational_conversation_state.plan_conversation(event.payload)
+        operational_conversation_state, _ = operational_conversation_state.plan_conversational_response(event.payload)
+        prepared = operational_conversation_state.to_cognitive_state(
+            base=prepared,
+            source="runtime.conversation_response_plan",
         )
         policy_execution = self.step_handlers.resolve("policy").execute(
             StepExecutionContext(
@@ -674,6 +703,36 @@ class ACAOSRuntime:
 
 def _uses_runtime_executor_officially(execution_plan: ExecutionPlan) -> bool:
     return execution_plan.flow in _runtime_executor_official_flows()
+
+
+def _intent_from_conversation_act(
+    original: IntentMatch,
+    conversational_act: Dict[str, Any],
+    conversation_state: ConversationState,
+) -> IntentMatch:
+    active_mission = conversation_state.active_mission or {}
+    if active_mission.get("type") != "auto_claim_guidance":
+        return original
+    act = str(conversational_act.get("act") or "")
+    continuity_acts = {
+        ConversationalActType.CONTINUATION,
+        ConversationalActType.SIMPLIFICATION_REQUEST,
+        ConversationalActType.RECAP_REQUEST,
+        ConversationalActType.TOPIC_SHIFT,
+        ConversationalActType.DEEPENING_REQUEST,
+        ConversationalActType.CLARIFICATION_REQUEST,
+        ConversationalActType.CORRECTION,
+        ConversationalActType.CLOSING,
+    }
+    if act not in continuity_acts:
+        return original
+    confidence = max(float(conversational_act.get("confidence") or 0.0), 0.74)
+    return IntentMatch(
+        intent="auto_claim_guidance",
+        confidence=round(confidence, 2),
+        matched_terms=[act],
+        reason=f"conversation_act_{act}",
+    )
 
 
 def _intent_from_slot_resolution(

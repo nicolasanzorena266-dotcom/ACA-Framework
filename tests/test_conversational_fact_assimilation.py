@@ -104,7 +104,8 @@ def test_claim_report_loaded_fact_prevents_reasking_report_and_moves_to_document
     assert fact["origin"] == "user_message"
     assert conversation.active_mission["facts"]["claim_report_loaded"]["value"] is True
     assert conversation.active_mission["next_act"] == "check_documentation_available"
-    assert "No te la vuelvo a pedir" in state.response
+    assert "Tenes toda la documentacion" in state.response
+    assert "Asi puedo ver si corresponde seguimiento" in state.response
     assert "documentacion" in state.response
 
 
@@ -127,7 +128,7 @@ def test_documentation_available_fact_unblocks_mission_progression():
     assert conversation.active_mission["next_act"] == "provide_next_step_guidance"
     assert advancement["to_status"] == MissionLifecycleStatus.PROGRESSING
     assert advancement["reason"] == "claim_report_and_documentation_ready"
-    assert "Ya podemos avanzar" in state.response
+    assert "El siguiente paso util" in state.response
 
 
 def test_multiple_facts_in_one_turn_are_assimilated_before_mission_advancement():

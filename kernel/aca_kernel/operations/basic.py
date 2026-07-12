@@ -110,6 +110,10 @@ class Generate(CognitiveOperation):
             response = tool_response
         elif state.selected_program == "greeting":
             response = "Hola. Contame qué necesitás y te oriento."
+        elif state.active_mission and state.active_mission.get("type") == "auto_claim_guidance" and _conversation_act_controls_response(state):
+            response = _response_after_slots(state)
+        elif _response_from_conversational_response_plan(state):
+            response = _response_from_conversational_response_plan(state) or ""
         elif state.plan:
             response = _response_for_plan(state.plan)
             if "explain_missing_third_party_report" in state.plan:
@@ -118,7 +122,7 @@ class Generate(CognitiveOperation):
             response = _response_after_slots(state)
         else:
             response = "Necesito un poco más de contexto para orientarte sin inventar."
-        return state.evolve(self.name, response=response)
+        return state.evolve(self.name, response=_enforce_cognitive_opacity(response))
 
 
 class Verify(CognitiveOperation):
@@ -159,6 +163,101 @@ def _response_from_tool_evidence(context: Dict[str, Any]) -> str | None:
     return response
 
 
+def _response_from_conversational_response_plan(state: CognitiveState) -> str | None:
+    plan = _conversation_response_plan(state)
+    if not plan:
+        return None
+    primary = dict(plan.get("primary_user_need") or {})
+    primary_key = str(primary.get("key") or "")
+    secondary = [dict(item) for item in plan.get("secondary_needs") or [] if isinstance(item, dict)]
+    required = [dict(item) for item in plan.get("required_information") or [] if isinstance(item, dict)]
+    if primary_key == "vehicle_repair_authorization":
+        parts = [
+            "Sobre arreglar el auto: la clave es no perjudicar la evaluacion del siniestro.",
+            "En general conviene esperar la autorizacion o indicacion de la aseguradora antes de repararlo; si necesitas moverlo por seguridad, conserva fotos, presupuesto y comprobantes del dano.",
+        ]
+        if any(item.get("key") == "photo_upload_status" for item in secondary):
+            parts.append("Sobre las fotos: si no estas seguro de haberlas enviado, conviene revisar si figuran cargadas o tenerlas listas para volver a adjuntarlas.")
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if primary_key == "claim_contact_progress":
+        parts = [
+            "Sobre cuando te van a contactar: mas que prometer una fecha, lo importante es verificar que el caso este siguiendo el circuito esperado.",
+            "Para eso conviene revisar si la denuncia esta cargada, si la documentacion quedo completa y si el canal muestra alguna observacion.",
+        ]
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if primary_key == "photo_requirement_confidence":
+        parts = [
+            "Que no te hayan pedido fotos no significa necesariamente que hiciste algo mal.",
+            "Depende del tipo de siniestro y del estado del tramite; lo importante es revisar si el canal muestra fotos pendientes u observaciones.",
+        ]
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if primary_key == "photo_upload_status":
+        parts = [
+            "Sobre las fotos: lo importante es confirmar si quedaron cargadas y si el tramite muestra alguna observacion."
+        ]
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if primary_key == "claim_report_status":
+        parts = ["Sobre la denuncia: si ya esta cargada, el paso siguiente suele ser revisar documentacion y seguimiento del tramite."]
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if primary_key == "claim_status_or_payment":
+        parts = [
+            "Sobre los tiempos: suelen depender del estado de la denuncia, la documentacion y la validacion del siniestro.",
+            "Si el tramite esta completo, lo util es revisar si el canal muestra observaciones o novedades pendientes.",
+        ]
+        question = _question_sentence(required)
+        if question:
+            parts.append("Respecto a tu denuncia, " + _lower_first(question))
+        return " ".join(parts)
+    if primary_key == "documentation_guidance":
+        parts = [
+            "Para documentacion del siniestro, normalmente conviene tener fotos del dano, presupuesto o comprobante del taller, datos del otro vehiculo y cualquier constancia que te haya pedido el canal.",
+            "Eso ayuda a que la revision avance con menos idas y vueltas.",
+        ]
+        question = _question_sentence(required)
+        if question:
+            parts.append(question)
+        return " ".join(parts)
+    if required and primary_key in {"auto_claim_guidance", "understand_user_need"}:
+        return _question_sentence(required)
+    return None
+
+
+def _conversation_response_plan(state: CognitiveState) -> Dict[str, Any]:
+    trace = dict(state.facts.get("conversation_response_plan") or {})
+    plan = trace.get("plan")
+    if isinstance(plan, dict):
+        return dict(plan)
+    return trace
+
+
+def _question_sentence(required_information: list[Dict[str, Any]]) -> str:
+    if not required_information:
+        return ""
+    item = required_information[0]
+    question = str(item.get("question") or "").strip()
+    purpose = str(item.get("purpose") or "").strip()
+    if not question:
+        return ""
+    if purpose:
+        return f"{question} Asi puedo {purpose}."
+    return question
+
+
 def _pending_slots(state: CognitiveState, context: Dict[str, Any]) -> list[str]:
     conversation_state = context.get("conversation_state")
     if isinstance(conversation_state, dict):
@@ -191,10 +290,23 @@ def _pending_slots(state: CognitiveState, context: Dict[str, Any]) -> list[str]:
 
 def _response_for_plan(plan: list[str]) -> str:
     if "ask_if_injuries" in plan:
-        return "Te oriento. Primero necesito confirmar: hubo lesionados?"
+        return "Te oriento. Hubo lesionados? Ese dato define si hay que priorizar asistencia o derivacion antes del tramite."
     if "ask_user_role" in plan:
-        return "Gracias. Ahora necesito confirmar: sos asegurado de Galicia o tercero damnificado?"
+        return "Gracias. Sos asegurado de Galicia o tercero damnificado? Asi puedo orientarte por el circuito que corresponde a tu rol."
     return "Te oriento con el siniestro y el proximo paso segun lo que ya confirmaste."
+
+
+def _conversation_act_controls_response(state: CognitiveState) -> bool:
+    strategy = _conversation_goal_strategy(state)
+    return strategy in {
+        "ask_clarification",
+        "deepen",
+        "repair",
+        "simplify",
+        "summarize",
+        "switch_topic",
+        "close",
+    }
 
 
 def _response_after_slots(state: CognitiveState) -> str:
@@ -203,6 +315,19 @@ def _response_after_slots(state: CognitiveState) -> str:
     user_role = facts.get("user_role")
     mission = state.active_mission or {}
     next_act = mission.get("next_act")
+    strategy = _conversation_goal_strategy(state)
+    if strategy == "simplify":
+        return _simple_mission_response(state)
+    if strategy == "summarize":
+        return _recap_acknowledgement(state)
+    if strategy == "switch_topic":
+        return _topic_recovery_response(state)
+    if strategy == "deepen":
+        return _deepening_response(state)
+    if strategy == "ask_clarification":
+        return "Necesito una aclaracion concreta para cumplir lo que pediste: que dato cambiamos, lesionados, rol, denuncia o documentacion?"
+    if strategy == "close":
+        return "Listo, dejo la conversacion pausada con los datos confirmados guardados."
     if next_act == "clarify_fact_revision":
         return "Entiendo que queres corregir algo, pero necesito que me digas que dato cambiamos: lesionados, rol, denuncia o documentacion?"
     if next_act == "prioritize_injury_assistance":
@@ -210,15 +335,163 @@ def _response_after_slots(state: CognitiveState) -> str:
     if next_act == "check_claim_report_loaded":
         if facts.get("claim_report_loaded") is False:
             return "Tomo la correccion: la denuncia todavia no esta cargada. Para avanzar, primero necesitamos resolver ese paso antes de seguir con la documentacion."
-        return "Con esos datos, ya puedo avanzar. Para orientar el proximo paso necesito saber si la denuncia ya esta cargada."
+        return "Con esos datos puedo orientarte mejor. La denuncia ya esta cargada? Asi se si corresponde completar la carga o revisar documentacion."
     if next_act == "check_documentation_available":
-        return "Tomo que la denuncia ya esta cargada. No te la vuelvo a pedir; ahora confirmemos si tenes toda la documentacion."
+        return "La denuncia ya esta cargada. Tenes toda la documentacion? Asi puedo ver si corresponde seguimiento o preparar el resumen del tramite."
     if next_act == "provide_next_step_guidance":
-        return "Perfecto. Tomo que la denuncia ya esta cargada y que tenes la documentacion. Ya podemos avanzar con seguimiento del tramite o preparar un resumen para que una persona continue sin que repitas todo."
+        return "Perfecto. La denuncia esta cargada y tenes la documentacion. El siguiente paso util es revisar seguimiento del tramite o preparar un resumen para derivacion."
     if injuries is False and user_role == "insured":
-        return "Perfecto. Tomo que no hubo lesionados y que sos asegurado. Con eso podemos avanzar por la orientacion del siniestro sin volver a pedir esos datos."
+        return "Perfecto. Con no hubo lesionados y sos asegurado, puedo orientarte por el circuito del siniestro."
     if injuries is False and user_role == "third_party":
-        return "Perfecto. Tomo que no hubo lesionados y que sos tercero damnificado. Con eso puedo orientarte sin reiniciar el flujo."
+        return "Perfecto. Con no hubo lesionados y sos tercero damnificado, puedo orientarte sobre el tramite que corresponde."
     if injuries is True:
         return "Tomo que hubo lesionados. En ese caso conviene priorizar asistencia y derivacion con contexto antes de avanzar con una orientacion general."
-    return "Gracias. Ya tome los datos confirmados y puedo continuar sin volver a pedirlos."
+    return "Gracias. Con los datos confirmados puedo indicarte el siguiente paso util."
+
+
+def _conversation_goal_strategy(state: CognitiveState) -> str:
+    goal_trace = dict(state.facts.get("conversation_goal") or {})
+    goal = dict(goal_trace.get("goal") or goal_trace)
+    strategy = dict(goal.get("strategy") or {})
+    return str(strategy.get("name") or "")
+
+
+def _conversation_goal_response_plan(state: CognitiveState) -> Dict[str, Any]:
+    goal_trace = dict(state.facts.get("conversation_goal") or {})
+    goal = dict(goal_trace.get("goal") or goal_trace)
+    strategy = dict(goal.get("strategy") or {})
+    response_plan = strategy.get("response_plan")
+    return dict(response_plan) if isinstance(response_plan, dict) else {}
+
+
+def _simple_mission_response(state: CognitiveState) -> str:
+    response_plan = _conversation_goal_response_plan(state)
+    next_act = response_plan.get("mission_next_act") or (state.active_mission or {}).get("next_act")
+    if next_act == "ask_injuries":
+        return "Mas simple: primero necesito saber si hubo lesionados."
+    if next_act == "ask_user_role":
+        return "Mas simple: ahora necesito saber si sos asegurado de Galicia o tercero damnificado."
+    if next_act == "check_claim_report_loaded":
+        return "Mas simple: con lo confirmado, el proximo dato es si la denuncia ya esta cargada."
+    if next_act == "check_documentation_available":
+        return "Mas simple: ya tomo la denuncia cargada; ahora falta confirmar si tenes toda la documentacion."
+    if next_act == "provide_next_step_guidance":
+        return "Mas simple: ya estan los datos principales y podemos avanzar al seguimiento o preparar un resumen."
+    return "Mas simple: sigo con la misma conversacion y uso lo que ya confirmaste para no empezar de cero."
+
+
+def _recap_acknowledgement(state: CognitiveState) -> str:
+    response_plan = _conversation_goal_response_plan(state)
+    focus = dict(response_plan.get("available_focus") or {})
+    topic_summary = str(focus.get("summary") or "").strip()
+    if topic_summary:
+        return "Resumen breve: " + topic_summary + "."
+    facts = dict(response_plan.get("confirmed_facts") or state.facts)
+    known = []
+    if facts.get("injuries") is False:
+        known.append("no hubo lesionados")
+    elif facts.get("injuries") is True:
+        known.append("hubo lesionados")
+    if facts.get("user_role") == "insured":
+        known.append("sos asegurado")
+    elif facts.get("user_role") == "third_party":
+        known.append("sos tercero")
+    if facts.get("claim_report_loaded") is True:
+        known.append("la denuncia esta cargada")
+    elif facts.get("claim_report_loaded") is False:
+        known.append("la denuncia todavia no esta cargada")
+    if not known:
+        return "Registro que queres un resumen. Todavia no tengo suficientes datos confirmados para resumir sin inventar."
+    return "Resumen breve de lo confirmado: " + "; ".join(known) + "."
+
+
+def _deepening_response(state: CognitiveState) -> str:
+    response_plan = _conversation_goal_response_plan(state)
+    next_act = response_plan.get("mission_next_act") or (state.active_mission or {}).get("next_act")
+    facts = dict(response_plan.get("confirmed_facts") or state.facts)
+    if next_act == "check_claim_report_loaded":
+        return "Mas detalle: con lesionados y rol ya confirmados, el siguiente punto es la denuncia. Ese dato cambia si podemos avanzar a documentacion o si primero hay que completar la carga."
+    if next_act == "check_documentation_available":
+        return "Mas detalle: como la denuncia ya figura cargada, ahora importa la documentacion. Tenerla completa permite preparar seguimiento o derivar con contexto sin repetir datos."
+    if facts.get("injuries") is True:
+        return "Mas detalle: al haber lesionados, la prioridad cambia. Antes de una orientacion administrativa conviene asegurar asistencia y derivacion con todo el contexto disponible."
+    if facts.get("claim_report_loaded") is True or facts.get("documentation_available") is True:
+        return "Mas detalle: con lo que ya confirmaste, conviene revisar si el tramite muestra observaciones y tener a mano fotos, presupuesto y comprobantes para responder rapido si los piden."
+    return "Mas detalle: sobre fotos y presupuesto, lo importante es conservar evidencia clara del dano antes de reparar y tenerla lista por si el canal la solicita."
+
+
+def _topic_recovery_response(state: CognitiveState) -> str:
+    response_plan = _conversation_goal_response_plan(state)
+    focus = dict(response_plan.get("available_focus") or {})
+    direction = str(focus.get("navigation_direction") or response_plan.get("topic_navigation_direction") or "")
+    topic = focus.get("summary") or focus.get("active_topic") or focus.get("active_mission_type") or "la orientacion actual"
+    next_act = response_plan.get("mission_next_act") or (state.active_mission or {}).get("next_act")
+    if direction == "new_topic":
+        return f"Dale, contame mas sobre este tema: {topic}."
+    if next_act == "check_claim_report_loaded":
+        return f"Retomo la denuncia: {topic}. El siguiente dato util es confirmar si la denuncia ya esta cargada."
+    return f"Retomo el tema anterior: {topic}."
+
+
+def _enforce_cognitive_opacity(response: str) -> str:
+    replacements = {
+        "No te la vuelvo a pedir; ": "",
+        "no te vuelvo a pedir": "ya quedo registrado",
+        "sin volver a pedir esos datos": "con esos datos",
+        "sin reiniciar el flujo": "sobre el tramite",
+        "sin reiniciar la conversacion": "desde ese punto",
+        "sin reiniciarla": "desde ese punto",
+        "Mantengo la mision actual": "Retomo el tema",
+        "mantengo el foco": "retomo el tema",
+        "Cambio el foco: ": "",
+        "dejo suspendido lo anterior y ": "",
+        "Voy a cambiar de estrategia": "",
+        "Para no girar sobre lo mismo": "",
+        "No voy a repetir": "",
+        "conversation plan": "seguimiento",
+        "conversation goal": "objetivo",
+        "estado conversacional": "contexto",
+        "runtime": "sistema",
+        "planificacion": "organizacion",
+        "planificación": "organizacion",
+    }
+    cleaned = str(response)
+    for old, new in replacements.items():
+        cleaned = cleaned.replace(old, new)
+    cleaned = _remove_internal_sentences(cleaned)
+    return " ".join(cleaned.split())
+
+
+def _lower_first(text: str) -> str:
+    value = str(text or "").strip()
+    if not value:
+        return ""
+    return value[:1].lower() + value[1:]
+
+
+def _remove_internal_sentences(response: str) -> str:
+    forbidden = (
+        "sin reiniciar",
+        "mantengo el foco",
+        "mision activa",
+        "misión activa",
+        "misma mision",
+        "misma misión",
+        "conversation plan",
+        "conversation goal",
+        "slot",
+        "estado conversacional",
+        "runtime",
+        "planificacion",
+        "planificación",
+    )
+    sentences = [part.strip() for part in str(response or "").split(".") if part.strip()]
+    kept = [
+        sentence
+        for sentence in sentences
+        if not any(phrase in normalize_text(sentence) for phrase in forbidden)
+    ]
+    if kept:
+        suffix = "." if str(response).strip().endswith(".") else ""
+        return ". ".join(kept) + suffix
+    return ""

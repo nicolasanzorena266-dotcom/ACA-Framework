@@ -14,6 +14,10 @@ for path in [ROOT, KERNEL_PATH]:
         sys.path.insert(0, value)
 
 from aca_os.dx import inspect_runtime, print_json, read_project_version, run_doctor, run_pytest
+from aca_os.evaluation import (
+    render_cognitive_benchmark_report,
+    run_cognitive_conversation_benchmark,
+)
 from aca_os.runtime_cli import RuntimeCLI
 
 
@@ -156,6 +160,22 @@ def _handle_session_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_benchmark(args: argparse.Namespace) -> int:
+    result = run_cognitive_conversation_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_cognitive_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ACA Runtime CLI")
     subparsers = parser.add_subparsers(dest="command")
@@ -242,6 +262,22 @@ def build_parser() -> argparse.ArgumentParser:
     session_compare.add_argument("left", help="Left session file path.")
     session_compare.add_argument("right", help="Right session file path.")
     session_compare.set_defaults(handler=_handle_session_compare)
+
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run the cognitive conversation benchmark against the real Runtime.",
+    )
+    benchmark_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    benchmark_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    benchmark_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    benchmark_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(benchmark_parser, values=("dict", "json", "markdown"), default="dict")
+    benchmark_parser.set_defaults(handler=_handle_benchmark)
 
     _message_args(parser, required=False)
     parser.add_argument("--events", action="store_true", help="Include internal runtime events.")
