@@ -59,6 +59,76 @@ def test_public_trace_is_not_developer_trace() -> None:
     assert "payload" not in str(result["public_trace"]).lower()
 
 
+def test_public_layer_does_not_match_baja_inside_trabajar() -> None:
+    layer = PublicConversationProductLayer.from_path("plugins")
+    result = layer.run(
+        message="Necesito el auto para trabajar.",
+        conversation_id="regression-trabajar-no-baja",
+    )
+
+    assert result["conversation_memory"]["generic_topic"] is None
+    assert result["cognitive_turn"]["topic"] != "baja"
+    assert "baja" not in result["response"].lower()
+
+
+def test_public_layer_prioritizes_claim_evidence_over_generic_baja_collision() -> None:
+    layer = PublicConversationProductLayer.from_path("plugins")
+    result = layer.run(
+        message=(
+            "Ayer cargue una denuncia desde la app y todavia nadie me escribio. "
+            "Ademas necesito el auto para trabajar y no se si puedo mandarlo a reparar."
+        ),
+        conversation_id="regression-denuncia-trabajar",
+    )
+
+    assert result["active_plugin_id"] == "galicia.insurance"
+    assert result["active_capability"] == "insurance.claims"
+    assert result["conversation_memory"]["domain"] == "insurance"
+    assert result["conversation_memory"]["generic_topic"] is None
+    assert result["cognitive_turn"]["domain"] == "insurance"
+    assert result["cognitive_turn"]["topic"] in {"denuncia", "siniestro"}
+    assert "baja" not in result["response"].lower()
+
+
+def test_public_layer_clears_baja_when_user_denies_and_switches_to_denuncia() -> None:
+    layer = PublicConversationProductLayer.from_path("plugins")
+    conversation_id = "regression-baja-to-denuncia"
+
+    first = layer.run(message="quiero revisar una baja", conversation_id=conversation_id)
+    denial = layer.run(message="Nunca dije baja.", conversation_id=conversation_id)
+    claim = layer.run(message="Denuncia.", conversation_id=conversation_id)
+
+    assert first["conversation_memory"]["generic_topic"] == "baja"
+    assert denial["conversation_memory"]["generic_topic"] is None
+    assert denial["cognitive_turn"]["topic"] != "baja"
+    assert "queres revisar una baja" not in denial["response"].lower()
+    assert claim["active_capability"] == "insurance.claims"
+    assert claim["conversation_memory"]["domain"] == "insurance"
+    assert claim["conversation_memory"]["generic_topic"] is None
+    assert claim["cognitive_turn"]["topic"] == "denuncia"
+
+
+def test_public_layer_allows_domain_change_from_billing_to_claim() -> None:
+    layer = PublicConversationProductLayer.from_path("plugins")
+    conversation_id = "regression-domain-change"
+
+    billing = layer.run(
+        message="Me llego una factura con un importe mayor.",
+        conversation_id=conversation_id,
+    )
+    claim = layer.run(
+        message="En realidad es una denuncia por siniestro.",
+        conversation_id=conversation_id,
+    )
+
+    assert billing["conversation_memory"]["domain"] == "billing"
+    assert claim["active_capability"] == "insurance.claims"
+    assert claim["conversation_memory"]["domain"] == "insurance"
+    assert claim["conversation_memory"]["issue_focus"] is None
+    assert claim["cognitive_turn"]["domain"] == "insurance"
+    assert claim["cognitive_turn"]["topic"] == "denuncia"
+
+
 def test_action_driven_request_uses_public_action_id_and_real_capability_contract() -> None:
     layer = PublicConversationProductLayer.from_path("plugins")
     initial = layer.run(message="quiero hablar con una persona", conversation_id="handoff-1")

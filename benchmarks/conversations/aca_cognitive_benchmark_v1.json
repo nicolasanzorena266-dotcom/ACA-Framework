@@ -255,6 +255,57 @@
         "should_use_contracts": ["conversation_intent_model", "conversation_information_gain_plan", "conversation_response_plan"],
         "max_questions": 1
       }
+    },
+    {
+      "id": "colision_lexica_trabajar_no_baja",
+      "title": "Working need should not be interpreted as cancellation",
+      "tags": ["denuncias", "usuarios_ansiosos", "implicit_concern", "response_priority"],
+      "turns": [
+        {"user": "Ayer cargue una denuncia desde la app y todavia nadie me escribio. Ademas necesito el auto para trabajar y no se si puedo mandarlo a reparar."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_intent_model", "conversation_response_plan"],
+        "max_questions": 1
+      }
+    },
+    {
+      "id": "correccion_nunca_dije_baja",
+      "title": "Explicit denial of a wrong cancellation topic",
+      "tags": ["usuarios_que_corrigen_informacion", "denuncias", "error_recovery"],
+      "turns": [
+        {"user": "Ayer cargue una denuncia desde la app y todavia nadie me escribio. Ademas necesito el auto para trabajar y no se si puedo mandarlo a reparar."},
+        {"user": "Nunca dije baja."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_state_runtime", "conversation_response_plan"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "cambio_baja_a_denuncia",
+      "title": "User changes from cancellation wording to claim wording",
+      "tags": ["usuarios_que_corrigen_informacion", "denuncias", "topic_stack"],
+      "turns": [
+        {"user": "Quiero revisar una baja."},
+        {"user": "No, denuncia de siniestro."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_topic_stack", "conversation_response_plan"],
+        "max_questions": 2
+      }
+    },
+    {
+      "id": "cambio_dominio_factura_a_siniestro",
+      "title": "User changes domain from billing to claim",
+      "tags": ["usuarios_que_cambian_de_tema", "denuncias", "topic_stack"],
+      "turns": [
+        {"user": "Me llego una factura con un importe mayor."},
+        {"user": "En realidad queria consultar por una denuncia de siniestro."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_topic_stack", "conversation_response_plan"],
+        "max_questions": 2
+      }
     }
   ]
 }

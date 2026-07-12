@@ -110,6 +110,52 @@ GENERIC_SERVICE_TERMS = (
     "cancelar",
 )
 
+INSURANCE_GLASS_TERMS = (
+    "cristal",
+    "vidrio",
+    "parabrisas",
+)
+
+INSURANCE_ACCIDENT_TERMS = (
+    "choque",
+    "colision",
+    "accidente",
+)
+
+INSURANCE_CLAIM_TERMS = (
+    "denuncia",
+    "siniestro",
+    "robo",
+    "franquicia",
+    "poliza",
+)
+
+VEHICLE_TERMS = (
+    "auto",
+    "vehiculo",
+    "coche",
+)
+
+REPAIR_TERMS = (
+    "reparar",
+    "reparacion",
+    "arreglar",
+    "arreglo",
+    "taller",
+    "presupuesto",
+)
+
+BAJA_REJECTION_MARKERS = (
+    "nunca dije baja",
+    "no dije baja",
+    "no es baja",
+    "no es una baja",
+    "no pedi baja",
+    "no pedi una baja",
+    "no quiero baja",
+    "no quiero dar de baja",
+)
+
 _LAYER_CACHE: Dict[str, "PublicConversationProductLayer"] = {}
 
 
@@ -454,7 +500,12 @@ class PublicConversationProductLayer:
 
     def _requested_capability_from_message(self, *, message: str, memory: ConversationProductMemory) -> str | None:
         text = normalize_search_text(message)
-        if _is_billing_message(text) or _is_billing_context_continuation(text, memory) or _is_generic_service_message(text) or _is_generic_service_context_continuation(text, memory):
+        insurance_capability = _insurance_capability_from_text(text)
+        if insurance_capability:
+            return insurance_capability
+        if _is_billing_message(text) or _is_billing_context_continuation(text, memory):
+            return "generic.open_chat"
+        if _is_generic_service_message(text) or _is_generic_service_context_continuation(text, memory):
             return "generic.open_chat"
         if memory.claim_type and (_is_repetition_marker(text) or _should_continue_previous_capability(message)):
             return memory.active_capability
@@ -483,8 +534,11 @@ class PublicConversationProductLayer:
     ) -> None:
         text = normalize_search_text(message)
         amount_text = message
+        insurance_capability = _insurance_capability_from_text(text)
         memory.turns += 1
         memory.last_user_message = message
+        if _rejects_baja_topic(text):
+            _clear_generic_service_memory(memory)
         if _is_repetition_marker(text) or _is_frustration_marker(text):
             memory.frustration_signals += 1
         if _is_evidence_confirmation(text):
@@ -498,11 +552,24 @@ class PublicConversationProductLayer:
         if capability:
             memory.active_capability = capability
 
-        if _is_billing_message(text) or _is_billing_context_continuation(text, memory):
+        if insurance_capability:
+            _clear_generic_service_memory(memory)
+            memory.billing_issue = None
+            memory.issue_focus = None
+            memory.last_options = []
+            memory.next_expected_user_input = None
+            memory.domain = "insurance"
+            memory.active_plugin_id = "galicia.insurance"
+            memory.active_capability = insurance_capability
+            if insurance_capability == "insurance.glass":
+                memory.claim_type = "cristales"
+            elif memory.claim_type == "cristales":
+                memory.claim_type = None
+        elif _is_billing_message(text) or _is_billing_context_continuation(text, memory):
             memory.domain = "billing"
             memory.active_plugin_id = "generic.open_chat"
             memory.active_capability = "generic.open_chat"
-        if _is_generic_service_message(text) or _is_generic_service_context_continuation(text, memory):
+        if not insurance_capability and (_is_generic_service_message(text) or _is_generic_service_context_continuation(text, memory)):
             memory.generic_topic = "baja" if _mentions_baja(text) or memory.generic_topic == "baja" else memory.generic_topic
             memory.domain = memory.domain or "service_request"
             memory.active_plugin_id = "generic.open_chat"
@@ -563,12 +630,56 @@ class PublicConversationProductLayer:
         return _project_generic_response(text=text, memory=memory, cognitive_turn=cognitive_turn)
 
 
+def _contains_normalized_phrase(text: str, phrase: str) -> bool:
+    normalized_text = normalize_search_text(text)
+    normalized_phrase = normalize_search_text(phrase)
+    if not normalized_text or not normalized_phrase:
+        return False
+    return bool(
+        re.search(
+            rf"(?<![a-z0-9]){re.escape(normalized_phrase)}(?![a-z0-9])",
+            normalized_text,
+        )
+    )
+
+
+def _contains_any_normalized_phrase(text: str, terms: tuple[str, ...]) -> bool:
+    return any(_contains_normalized_phrase(text, term) for term in terms)
+
+
 def _is_billing_message(text: str) -> bool:
     return any(term in text for term in BILLING_DOMAIN_TERMS)
 
 
 def _is_insurance_message(text: str) -> bool:
-    return any(term in text for term in INSURANCE_DOMAIN_TERMS)
+    return bool(_insurance_capability_from_text(text))
+
+
+def _insurance_capability_from_text(text: str) -> str | None:
+    if _contains_any_normalized_phrase(text, INSURANCE_GLASS_TERMS):
+        return "insurance.glass"
+    if _contains_any_normalized_phrase(text, INSURANCE_ACCIDENT_TERMS):
+        return "insurance.accident"
+    if _contains_any_normalized_phrase(text, INSURANCE_CLAIM_TERMS) or _mentions_vehicle_repair(text):
+        return "insurance.claims"
+    return None
+
+
+def _insurance_topic_from_text(text: str) -> str | None:
+    capability = _insurance_capability_from_text(text)
+    if capability == "insurance.glass":
+        return "cristales"
+    if capability == "insurance.accident":
+        return "siniestro"
+    if capability == "insurance.claims":
+        if _contains_normalized_phrase(text, "denuncia"):
+            return "denuncia"
+        return "siniestro"
+    return None
+
+
+def _mentions_vehicle_repair(text: str) -> bool:
+    return _contains_any_normalized_phrase(text, VEHICLE_TERMS) and _contains_any_normalized_phrase(text, REPAIR_TERMS)
 
 
 def _is_repetition_marker(text: str) -> bool:
@@ -606,7 +717,22 @@ def _is_completed_review(text: str) -> bool:
 
 
 def _mentions_baja(text: str) -> bool:
-    return any(term in text for term in ("baja", "dar de baja", "cancelación", "cancelacion", "cancelar"))
+    if _rejects_baja_topic(text):
+        return False
+    return _contains_any_normalized_phrase(text, GENERIC_SERVICE_TERMS)
+
+
+def _rejects_baja_topic(text: str) -> bool:
+    return _contains_any_normalized_phrase(text, BAJA_REJECTION_MARKERS)
+
+
+def _clear_generic_service_memory(memory: ConversationProductMemory) -> None:
+    if memory.generic_topic == "baja":
+        memory.generic_topic = None
+    if memory.domain == "service_request":
+        memory.domain = None
+    if memory.next_expected_user_input == "service_request_scope":
+        memory.next_expected_user_input = None
 
 
 def _is_generic_service_message(text: str) -> bool:
@@ -674,9 +800,11 @@ def _is_billing_context_continuation(text: str, memory: ConversationProductMemor
 
 
 def _infer_domain_from_text_or_memory(text: str, memory: Mapping[str, Any]) -> str | None:
+    if _insurance_capability_from_text(text):
+        return "insurance"
     if _is_billing_message(text) or memory.get("domain") == "billing":
         return "billing"
-    if _is_generic_service_message(text) or memory.get("generic_topic"):
+    if _is_generic_service_message(text) or (memory.get("generic_topic") and not _rejects_baja_topic(text)):
         return "service_request"
     if _is_insurance_message(text) or memory.get("claim_type"):
         return "insurance"
@@ -687,9 +815,12 @@ def _infer_topic_from_text_or_memory(text: str, memory: Mapping[str, Any]) -> st
     selected = _selected_billing_option(text)
     if selected:
         return selected
+    insurance_topic = _insurance_topic_from_text(text)
+    if insurance_topic:
+        return insurance_topic
     if "factura" in text or memory.get("domain") == "billing":
         return "factura"
-    if _mentions_baja(text) or memory.get("generic_topic") == "baja":
+    if _mentions_baja(text) or (memory.get("generic_topic") == "baja" and not _rejects_baja_topic(text)):
         return "baja"
     if "cristal" in text or memory.get("claim_type") == "cristales":
         return "cristales"
