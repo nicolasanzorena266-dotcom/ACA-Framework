@@ -1009,15 +1009,20 @@ def _turn_errors(
                 "evidence": {"questions": list(response_questions)},
             }
         )
-    if selected_question.get("question") and response_questions:
-        expected = _question_signature(str(selected_question["question"]))
+    planned_question = _planned_question_for_response(response_plan, selected_question)
+    if planned_question and response_questions:
+        expected = _question_signature(planned_question)
         asked = [_question_signature(question) for question in response_questions]
         if expected not in " ".join(asked):
             errors.append(
                 {
                     "type": "asked_different_question_than_planned",
                     "severity": "high",
-                    "evidence": {"selected_question": selected_question, "asked": list(response_questions)},
+                    "evidence": {
+                        "planned_question": planned_question,
+                        "selected_question": selected_question,
+                        "asked": list(response_questions),
+                    },
                 }
             )
     goal = _mapping(fulfillment.get("fulfilled_goal"))
@@ -1077,8 +1082,22 @@ def _has_cognitive_meta_comment(response: str) -> bool:
         "estado conversacional",
         "runtime",
         "planificacion",
+        "check_claim_report_loaded",
+        "check_documentation_available",
+        "ask_user_role",
+        "ask_injuries",
     )
     return any(phrase in normalized for phrase in forbidden)
+
+
+def _planned_question_for_response(
+    response_plan: Mapping[str, Any],
+    selected_question: Mapping[str, Any],
+) -> str:
+    for item in response_plan.get("required_information") or []:
+        if isinstance(item, Mapping) and item.get("question"):
+            return str(item["question"])
+    return str(selected_question.get("question") or "")
 
 
 def _count_reformulated_questions(response_plan: Mapping[str, Any]) -> int:

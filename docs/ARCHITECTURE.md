@@ -982,3 +982,27 @@ Runtime API
 Supported lifecycle states are `registered`, `initialized`, `active`, `paused`, `stopped`, `unloaded` and `failed`. Invalid transitions are rejected and recorded as lifecycle events.
 
 This gives future Plugin SDK execution hooks a stable control plane without moving plugin behavior into the Runtime Core.
+
+## Benchmark-driven consolidation candidates
+
+The cognitive benchmark is now the gate for conversation-quality changes. It
+currently shows that these contracts provide direct observable value:
+
+- `conversation_intent_model`
+- `conversation_information_gain_plan`
+- `conversation_response_plan`
+- `conversation_plan`
+- `conversation_fulfillment`
+- slot, fact assimilation and fact revision traces
+
+It also flags two consolidation candidates that must not be removed yet:
+
+- `conversation_goal`: currently useful for act strategy observability, but much
+  of the user-visible behavior is carried by `conversation_response_plan` and
+  `conversation_fulfillment`.
+- `zero_cost_execution_flow` plus `zero_cost_execution_plan`: both remain useful
+  as migration-era projections, but their separation should be revalidated once
+  RuntimeExecutor migration debt is fully closed.
+
+These are candidates only. No contract should be removed until the benchmark
+proves that conversation behavior and introspection remain equivalent.

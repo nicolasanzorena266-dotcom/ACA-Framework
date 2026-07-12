@@ -62,7 +62,7 @@ def test_slot_answer_partially_fulfills_turn_and_keeps_next_step_pending():
     assert "confirm_user_role" in _step_ids(fulfillment["pending_steps"])
     assert fulfillment["failed_steps"] == []
     assert _actions(fulfillment) == ["continue_with_next_pending_step"]
-    assert "Sos asegurado de Galicia o tercero damnificado?" in state.response
+    assert "sos asegurado de galicia o tercero damnificado?" in state.response.lower()
 
 
 def test_unanswered_expected_step_records_failure_and_recovery_action():
@@ -77,7 +77,7 @@ def test_unanswered_expected_step_records_failure_and_recovery_action():
     assert _actions(fulfillment) == ["reask_or_reformulate"]
     assert fulfillment["recovery_actions"][0]["target_step"]["id"] == "confirm_injuries"
     assert fulfillment["completion_reason"] == "expected_step_not_satisfied_recovery_selected"
-    assert "Hubo lesionados?" in state.response
+    assert "Recordas si alguna persona resulto herida" in state.response
 
 
 def test_lateral_question_is_fulfilled_and_main_plan_is_resumed():
@@ -93,8 +93,9 @@ def test_lateral_question_is_fulfilled_and_main_plan_is_resumed():
     assert "confirm_user_role" in _step_ids(fulfillment["pending_steps"])
     assert _actions(fulfillment) == ["resume_main_plan"]
     assert fulfillment["completion_reason"] == "lateral_question_fulfilled_main_plan_resumed"
-    assert "Sobre los tiempos" in state.response
-    assert "Sos asegurado de Galicia o tercero damnificado?" in state.response
+    assert "Sobre cuando te van a contactar" in state.response
+    assert "Respecto a tu denuncia" in state.response
+    assert "sos asegurado de Galicia o tercero damnificado?" in state.response
 
 
 def test_conversation_fulfillment_is_available_in_runtime_record():

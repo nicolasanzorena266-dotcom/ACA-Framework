@@ -110,7 +110,13 @@ class Generate(CognitiveOperation):
             response = tool_response
         elif state.selected_program == "greeting":
             response = "Hola. Contame qué necesitás y te oriento."
-        elif state.active_mission and state.active_mission.get("type") == "auto_claim_guidance" and _conversation_act_controls_response(state):
+        elif _conversation_act_controls_response(state):
+            response = _response_after_slots(state)
+        elif (
+            state.active_mission
+            and state.active_mission.get("type") == "auto_claim_guidance"
+            and state.active_mission.get("next_act") == "provide_next_step_guidance"
+        ):
             response = _response_after_slots(state)
         elif _response_from_conversational_response_plan(state):
             response = _response_from_conversational_response_plan(state) or ""
@@ -189,7 +195,7 @@ def _response_from_conversational_response_plan(state: CognitiveState) -> str | 
         ]
         question = _question_sentence(required)
         if question:
-            parts.append(question)
+            parts.append("Respecto a tu denuncia, " + _lower_first(question))
         return " ".join(parts)
     if primary_key == "photo_requirement_confidence":
         parts = [
@@ -377,7 +383,9 @@ def _simple_mission_response(state: CognitiveState) -> str:
         return "Mas simple: ya tomo la denuncia cargada; ahora falta confirmar si tenes toda la documentacion."
     if next_act == "provide_next_step_guidance":
         return "Mas simple: ya estan los datos principales y podemos avanzar al seguimiento o preparar un resumen."
-    return "Mas simple: sigo con la misma conversacion y uso lo que ya confirmaste para no empezar de cero."
+    if next_act == "ask_user_need":
+        return "Mas simple: si queres reparar el auto, lo importante es no perder evidencia del dano. Antes de arreglarlo, conserva fotos, presupuesto y cualquier indicacion de la aseguradora."
+    return "Mas simple: uso lo que ya me contaste para darte el siguiente paso practico."
 
 
 def _recap_acknowledgement(state: CognitiveState) -> str:
@@ -385,7 +393,7 @@ def _recap_acknowledgement(state: CognitiveState) -> str:
     focus = dict(response_plan.get("available_focus") or {})
     topic_summary = str(focus.get("summary") or "").strip()
     if topic_summary:
-        return "Resumen breve: " + topic_summary + "."
+        return "Resumen breve: " + _humanize_topic_summary(topic_summary) + "."
     facts = dict(response_plan.get("confirmed_facts") or state.facts)
     known = []
     if facts.get("injuries") is False:
@@ -425,12 +433,30 @@ def _topic_recovery_response(state: CognitiveState) -> str:
     focus = dict(response_plan.get("available_focus") or {})
     direction = str(focus.get("navigation_direction") or response_plan.get("topic_navigation_direction") or "")
     topic = focus.get("summary") or focus.get("active_topic") or focus.get("active_mission_type") or "la orientacion actual"
+    topic = _humanize_topic_summary(str(topic))
     next_act = response_plan.get("mission_next_act") or (state.active_mission or {}).get("next_act")
     if direction == "new_topic":
         return f"Dale, contame mas sobre este tema: {topic}."
     if next_act == "check_claim_report_loaded":
         return f"Retomo la denuncia: {topic}. El siguiente dato util es confirmar si la denuncia ya esta cargada."
     return f"Retomo el tema anterior: {topic}."
+
+
+def _humanize_topic_summary(summary: str) -> str:
+    value = str(summary or "")
+    replacements = {
+        "proximo paso: check_claim_report_loaded": "falta confirmar si la denuncia esta cargada",
+        "proximo paso: check_documentation_available": "falta confirmar si tenes la documentacion",
+        "proximo paso: ask_user_role": "falta confirmar si sos asegurado o tercero",
+        "proximo paso: ask_injuries": "falta confirmar si hubo lesionados",
+        "check_claim_report_loaded": "confirmar si la denuncia esta cargada",
+        "check_documentation_available": "confirmar documentacion",
+        "ask_user_role": "confirmar tu rol",
+        "ask_injuries": "confirmar lesionados",
+    }
+    for old, new in replacements.items():
+        value = value.replace(old, new)
+    return value.replace("_", " ")
 
 
 def _enforce_cognitive_opacity(response: str) -> str:
@@ -484,6 +510,10 @@ def _remove_internal_sentences(response: str) -> str:
         "runtime",
         "planificacion",
         "planificación",
+        "check_claim_report_loaded",
+        "check_documentation_available",
+        "ask_user_role",
+        "ask_injuries",
     )
     sentences = [part.strip() for part in str(response or "").split(".") if part.strip()]
     kept = [

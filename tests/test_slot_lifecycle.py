@@ -85,7 +85,7 @@ def test_out_of_order_answer_fills_target_slot_and_keeps_other_pending():
     assert conversation.slots["injuries"]["status"] == SlotStatus.PENDING
     assert [question["slot"] for question in conversation.pending_questions] == ["injuries"]
     assert state.plan == ["ask_if_injuries"]
-    assert "lesionados" in state.response.lower()
+    assert "resulto herida" in state.response.lower()
 
 
 def test_ambiguous_answer_partially_fills_slot_without_closing_question():

@@ -2272,10 +2272,10 @@ def _reformulated_question_for_slot(
         return "Para seguir por el circuito correcto, el seguro Galicia es tuyo o estas reclamando como tercero?"
     if slot == "claim_report_loaded":
         if primary_key == "claim_status_or_payment":
-            return "Para ubicar mejor los tiempos, la denuncia figura cargada en el canal?"
+            return "Para ubicar mejor los tiempos, la denuncia ya esta cargada o figura cargada en el canal?"
         if primary_key == "photo_upload_status":
-            return "Para revisar las fotos en el lugar correcto, la denuncia ya figura cargada?"
-        return "Para seguir con el tramite, la denuncia ya figura cargada en el canal?"
+            return "Para revisar las fotos en el lugar correcto, la denuncia ya esta cargada o figura cargada en el canal?"
+        return "Para seguir con el tramite, la denuncia ya esta cargada o figura cargada en el canal?"
     if slot == "documentation_available":
         return "Tenes a mano fotos, presupuesto y la documentacion que te pidieron para el tramite?"
     if slot == "user_need":
@@ -3188,6 +3188,10 @@ def _mentions_contact_timing_need(normalized: str) -> bool:
         for phrase in (
             "cuando me van a contactar",
             "cuándo me van a contactar",
+            "cuanto suele tardar",
+            "cuanto tarda normalmente",
+            "cuanto tarda",
+            "cuanto demora",
             "cuando me contactan",
             "cuándo me contactan",
             "cuando me llaman",
@@ -3215,6 +3219,8 @@ def _mentions_status_or_payment_need(normalized: str) -> bool:
             "estado del siniestro",
             "estado de mi siniestro",
             "cuando me pagan",
+            "cuanto suele tardar",
+            "cuanto tarda normalmente",
             "cuanto tardan",
             "cuanto tarda",
             "cuanto demora",

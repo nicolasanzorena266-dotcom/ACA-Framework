@@ -66,8 +66,9 @@ def test_lateral_question_is_inserted_and_main_plan_is_preserved():
     assert _step_ids(plan["inserted_steps"]) == ["answer_lateral_process_timing"]
     assert "confirm_user_role" in _step_ids(plan["pending_steps"])
     assert conversation.active_mission["next_act"] == "ask_user_role"
-    assert "Sobre los tiempos" in state.response
-    assert "Sos asegurado de Galicia o tercero damnificado?" in state.response
+    assert "Sobre cuando te van a contactar" in state.response
+    assert "Respecto a tu denuncia" in state.response
+    assert "sos asegurado de Galicia o tercero damnificado?" in state.response
 
 
 def test_unexpected_out_of_order_information_reorders_without_resetting_goal():
@@ -82,7 +83,7 @@ def test_unexpected_out_of_order_information_reorders_without_resetting_goal():
     assert "confirm_injuries" in _step_ids(plan["pending_steps"])
     assert plan["active_plan"]["current_step"]["id"] == "confirm_injuries"
     assert conversation.active_mission["next_act"] == "ask_injuries"
-    assert "Hubo lesionados?" in state.response
+    assert "Recordas si alguna persona resulto herida" in state.response
 
 
 def test_two_answers_in_one_turn_complete_multiple_steps():

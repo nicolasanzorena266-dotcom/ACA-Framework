@@ -122,7 +122,7 @@ def test_topic_summary_feeds_recap_without_reconstructing_full_conversation():
     response_plan = state.facts["conversation_goal"]["goal"]["strategy"]["response_plan"]
 
     assert response_plan["available_focus"]["summary"] == active["summary"]
-    assert "Resumen breve del tema activo" in state.response
-    assert active["summary"] in state.response
+    assert "Resumen breve:" in state.response
     assert "no hubo lesionados" in state.response
     assert "sos asegurado" in state.response
+    assert "falta confirmar si la denuncia esta cargada" in state.response
