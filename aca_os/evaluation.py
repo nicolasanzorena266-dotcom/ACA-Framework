@@ -160,6 +160,119 @@ def run_cognitive_conversation_benchmark(
     }
 
 
+def run_public_runtime_adapter_benchmark(
+    path: str | Path | None = None,
+    *,
+    scenario_ids: Sequence[str] | None = None,
+    max_scenarios: int | None = None,
+    runtime_factory: Callable[[], Any] | None = None,
+) -> Dict[str, Any]:
+    """Validate that the public endpoint adapter uses the canonical Runtime pipeline."""
+
+    if runtime_factory is None:
+        from sdk.factory import build_galicia_runtime
+
+        runtime_factory = build_galicia_runtime
+
+    from aca_os.public_conversation_product_layer import PublicConversationProductLayer
+
+    suite = load_conversation_benchmark(path)
+    scenarios = list(suite["scenarios"])
+    if scenario_ids:
+        wanted = set(scenario_ids)
+        scenarios = [scenario for scenario in scenarios if scenario.id in wanted]
+    if max_scenarios is not None:
+        scenarios = scenarios[:max_scenarios]
+
+    scenario_results = []
+    for ordinal, scenario in enumerate(scenarios, start=1):
+        runtime = runtime_factory()
+        public_layer = PublicConversationProductLayer.from_path("plugins")
+        runtime_conversation_id = f"adapter-benchmark:runtime:{ordinal}:{scenario.id}"
+        public_conversation_id = f"adapter-benchmark:public:{ordinal}:{scenario.id}"
+        turns = []
+        for turn_index, turn in enumerate(scenario.turns, start=1):
+            runtime_state = runtime.process(
+                Event(
+                    type="user_message",
+                    payload=turn.user,
+                    metadata={"conversation_id": runtime_conversation_id},
+                )
+            )
+            public_result = public_layer.run(
+                message=turn.user,
+                conversation_id=public_conversation_id,
+            )
+            runtime_facts = dict(runtime_state.facts or {})
+            public_diagnostic = dict(public_result.get("diagnostic_view") or {})
+            runtime_engine = dict(runtime_facts.get("runtime_execution_engine") or {})
+            public_engine = dict(public_diagnostic.get("runtime_execution_engine") or {})
+            runtime_plan = dict(runtime_facts.get("conversation_plan") or {})
+            public_plan = dict(public_diagnostic.get("conversation_plan") or {})
+            turns.append(
+                {
+                    "turn": turn_index,
+                    "user": turn.user,
+                    "runtime_response": runtime_state.response,
+                    "public_response": public_result.get("response"),
+                    "same_response": runtime_state.response == public_result.get("response"),
+                    "same_runtime_engine": runtime_engine == public_engine,
+                    "same_conversation_plan": runtime_plan == public_plan,
+                    "public_trace_source": (public_result.get("public_trace") or {}).get("source"),
+                    "visible_response_source": (public_result.get("runtime_shadow") or {}).get("visible_response_source"),
+                    "legacy_visible": bool(public_result.get("legacy_response") and public_result.get("legacy_response") == public_result.get("response")),
+                    "narrative_response_composer": (public_diagnostic.get("narrative_response_composer") or {}),
+                    "runtime_execution_engine": public_engine,
+                }
+            )
+        scenario_results.append(
+            {
+                "id": scenario.id,
+                "title": scenario.title,
+                "turn_count": len(turns),
+                "all_responses_equal": all(turn["same_response"] for turn in turns),
+                "all_engines_equal": all(turn["same_runtime_engine"] for turn in turns),
+                "all_plans_equal": all(turn["same_conversation_plan"] for turn in turns),
+                "legacy_visible_count": sum(1 for turn in turns if turn["legacy_visible"]),
+                "turns": turns,
+            }
+        )
+
+    total_turns = sum(result["turn_count"] for result in scenario_results)
+    response_matches = sum(1 for result in scenario_results for turn in result["turns"] if turn["same_response"])
+    engine_matches = sum(1 for result in scenario_results for turn in result["turns"] if turn["same_runtime_engine"])
+    plan_matches = sum(1 for result in scenario_results for turn in result["turns"] if turn["same_conversation_plan"])
+    public_runtime_source = sum(
+        1
+        for result in scenario_results
+        for turn in result["turns"]
+        if turn["public_trace_source"] == "ACAOSRuntime"
+    )
+    runtime_response_source = sum(
+        1
+        for result in scenario_results
+        for turn in result["turns"]
+        if turn["visible_response_source"] == "runtime_response"
+    )
+    legacy_visible = sum(result["legacy_visible_count"] for result in scenario_results)
+
+    return {
+        "contract": "public_runtime_adapter_benchmark_result.v1",
+        "benchmark": suite["benchmark"],
+        "scenario_count": len(scenario_results),
+        "turn_count": total_turns,
+        "quality": {
+            "response_equivalence_percentage": _percent(response_matches, total_turns),
+            "runtime_engine_equivalence_percentage": _percent(engine_matches, total_turns),
+            "conversation_plan_equivalence_percentage": _percent(plan_matches, total_turns),
+            "public_runtime_source_percentage": _percent(public_runtime_source, total_turns),
+            "runtime_response_source_percentage": _percent(runtime_response_source, total_turns),
+            "legacy_visible_count": legacy_visible,
+        },
+        "scenarios": scenario_results,
+    }
+
+
 def render_cognitive_benchmark_report(result: Mapping[str, Any]) -> str:
     coverage = dict(result.get("coverage") or {})
     quality = dict(result.get("quality") or {})

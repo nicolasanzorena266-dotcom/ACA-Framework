@@ -106,6 +106,10 @@ DEFAULT_INTENT_RULES: Dict[str, List[str]] = {
     ],
     "human_request": [
         "asesor",
+        "hablar con alguien",
+        "hablar con una persona",
+        "quiero hablar con alguien",
+        "quiero hablar con una persona",
         "persona real",
         "supervisor",
         "representante",

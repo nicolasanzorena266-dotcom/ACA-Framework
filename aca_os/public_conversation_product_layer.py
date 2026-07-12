@@ -5,8 +5,10 @@ from pathlib import Path
 import re
 from typing import Any, Dict, Mapping, Protocol
 
+from aca_kernel.core.events import Event
 from aca_core import PluginRuntime
 from aca_core.text import normalize_search_text
+from sdk.factory import build_galicia_runtime
 
 
 CLIENT_TECHNICAL_FORBIDDEN = (
@@ -291,6 +293,7 @@ class PublicConversationProductLayer:
     runtime: PluginRuntime
     conversation_memory: Dict[str, ConversationProductMemory] = field(default_factory=dict)
     dialogue_controller: DialogueController = field(default_factory=DeterministicDialogueController)
+    runtime_sessions: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_path(cls, root: str | Path = "plugins") -> "PublicConversationProductLayer":
@@ -302,16 +305,17 @@ class PublicConversationProductLayer:
             actions.extend(self._actions_for_plugin(plugin.domain_id))
         return {
             "contract": "public_conversation_product_layer.v1",
-            "principle": "hooks propose; runtime applies; trace records",
+            "principle": "public surface adapts; ACAOSRuntime decides; trace records",
             "conversation_modes": ["client_support", "developer_observation"],
             "public_actions": actions,
             "technical_language_blocked": list(CLIENT_TECHNICAL_FORBIDDEN),
             "false_claims_blocked": list(FALSE_OPERATIONAL_CLAIMS),
-            "dialogue_controller": {
-                "contract": "cognitive_turn_controller.v1",
-                "mode": "deterministic_offline_bridge",
-                "llm_ready": True,
-                "output_shape": ["domain", "topic", "dialogue_act", "facts", "goal", "next_action", "response_strategy", "visible_response"],
+            "runtime_adapter": {
+                "contract": "public_runtime_adapter.v1",
+                "official_pipeline": "ACAOSRuntime",
+                "visible_response_source": "runtime_response",
+                "legacy_pipeline_mode": "shadow_validation",
+                "conversation_state_owner": "ConversationManager",
             },
             "acceptance": {
                 "observability_actions_do_not_write_visible_chat": True,
@@ -331,10 +335,8 @@ class PublicConversationProductLayer:
         memory = self._memory_for(conversation_id)
         action_plugin_id: str | None = None
         action: Dict[str, Any] | None = None
-        requested_capability: str | None = None
         if public_action_id:
             action_plugin_id, action = self._find_action(public_action_id, preferred_plugin_id=memory.active_plugin_id)
-            requested_capability = action["capability"] if action else memory.active_capability
             if action and not action.get("enabled", True):
                 return self._disabled_action_response(
                     action=action,
@@ -342,9 +344,181 @@ class PublicConversationProductLayer:
                     conversation_mode=conversation_mode,
                     memory=memory,
                 )
+            if action and action.get("id") in OBSERVABILITY_ACTIONS:
+                return self._observability_action_response(
+                    action=action,
+                    conversation_id=conversation_id,
+                    conversation_mode=conversation_mode,
+                    memory=memory,
+                )
+
+        runtime = self._runtime_for(conversation_id)
+        runtime_message = _runtime_message_for_public_action(message=message, action=action)
+        state = runtime.process(
+            Event(
+                type="user_message",
+                payload=runtime_message,
+                metadata={
+                    "conversation_id": conversation_id,
+                    "conversation_mode": conversation_mode,
+                    "public_action_id": public_action_id,
+                    "public_surface": "public_conversation_product_layer",
+                },
+            )
+        )
+        response = apply_exposure_filter(state.response or "", conversation_mode=conversation_mode)
+        response = apply_capability_claim_filter(response)
+        state_dict = state.to_dict()
+        facts = dict(state.facts or {})
+        request_id = _runtime_request_id(runtime, conversation_id=conversation_id)
+        legacy_shadow = self._run_legacy_shadow(
+            message=message,
+            conversation_id=conversation_id,
+            conversation_mode=conversation_mode,
+            public_action_id=public_action_id,
+            memory=memory,
+            action=action,
+            action_plugin_id=action_plugin_id,
+        )
+        active_plugin, active_capability = _active_public_route(
+            state=state_dict,
+            action=action,
+            legacy_shadow=legacy_shadow,
+        )
+        memory.last_response = response
+        runtime_shadow = build_public_runtime_shadow(
+            runtime_response=response,
+            legacy_result=legacy_shadow,
+        )
+        return {
+            "contract": "public_conversation_product_layer.run.v1",
+            "conversation_id": conversation_id,
+            "request_id": request_id,
+            "conversation_mode": conversation_mode,
+            "input_type": "action" if public_action_id else "message",
+            "public_action_id": public_action_id,
+            "active_plugin_id": active_plugin,
+            "active_capability": active_capability,
+            "response": response,
+            "chat_visible": public_action_id not in OBSERVABILITY_ACTIONS,
+            "public_actions": self._actions_for_plugin(active_plugin),
+            "public_trace": build_public_trace_from_runtime(state_dict, request_id=request_id),
+            "diagnostic_view": build_diagnostic_view_from_runtime(
+                state_dict,
+                request_id=request_id,
+                runtime_shadow=runtime_shadow,
+                introspection=runtime.inspect_runtime().to_dict(),
+            ),
+            "developer_trace": _developer_trace_from_runtime(runtime),
+            "hook_execution": _runtime_hook_execution(facts),
+            "conversation_memory": build_conversation_memory_projection(
+                state_dict,
+                active_plugin_id=active_plugin,
+                active_capability=active_capability,
+                legacy_memory=memory,
+            ),
+            "cognitive_turn": build_cognitive_turn_projection(state_dict),
+            "runtime_response": response,
+            "legacy_response": legacy_shadow.get("response"),
+            "runtime_shadow": runtime_shadow,
+        }
+
+    def reset(self, conversation_id: str) -> Dict[str, Any]:
+        self.conversation_memory.pop(conversation_id, None)
+        self.runtime_sessions.pop(conversation_id, None)
+        return {"contract": "public_conversation_product_layer.reset.v1", "conversation_id": conversation_id, "status": "reset"}
+
+    def _memory_for(self, conversation_id: str) -> ConversationProductMemory:
+        return self.conversation_memory.setdefault(conversation_id, ConversationProductMemory())
+
+    def _runtime_for(self, conversation_id: str) -> Any:
+        if conversation_id not in self.runtime_sessions:
+            self.runtime_sessions[conversation_id] = build_galicia_runtime()
+        return self.runtime_sessions[conversation_id]
+
+    def _observability_action_response(
+        self,
+        *,
+        action: Mapping[str, Any],
+        conversation_id: str,
+        conversation_mode: str,
+        memory: ConversationProductMemory,
+    ) -> Dict[str, Any]:
+        runtime = self._runtime_for(conversation_id)
+        last_state = getattr(runtime, "_last_state", None)
+        state_dict = last_state.to_dict() if last_state is not None else {
+            "conversation_id": conversation_id,
+            "facts": {},
+            "response": None,
+            "selected_program": None,
+            "intent_match": None,
+            "policy_result": None,
+            "timeline": [],
+        }
+        request_id = _runtime_request_id(runtime, conversation_id=conversation_id)
+        response = apply_exposure_filter(
+            "Proceso actualizado en el panel derecho.",
+            conversation_mode=conversation_mode,
+        )
+        active_plugin, active_capability = _active_public_route(
+            state=state_dict,
+            action=action,
+            legacy_shadow={},
+        )
+        runtime_shadow = {
+            "contract": "public_runtime_shadow_comparison.v1",
+            "available": False,
+            "reason": "observability_action_does_not_execute_conversation",
+        }
+        return {
+            "contract": "public_conversation_product_layer.run.v1",
+            "conversation_id": conversation_id,
+            "request_id": request_id,
+            "conversation_mode": conversation_mode,
+            "input_type": "action",
+            "public_action_id": action.get("id"),
+            "active_plugin_id": active_plugin,
+            "active_capability": active_capability,
+            "response": apply_capability_claim_filter(response),
+            "chat_visible": False,
+            "public_actions": self._actions_for_plugin(active_plugin) or self.contract()["public_actions"],
+            "public_trace": build_public_trace_from_runtime(state_dict, request_id=request_id),
+            "diagnostic_view": build_diagnostic_view_from_runtime(
+                state_dict,
+                request_id=request_id,
+                runtime_shadow=runtime_shadow,
+                introspection=runtime.inspect_runtime().to_dict(),
+            ),
+            "developer_trace": _developer_trace_from_runtime(runtime),
+            "hook_execution": _runtime_hook_execution(dict(state_dict.get("facts") or {})),
+            "conversation_memory": build_conversation_memory_projection(
+                state_dict,
+                active_plugin_id=active_plugin,
+                active_capability=active_capability,
+                legacy_memory=memory,
+            ),
+            "cognitive_turn": build_cognitive_turn_projection(state_dict),
+            "runtime_response": state_dict.get("response"),
+            "legacy_response": None,
+            "runtime_shadow": runtime_shadow,
+        }
+
+    def _run_legacy_shadow(
+        self,
+        *,
+        message: str,
+        conversation_id: str,
+        conversation_mode: str,
+        public_action_id: str | None,
+        memory: ConversationProductMemory,
+        action: Mapping[str, Any] | None,
+        action_plugin_id: str | None,
+    ) -> Dict[str, Any]:
+        requested_capability: str | None = None
+        if action:
+            requested_capability = str(action.get("capability") or "") or memory.active_capability
         if requested_capability is None:
             requested_capability = self._requested_capability_from_message(message=message, memory=memory)
-
         result = self.runtime.process(
             message,
             conversation_id=conversation_id,
@@ -369,23 +543,15 @@ class PublicConversationProductLayer:
             memory=memory,
         )
         self._apply_cognitive_turn(memory=memory, turn=cognitive_turn)
-        response = self._project_response(message=message, result=result_dict, action=action, memory=memory, cognitive_turn=cognitive_turn)
+        response = self._project_response(message=message, result=result_dict, action=dict(action or {}), memory=memory, cognitive_turn=cognitive_turn)
         response = supervise_visible_response(response=response, memory=memory)
         response = apply_exposure_filter(response, conversation_mode=conversation_mode)
         response = apply_capability_claim_filter(response)
-        memory.last_response = response
         return {
-            "contract": "public_conversation_product_layer.run.v1",
-            "conversation_id": conversation_id,
-            "request_id": result.request_id,
-            "conversation_mode": conversation_mode,
-            "input_type": "action" if public_action_id else "message",
-            "public_action_id": public_action_id,
+            "contract": "public_conversation_legacy_shadow.v1",
             "active_plugin_id": active_plugin,
             "active_capability": active_capability,
             "response": response,
-            "chat_visible": public_action_id not in OBSERVABILITY_ACTIONS,
-            "public_actions": self._actions_for_plugin(active_plugin),
             "public_trace": build_public_trace(result_dict),
             "diagnostic_view": build_diagnostic_view(result_dict, memory=memory),
             "developer_trace": result.trace,
@@ -393,13 +559,6 @@ class PublicConversationProductLayer:
             "conversation_memory": memory.to_dict(),
             "cognitive_turn": cognitive_turn.to_dict(),
         }
-
-    def reset(self, conversation_id: str) -> Dict[str, Any]:
-        self.conversation_memory.pop(conversation_id, None)
-        return {"contract": "public_conversation_product_layer.reset.v1", "conversation_id": conversation_id, "status": "reset"}
-
-    def _memory_for(self, conversation_id: str) -> ConversationProductMemory:
-        return self.conversation_memory.setdefault(conversation_id, ConversationProductMemory())
 
     def _disabled_action_response(
         self,
@@ -1118,6 +1277,348 @@ def apply_capability_claim_filter(response: str) -> str:
     for claim, replacement in replacements.items():
         filtered = filtered.replace(claim, replacement).replace(claim.capitalize(), replacement.capitalize())
     return filtered
+
+
+def _runtime_message_for_public_action(*, message: str, action: Mapping[str, Any] | None) -> str:
+    if message:
+        return message
+    if not action:
+        return ""
+    if action.get("id") == "prepare_handoff":
+        return "Quiero hablar con una persona."
+    return str(action.get("label") or action.get("id") or "")
+
+
+def _runtime_request_id(runtime: Any, *, conversation_id: str) -> str:
+    trace = runtime.last_trace()
+    if trace is not None:
+        return trace.trace_id
+    return f"runtime-{conversation_id}"
+
+
+def _runtime_hook_execution(facts: Mapping[str, Any]) -> Dict[str, Any]:
+    return {
+        "runtime": True,
+        "conversation_state": bool(facts.get("conversation_state_runtime")),
+        "execution_plan": bool(facts.get("zero_cost_execution_plan")),
+        "policy": bool(facts.get("runtime_execution_engine")),
+        "narrative_response_composer": bool(facts.get("conversation_response_plan")),
+    }
+
+
+def _developer_trace_from_runtime(runtime: Any) -> Dict[str, Any]:
+    trace = runtime.export_trace() if runtime.last_trace() is not None else {}
+    return {
+        "contract": "runtime_developer_trace.v1",
+        "source": "ACAOSRuntime",
+        "trace": trace,
+        "introspection": runtime.inspect_runtime().to_dict(),
+    }
+
+
+def _contracts_used(facts: Mapping[str, Any]) -> list[str]:
+    return sorted(
+        key
+        for key in (
+            "conversation_act_recognition",
+            "conversation_goal",
+            "conversation_intent_model",
+            "conversation_information_gain_plan",
+            "conversation_plan",
+            "conversation_response_plan",
+            "conversation_fulfillment",
+            "conversation_topic_stack",
+            "conversation_state_runtime",
+            "runtime_execution_engine",
+            "zero_cost_execution_plan",
+        )
+        if facts.get(key)
+    )
+
+
+def _active_public_route(
+    *,
+    state: Mapping[str, Any],
+    action: Mapping[str, Any] | None,
+    legacy_shadow: Mapping[str, Any],
+) -> tuple[str, str]:
+    if action and action.get("capability"):
+        capability = str(action.get("capability"))
+        return _plugin_for_capability(capability), capability
+
+    intent = dict(state.get("intent_match") or {})
+    facts = dict(state.get("facts") or {})
+    plan = dict(facts.get("zero_cost_execution_plan") or {})
+    program = str(state.get("selected_program") or plan.get("kernel_program") or "")
+    matched_terms = [str(term) for term in intent.get("matched_terms") or []]
+    term_text = normalize_search_text(" ".join(matched_terms))
+
+    if program == "human_handoff" or plan.get("flow") == "human_handoff":
+        return "galicia.insurance", "insurance.handoff.prepare"
+    if "cristal" in term_text or "vidrio" in term_text or "parabrisas" in term_text:
+        return "galicia.insurance", "insurance.glass"
+    if program in {"auto_claim_guidance", "knowledge_lookup"} or intent.get("intent") in {"auto_claim_guidance", "knowledge_lookup"}:
+        return "galicia.insurance", "insurance.claims"
+
+    legacy_capability = str(legacy_shadow.get("active_capability") or "")
+    if legacy_capability:
+        return _plugin_for_capability(legacy_capability), legacy_capability
+    return "generic.open_chat", "generic.open_chat"
+
+
+def _plugin_for_capability(capability: str) -> str:
+    if capability.startswith("insurance."):
+        return "galicia.insurance"
+    return "generic.open_chat"
+
+
+def _runtime_conversation_record(state: Mapping[str, Any]) -> Dict[str, Any]:
+    facts = dict(state.get("facts") or {})
+    record = facts.get("conversation_state_runtime")
+    return dict(record) if isinstance(record, Mapping) else {}
+
+
+def _runtime_final_conversation_state(state: Mapping[str, Any]) -> Dict[str, Any]:
+    record = _runtime_conversation_record(state)
+    final_state = record.get("final_state")
+    return dict(final_state) if isinstance(final_state, Mapping) else {}
+
+
+def build_conversation_memory_projection(
+    state: Mapping[str, Any],
+    *,
+    active_plugin_id: str | None,
+    active_capability: str | None,
+    legacy_memory: ConversationProductMemory | None = None,
+) -> Dict[str, Any]:
+    legacy = legacy_memory.to_dict() if legacy_memory else ConversationProductMemory().to_dict()
+    final_state = _runtime_final_conversation_state(state)
+    focus = dict(final_state.get("focus") or {})
+    product_state = dict(final_state.get("product_state") or {})
+    mission = dict(final_state.get("active_mission") or {})
+    confirmed_facts = dict(final_state.get("confirmed_facts") or {})
+    active_topic = dict((final_state.get("derived_state") or {}).get("topic_stack", {}).get("active_topic") or {})
+
+    projection = dict(legacy)
+    projection.update(
+        {
+            "active_plugin_id": active_plugin_id,
+            "active_capability": active_capability,
+            "domain": _public_domain_from_state(state, active_plugin_id=active_plugin_id),
+            "claim_type": _claim_type_from_runtime_state(final_state, state),
+            "generic_topic": None if active_plugin_id == "galicia.insurance" else legacy.get("generic_topic"),
+            "dialogue_act": _dialogue_act_from_runtime_state(final_state),
+            "current_goal": mission.get("type") or active_topic.get("mission_type") or focus.get("active_topic"),
+            "next_action": _next_action_from_runtime_state(final_state),
+            "turns": int(final_state.get("turn_count") or legacy.get("turns") or 0),
+            "runtime_conversation_state": final_state,
+            "source": "runtime_conversation_state_projection",
+            "legacy_shadow": {
+                "available": legacy_memory is not None,
+                "retained_for": "shadow_validation_only",
+            },
+        }
+    )
+    if confirmed_facts:
+        projection["confirmed_facts"] = confirmed_facts
+    if product_state:
+        projection["product_state"] = product_state
+    return projection
+
+
+def build_cognitive_turn_projection(state: Mapping[str, Any]) -> Dict[str, Any]:
+    final_state = _runtime_final_conversation_state(state)
+    derived = dict(final_state.get("derived_state") or {})
+    response_plan = _trace_payload(derived.get("conversation_response_plan"), "plan")
+    conversation_plan = _trace_payload(derived.get("conversation_plan"), "plan")
+    intent_model = _trace_payload(derived.get("conversation_intent_model"), "model")
+    act = (
+        _trace_payload(derived.get("conversation_act"), "act")
+        or dict(derived.get("conversation_act") or {})
+        or dict(final_state.get("last_conversational_act") or {})
+    )
+    mission = dict(final_state.get("active_mission") or {})
+
+    return {
+        "contract": "runtime_cognitive_turn_projection.v1",
+        "source": "ACAOSRuntime",
+        "domain": _public_domain_from_state(state),
+        "topic": _topic_from_runtime_state(final_state, state),
+        "dialogue_act": act.get("act") or act.get("category") or "unknown",
+        "facts": dict(final_state.get("confirmed_facts") or {}),
+        "goal": (
+            (response_plan.get("primary_user_need") or {}).get("key")
+            or (intent_model.get("user_goal") or {}).get("key")
+            or mission.get("type")
+        ),
+        "next_action": response_plan.get("next_action") or conversation_plan.get("next_recommended_step") or _next_action_from_runtime_state(final_state),
+        "response_strategy": (
+            (response_plan.get("dominant_concern") or {}).get("key")
+            or (intent_model.get("response_objective") or {}).get("key")
+            or "runtime_composed_response"
+        ),
+        "visible_response": state.get("response"),
+    }
+
+
+def _trace_payload(value: Any, key: str) -> Dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    payload = value.get(key)
+    if isinstance(payload, Mapping):
+        return dict(payload)
+    return dict(value)
+
+
+def _public_domain_from_state(state: Mapping[str, Any], *, active_plugin_id: str | None = None) -> str | None:
+    if active_plugin_id == "galicia.insurance":
+        return "insurance"
+    intent = dict(state.get("intent_match") or {})
+    if intent.get("intent") in {"auto_claim_guidance", "knowledge_lookup", "human_handoff"}:
+        return "insurance"
+    return None
+
+
+def _topic_from_runtime_state(final_state: Mapping[str, Any], state: Mapping[str, Any]) -> str | None:
+    mission = dict(final_state.get("active_mission") or {})
+    if mission.get("type") == "auto_claim_guidance":
+        return "denuncia"
+    intent = dict(state.get("intent_match") or {})
+    if intent.get("intent") == "knowledge_lookup":
+        terms = " ".join(str(term) for term in intent.get("matched_terms") or [])
+        normalized = normalize_search_text(terms)
+        if "franquicia" in normalized:
+            return "franquicia"
+        if "cleas" in normalized:
+            return "cleas"
+    return None
+
+
+def _claim_type_from_runtime_state(final_state: Mapping[str, Any], state: Mapping[str, Any]) -> str | None:
+    facts = dict(final_state.get("confirmed_facts") or {})
+    for key in ("claim_type", "active_claim_type"):
+        value = facts.get(key)
+        if isinstance(value, Mapping):
+            value = value.get("value")
+        if value:
+            return str(value)
+    return _topic_from_runtime_state(final_state, state)
+
+
+def _dialogue_act_from_runtime_state(final_state: Mapping[str, Any]) -> str | None:
+    derived = dict(final_state.get("derived_state") or {})
+    act = _trace_payload(derived.get("conversation_act"), "act")
+    return str(act.get("act") or act.get("category") or "") or None
+
+
+def _next_action_from_runtime_state(final_state: Mapping[str, Any]) -> str | None:
+    derived = dict(final_state.get("derived_state") or {})
+    response_plan = _trace_payload(derived.get("conversation_response_plan"), "plan")
+    if response_plan.get("next_action"):
+        return str(response_plan["next_action"])
+    mission = dict(final_state.get("active_mission") or {})
+    if mission.get("next_act"):
+        return str(mission["next_act"])
+    return None
+
+
+def build_public_runtime_shadow(*, runtime_response: str, legacy_result: Mapping[str, Any]) -> Dict[str, Any]:
+    legacy_response = str(legacy_result.get("response") or "")
+    equivalent = runtime_response == legacy_response
+    divergences = []
+    if legacy_response and not equivalent:
+        divergences.append(
+            {
+                "field": "response",
+                "type": "visible_response_changed",
+                "classification": "expected_architectural_difference",
+                "reason": "Public surface now uses ACAOSRuntime response; legacy product projection is shadow-only.",
+            }
+        )
+    return {
+        "contract": "public_runtime_shadow_comparison.v1",
+        "available": bool(legacy_result),
+        "official_engine": "ACAOSRuntime",
+        "shadow_engine": "PublicConversationProductLayer.legacy",
+        "visible_response_source": "runtime_response",
+        "runtime_response": runtime_response,
+        "legacy_response": legacy_response,
+        "equivalent_response": equivalent,
+        "divergence_count": len(divergences),
+        "divergences": divergences,
+        "legacy_hook_execution": dict(legacy_result.get("hook_execution") or {}),
+    }
+
+
+def build_public_trace_from_runtime(state: Mapping[str, Any], *, request_id: str) -> Dict[str, Any]:
+    facts = dict(state.get("facts") or {})
+    engine = dict(facts.get("runtime_execution_engine") or {})
+    return {
+        "trace_type": "public_trace.v1",
+        "source": "ACAOSRuntime",
+        "conversation_id": state.get("conversation_id"),
+        "request_id": request_id,
+        "selected_program": state.get("selected_program"),
+        "runtime_engine": engine.get("official_engine"),
+        "flow": engine.get("flow"),
+        "contracts_used": _contracts_used(facts),
+        "steps": _public_steps_from_runtime(facts),
+    }
+
+
+def _public_steps_from_runtime(facts: Mapping[str, Any]) -> list[str]:
+    steps = []
+    if facts.get("conversation_intent_model"):
+        steps.append("IdentifiquÃ© la necesidad principal")
+    if facts.get("conversation_plan"):
+        steps.append("ActualicÃ© el recorrido de la conversaciÃ³n")
+    if facts.get("conversation_response_plan"):
+        steps.append("OrdenÃ© la respuesta para el usuario")
+    if facts.get("runtime_execution_engine"):
+        steps.append("EjecutÃ© el plan autorizado")
+    if not steps:
+        steps.append("ProcesÃ© el mensaje")
+    return steps
+
+
+def build_diagnostic_view_from_runtime(
+    state: Mapping[str, Any],
+    *,
+    request_id: str,
+    runtime_shadow: Mapping[str, Any],
+    introspection: Mapping[str, Any],
+) -> Dict[str, Any]:
+    facts = dict(state.get("facts") or {})
+    return {
+        "trace_type": "diagnostic_view.v1",
+        "source": "ACAOSRuntime",
+        "conversation_id": state.get("conversation_id"),
+        "request_id": request_id,
+        "selected_program": state.get("selected_program"),
+        "intent_match": dict(state.get("intent_match") or {}),
+        "policy_result": dict(state.get("policy_result") or {}),
+        "execution_plan": dict(facts.get("zero_cost_execution_plan") or {}),
+        "runtime_execution_engine": dict(facts.get("runtime_execution_engine") or {}),
+        "conversation_state_runtime": dict(facts.get("conversation_state_runtime") or {}),
+        "conversation_plan": dict(facts.get("conversation_plan") or {}),
+        "conversation_response_plan": dict(facts.get("conversation_response_plan") or {}),
+        "conversation_fulfillment": dict(facts.get("conversation_fulfillment") or {}),
+        "execution_step_outcomes": list(facts.get("execution_step_outcomes") or []),
+        "narrative_response_composer": _narrative_response_record(state),
+        "public_runtime_shadow": dict(runtime_shadow),
+        "introspection": dict(introspection),
+    }
+
+
+def _narrative_response_record(state: Mapping[str, Any]) -> Dict[str, Any]:
+    for entry in reversed(list(state.get("timeline") or [])):
+        if isinstance(entry, Mapping) and entry.get("operation") == "NARRATIVE_RESPONSE_COMPOSE":
+            return {
+                "used": True,
+                "operation": entry.get("operation"),
+                "changes": dict(entry.get("changes") or {}),
+            }
+    return {"used": False}
 
 
 def build_public_trace(result: Mapping[str, Any]) -> Dict[str, Any]:

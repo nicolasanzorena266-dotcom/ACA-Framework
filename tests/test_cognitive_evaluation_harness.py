@@ -3,6 +3,7 @@ from aca_os.evaluation import (
     load_conversation_benchmark,
     render_cognitive_benchmark_report,
     run_cognitive_conversation_benchmark,
+    run_public_runtime_adapter_benchmark,
 )
 
 
@@ -79,3 +80,22 @@ def test_cognitive_benchmark_report_is_renderable_markdown():
     assert "## Quality" in report
     assert "## Architecture" in report
     assert "`prioridad_fotos_vs_reparacion`" in report
+
+
+def test_public_runtime_adapter_benchmark_validates_single_pipeline():
+    result = run_public_runtime_adapter_benchmark(
+        scenario_ids=[
+            "narrativa_denuncia_en_tramite",
+            "prioridad_fotos_vs_reparacion",
+            "handoff_usuario_pide_persona",
+        ]
+    )
+
+    assert result["contract"] == "public_runtime_adapter_benchmark_result.v1"
+    assert result["scenario_count"] == 3
+    assert result["quality"]["response_equivalence_percentage"] == 100.0
+    assert result["quality"]["runtime_engine_equivalence_percentage"] == 100.0
+    assert result["quality"]["conversation_plan_equivalence_percentage"] == 100.0
+    assert result["quality"]["public_runtime_source_percentage"] == 100.0
+    assert result["quality"]["runtime_response_source_percentage"] == 100.0
+    assert result["quality"]["legacy_visible_count"] == 0
