@@ -13,6 +13,7 @@ from aca_os.conversation_state import ConversationState
 from aca_os.execution_trace import monotonic_ms, utc_now_iso
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
+from aca_os.narrative_response_composer import NarrativeResponseComposer
 from aca_os.policy_manager import PolicyDecision, PolicyManager, PolicyResult
 from aca_os.tool_engine import ToolEngine, ToolExecutionContext, ToolExecutionMode, ToolRequest
 from zero_cost.execution_plan import ExecutionPlan, ExecutionStep, ExecutionStepOutcome
@@ -301,20 +302,39 @@ class OutputStepHandler:
     def execute(self, context: StepExecutionContext) -> StepExecutionResult:
         started_at = utc_now_iso()
         started_perf = perf_counter()
+        narrative = NarrativeResponseComposer().compose(
+            state=context.state,
+            event=context.event,
+            conversation_state=context.conversation_state,
+        )
+        state = context.state
+        if narrative.changed:
+            state = context.state.evolve("NARRATIVE_RESPONSE_COMPOSE", response=narrative.response)
         outcome = _outcome(
             step=context.step.name,
-            executor="runtime",
+            executor="narrative_response_composer",
             status="success",
             started_at=started_at,
             started_perf=started_perf,
-            result={"response": context.state.response},
-            state_changes={"response_present": bool(context.state.response)},
+            result={
+                "response": state.response,
+                "base_response": context.state.response,
+                "changed": narrative.changed,
+                "reason": narrative.reason,
+            },
+            state_changes={
+                "response_present": bool(state.response),
+                "narrative_response_composed": narrative.changed,
+            },
         )
         return StepExecutionResult(
             status="success",
             outcome=outcome,
-            state=context.state,
-            state_changes={"response_present": bool(context.state.response)},
+            state=state,
+            state_changes={
+                "response_present": bool(state.response),
+                "narrative_response_composed": narrative.changed,
+            },
         )
 
 

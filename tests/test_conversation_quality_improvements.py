@@ -35,7 +35,7 @@ def test_ambiguous_answer_reformulates_instead_of_repeating_question():
     required = state.facts["conversation_response_plan"]["plan"]["required_information"][0]
 
     assert "Hubo lesionados?" not in state.response
-    assert "Recordas si alguna persona resulto herida" in state.response
+    assert "lastimado" in state.response or "herida" in state.response or "atencion medica" in state.response
     assert required["question_was_reformulated"] is True
     assert required["reformulated_from"] == "Hubo lesionados?"
 

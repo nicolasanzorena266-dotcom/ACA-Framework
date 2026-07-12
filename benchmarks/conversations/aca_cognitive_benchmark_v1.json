@@ -306,6 +306,36 @@
         "should_use_contracts": ["conversation_topic_stack", "conversation_response_plan"],
         "max_questions": 2
       }
+    },
+    {
+      "id": "narrativa_denuncia_en_tramite",
+      "title": "Loaded claim with delay should be verbalized naturally",
+      "tags": ["denuncias", "tiempos", "response_quality", "continuidad_conversacional"],
+      "turns": [
+        {"user": "Cargue una denuncia desde la app y hace una semana sigue en tramite."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_response_plan", "conversation_plan"],
+        "max_questions": 1,
+        "must_include_response": ["una semana", "demorando el avance"],
+        "must_not_include_response": ["nombrame el tramite", "te puedo orientar paso a paso", "te oriento"]
+      }
+    },
+    {
+      "id": "narrativa_recupera_ya_te_lo_dije",
+      "title": "Repetition complaint should recover with known facts",
+      "tags": ["usuarios_que_corrigen_informacion", "continuidad_conversacional", "facts", "response_quality"],
+      "turns": [
+        {"user": "Me chocaron ayer."},
+        {"user": "No hubo lesionados."},
+        {"user": "Ya te lo dije."}
+      ],
+      "expectations": {
+        "should_use_contracts": ["conversation_response_plan", "conversation_fulfillment"],
+        "max_questions": 3,
+        "must_include_last_response": ["tenes razon", "no hubo lesionados"],
+        "must_not_include_last_response": ["nombrame el tramite", "te puedo orientar paso a paso"]
+      }
     }
   ]
 }

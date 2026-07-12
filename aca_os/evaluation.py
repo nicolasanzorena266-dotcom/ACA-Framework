@@ -192,6 +192,7 @@ def render_cognitive_benchmark_report(result: Mapping[str, Any]) -> str:
         f"- Reformulated questions: {quality.get('reformulated_questions', 0)}",
         f"- Answered before asking: {quality.get('answered_before_asking', 0)}",
         f"- Resumed topic success: {quality.get('resumed_topic_success', 0)}",
+        f"- Template responses: {quality.get('template_response_count', 0)}",
         f"- Topic changes: {quality.get('topic_changes', 0)}",
         f"- Focus recoveries: {quality.get('focus_recoveries', 0)}",
         f"- Replanning events: {quality.get('replanning_events', 0)}",
@@ -391,9 +392,14 @@ def _turn_metrics(
         "questions_avoided": int(question_metric.get("avoided_question_count") or 0),
         "unnecessary_questions": 1 if response_questions and not info_plan.get("selected_question") else 0,
         "opacity_leaks": 1 if _has_cognitive_meta_comment(response) else 0,
-        "reformulated_questions": _count_reformulated_questions(response_plan),
+        "reformulated_questions": _count_reformulated_questions(
+            response_plan=response_plan,
+            info_plan=info_plan,
+            response_questions=response_questions,
+        ),
         "answered_before_asking": 1 if _answered_before_asking(response, response_questions) else 0,
         "resumed_topic_success": 1 if _resumed_topic_success(response, recovery_actions, projections) else 0,
+        "template_response_count": 1 if _has_template_response(response) else 0,
         "topic_changes": _count_topic_changes(projections),
         "focus_recoveries": _count_focus_recoveries(projections, response=response),
         "mission_changes": _count_projection_reason(projections, "mission_advancement"),
@@ -442,6 +448,7 @@ def _scenario_metrics(
             "reformulated_questions",
             "answered_before_asking",
             "resumed_topic_success",
+            "template_response_count",
             "topic_changes",
             "focus_recoveries",
             "mission_changes",
@@ -490,6 +497,7 @@ def _scenario_metrics(
         "reformulated_questions": metrics["reformulated_questions"],
         "answered_before_asking": metrics["answered_before_asking"],
         "resumed_topic_success": metrics["resumed_topic_success"],
+        "template_response_count": metrics["template_response_count"],
         "topic_changes": metrics["topic_changes"],
         "focus_recoveries": metrics["focus_recoveries"],
         "mission_changes": metrics["mission_changes"],
@@ -589,6 +597,44 @@ def _scenario_errors(
                 },
             }
         )
+    response_text = "\n".join(str(turn.get("response") or "") for turn in turn_results)
+    last_response = str((turn_results[-1] if turn_results else {}).get("response") or "")
+    for phrase in scenario.expectations.get("must_include_response") or []:
+        if normalize_text(phrase) not in normalize_text(response_text):
+            errors.append(
+                {
+                    "type": "expected_response_phrase_missing",
+                    "severity": "medium",
+                    "evidence": {"phrase": phrase, "scope": "scenario"},
+                }
+            )
+    for phrase in scenario.expectations.get("must_not_include_response") or []:
+        if normalize_text(phrase) in normalize_text(response_text):
+            errors.append(
+                {
+                    "type": "forbidden_response_phrase",
+                    "severity": "high",
+                    "evidence": {"phrase": phrase, "scope": "scenario"},
+                }
+            )
+    for phrase in scenario.expectations.get("must_include_last_response") or []:
+        if normalize_text(phrase) not in normalize_text(last_response):
+            errors.append(
+                {
+                    "type": "expected_response_phrase_missing",
+                    "severity": "medium",
+                    "evidence": {"phrase": phrase, "scope": "last_response"},
+                }
+            )
+    for phrase in scenario.expectations.get("must_not_include_last_response") or []:
+        if normalize_text(phrase) in normalize_text(last_response):
+            errors.append(
+                {
+                    "type": "forbidden_response_phrase",
+                    "severity": "high",
+                    "evidence": {"phrase": phrase, "scope": "last_response"},
+                }
+            )
     return errors
 
 
@@ -625,6 +671,7 @@ def _aggregate_results(results: Sequence[Mapping[str, Any]], *, suite: Mapping[s
             "reformulated_questions",
             "answered_before_asking",
             "resumed_topic_success",
+            "template_response_count",
             "topic_changes",
             "focus_recoveries",
             "mission_changes",
@@ -685,6 +732,7 @@ def _aggregate_results(results: Sequence[Mapping[str, Any]], *, suite: Mapping[s
             "reformulated_questions": metrics["reformulated_questions"],
             "answered_before_asking": metrics["answered_before_asking"],
             "resumed_topic_success": metrics["resumed_topic_success"],
+            "template_response_count": metrics["template_response_count"],
             "topic_changes": metrics["topic_changes"],
             "focus_recoveries": metrics["focus_recoveries"],
             "mission_changes": metrics["mission_changes"],
@@ -814,7 +862,13 @@ def _mapping(value: Any) -> Dict[str, Any]:
 
 
 def _questions_from_response(response: str) -> list[str]:
-    return [match.group(1).strip() for match in QUESTION_RE.finditer(response or "")]
+    questions = []
+    for match in QUESTION_RE.finditer(response or ""):
+        parts = re.split(r"(?<=[.!])\s+", match.group(1).strip())
+        question = parts[-1].strip() if parts else match.group(1).strip()
+        if question:
+            questions.append(question)
+    return questions
 
 
 def _question_signature(question: str) -> str:
@@ -1011,9 +1065,11 @@ def _turn_errors(
         )
     planned_question = _planned_question_for_response(response_plan, selected_question)
     if planned_question and response_questions:
-        expected = _question_signature(planned_question)
-        asked = [_question_signature(question) for question in response_questions]
-        if expected not in " ".join(asked):
+        if not _planned_question_was_asked(
+            planned_question=planned_question,
+            selected_question=selected_question,
+            response_questions=response_questions,
+        ):
             errors.append(
                 {
                     "type": "asked_different_question_than_planned",
@@ -1090,6 +1146,19 @@ def _has_cognitive_meta_comment(response: str) -> bool:
     return any(phrase in normalized for phrase in forbidden)
 
 
+def _has_template_response(response: str) -> bool:
+    normalized = normalize_text(response)
+    templates = (
+        "te puedo orientar paso a paso",
+        "nombrame el tramite",
+        "contame que parte quedo trabada",
+        "te oriento con el tramite",
+        "te oriento.",
+        "avancemos",
+    )
+    return any(phrase in normalized for phrase in templates)
+
+
 def _planned_question_for_response(
     response_plan: Mapping[str, Any],
     selected_question: Mapping[str, Any],
@@ -1100,12 +1169,92 @@ def _planned_question_for_response(
     return str(selected_question.get("question") or "")
 
 
-def _count_reformulated_questions(response_plan: Mapping[str, Any]) -> int:
-    return sum(
+def _count_reformulated_questions(
+    *,
+    response_plan: Mapping[str, Any],
+    info_plan: Mapping[str, Any],
+    response_questions: Sequence[str],
+) -> int:
+    explicit_count = sum(
         1
         for item in response_plan.get("required_information") or []
         if isinstance(item, Mapping) and item.get("question_was_reformulated")
     )
+    selected_question = _mapping(info_plan.get("selected_question"))
+    planned_question = _planned_question_for_response(response_plan, selected_question)
+    if (
+        planned_question
+        and response_questions
+        and _planned_question_was_reformulated(
+            planned_question=planned_question,
+            selected_question=selected_question,
+            response_questions=response_questions,
+        )
+    ):
+        return max(explicit_count, 1)
+    return explicit_count
+
+
+def _planned_question_was_asked(
+    *,
+    planned_question: str,
+    selected_question: Mapping[str, Any],
+    response_questions: Sequence[str],
+) -> bool:
+    expected = _question_signature(planned_question)
+    asked = " ".join(_question_signature(question) for question in response_questions)
+    if expected and expected in asked:
+        return True
+    return _response_question_matches_selected_slot(
+        selected_question=selected_question,
+        response_questions=response_questions,
+    )
+
+
+def _planned_question_was_reformulated(
+    *,
+    planned_question: str,
+    selected_question: Mapping[str, Any],
+    response_questions: Sequence[str],
+) -> bool:
+    expected = _question_signature(planned_question)
+    asked = " ".join(_question_signature(question) for question in response_questions)
+    if not expected or expected in asked:
+        return False
+    return _response_question_matches_selected_slot(
+        selected_question=selected_question,
+        response_questions=response_questions,
+    )
+
+
+def _response_question_matches_selected_slot(
+    *,
+    selected_question: Mapping[str, Any],
+    response_questions: Sequence[str],
+) -> bool:
+    slot = normalize_text(str(selected_question.get("slot") or ""))
+    if not slot:
+        return False
+    asked = " ".join(_question_signature(question) for question in response_questions)
+    semantic_markers = {
+        "injuries": (
+            ("lesionad", "herid", "atencion medica", "lastimad"),
+        ),
+        "user_role": (
+            ("asegurado", "tercero", "seguro", "poliza", "reclamo", "cobertura", "galicia"),
+        ),
+        "claim_report_loaded": (
+            ("denuncia", "tramite", "siniestro"),
+            ("cargad", "cargo", "carga", "iniciad", "hech", "registrad", "finalizar", "finaliz", "quedo"),
+        ),
+        "documentation_available": (
+            ("documentacion", "documento", "documentos", "foto", "fotos", "presupuesto", "captura", "comprobante"),
+        ),
+    }
+    groups = semantic_markers.get(slot)
+    if not groups:
+        return False
+    return all(any(marker in asked for marker in group) for group in groups)
 
 
 def _answered_before_asking(response: str, response_questions: Sequence[str]) -> bool:

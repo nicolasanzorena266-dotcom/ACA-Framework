@@ -33,7 +33,22 @@ def test_cognitive_benchmark_runs_real_runtime_and_records_cognitive_metrics():
     assert result["quality"]["conversation_plan_used_turns"] >= 3
     assert result["quality"]["response_plan_used_turns"] >= 3
     assert result["quality"]["facts_used_turns"] >= 1
+    assert "template_response_count" in result["quality"]
     assert "runtime_executor" in result["quality"]["runtime_engines"]
+
+
+def test_cognitive_benchmark_validates_narrative_response_quality():
+    result = run_cognitive_conversation_benchmark(
+        scenario_ids=[
+            "narrativa_denuncia_en_tramite",
+            "narrativa_recupera_ya_te_lo_dije",
+        ]
+    )
+
+    assert result["scenario_count"] == 2
+    assert result["errors"]["count"] == 0
+    assert result["quality"]["template_response_count"] == 0
+    assert result["quality"]["repeated_question_count"] == 0
 
 
 def test_cognitive_benchmark_audits_contract_value_and_unused_complexity():
