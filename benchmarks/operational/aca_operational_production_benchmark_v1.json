@@ -1,0 +1,172 @@
+{
+  "benchmark": "aca_operational_production_benchmark.v1",
+  "description": "Validates the first real operational production tool contract with durable ledger persistence.",
+  "domain": "operational_production_integration",
+  "operation": "prepare_handoff",
+  "tool": "handoff_package",
+  "scenarios": [
+    {
+      "id": "PROD-001",
+      "type": "success",
+      "context": "A delayed claim needs a real handoff package.",
+      "turns": [
+        {"user": "Cargue una denuncia por choque hace una semana y quiero hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-002",
+      "type": "success_multiturn",
+      "context": "The customer provides context before requesting handoff.",
+      "turns": [
+        {"user": "Ya subi toda la documentacion del siniestro."},
+        {"user": "Quiero que una persona lo revise."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-003",
+      "type": "double_execution",
+      "context": "The same operation is requested twice with the same idempotency key.",
+      "turns": [
+        {"user": "No tengo novedades de la denuncia y quiero hablar con un representante."}
+      ],
+      "idempotency_key": "prod-double-001",
+      "attempts": [
+        {},
+        {}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "duplicate_replayed",
+      "expected_receipt_status": "duplicate_replayed",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-004",
+      "type": "timeout_retry",
+      "context": "The first call times out and the retry succeeds with the same idempotency key.",
+      "turns": [
+        {"user": "Hace dos semanas que el tramite no avanza, necesito hablar con alguien."}
+      ],
+      "idempotency_key": "prod-retry-001",
+      "attempts": [
+        {"failure_mode": "timeout"},
+        {}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-005",
+      "type": "tool_down",
+      "context": "The internal handoff package store is unavailable.",
+      "turns": [
+        {"user": "Me cobraron mal y quiero hablar con un supervisor."}
+      ],
+      "attempts": [
+        {"failure_mode": "tool_down"}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "tool_unavailable",
+      "expected_receipt_status": "tool_down",
+      "expected_valid_receipt": true,
+      "expected_package_records": 0
+    },
+    {
+      "id": "PROD-006",
+      "type": "invalid_receipt",
+      "context": "The tool returns a malformed receipt and the ledger must detect it.",
+      "turns": [
+        {"user": "Quiero hablar con una persona porque no entiendo que falta del siniestro."}
+      ],
+      "attempts": [
+        {"failure_mode": "invalid_receipt"}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "invalid_receipt",
+      "expected_receipt_status": "invalid_receipt",
+      "expected_valid_receipt": false,
+      "expect_replay": false,
+      "expected_package_records": 0
+    },
+    {
+      "id": "PROD-007",
+      "type": "replay",
+      "context": "A successful receipt must be replayable.",
+      "turns": [
+        {"user": "Necesito que me llamen por la denuncia."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expect_replay": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-008",
+      "type": "mixed_need_success",
+      "context": "Mixed service and billing need with explicit handoff.",
+      "turns": [
+        {"user": "No tengo internet, la factura vino mal y quiero hablar con alguien."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-009",
+      "type": "correction_success",
+      "context": "The user corrects the domain and asks for a person.",
+      "turns": [
+        {"user": "Creo que era por baja."},
+        {"user": "No, siniestro. Quiero hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "executed",
+      "expected_receipt_status": "created",
+      "expected_valid_receipt": true,
+      "expected_package_records": 1
+    },
+    {
+      "id": "PROD-010",
+      "type": "timeout_only",
+      "context": "Timeout remains auditable when no retry succeeds.",
+      "turns": [
+        {"user": "Quiero que un representante revise mi expediente ahora."}
+      ],
+      "attempts": [
+        {"failure_mode": "timeout"}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_execution_state": "tool_timeout",
+      "expected_receipt_status": "timeout",
+      "expected_valid_receipt": true,
+      "expected_package_records": 0
+    }
+  ]
+}

@@ -1,0 +1,502 @@
+{
+  "benchmark": "aca_operational_audit_ledger_benchmark.v1",
+  "description": "Shadow benchmark for validating whether operational execution can be reconstructed through an audit ledger without executing real tools.",
+  "domain": "operational_audit",
+  "scenarios": [
+    {
+      "id": "LEDGER-001",
+      "type": "low_risk_preparation",
+      "context": "A low-risk prepared follow-up needs a complete ledger even without a tool.",
+      "work_fixture": {
+        "operation": "prepare_claim_follow_up",
+        "category": "preparatory",
+        "expected_outcome": "prepared",
+        "evidence": {"source": "candidate_work", "claim_loaded": true}
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-001",
+        "timestamp": "2026-07-13T10:00:00+00:00"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "would_execute"
+      }
+    },
+    {
+      "id": "LEDGER-002",
+      "type": "external_write",
+      "context": "A governed ticket creation projects request, idempotency and shadow receipt.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-002",
+        "timestamp": "2026-07-13T10:01:00+00:00",
+        "shadow_external_receipt": {"status": "not_created_shadow"}
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "would_execute"
+      }
+    },
+    {
+      "id": "LEDGER-003",
+      "type": "double_execution",
+      "context": "A repeated visit request with same idempotency key must be detected as duplicate.",
+      "work_fixture": {
+        "operation": "schedule_technical_visit",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "technical_visit_scheduler": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Provider accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["technical_diagnosis", "service_address"],
+        "permissions": {"execute:schedule_technical_visit": true},
+        "user_confirmation": true,
+        "idempotency_key": "visit-001"
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-003",
+        "timestamp": "2026-07-13T10:02:00+00:00",
+        "idempotency_key": "visit-001",
+        "previous_ledger_records": [
+          {
+            "ledger_id": "prior-visit-ledger",
+            "selected_work": {"operation": "schedule_technical_visit"},
+            "tool": {"name": "technical_visit_scheduler"},
+            "idempotency": {"key": "visit-001"}
+          }
+        ]
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": true,
+        "execution_status": "duplicate_detected_shadow"
+      }
+    },
+    {
+      "id": "LEDGER-004",
+      "type": "retry_timeout",
+      "context": "Timeout on an idempotent external operation is retry-safe.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-004",
+        "timestamp": "2026-07-13T10:03:00+00:00",
+        "shadow_external_receipt": {"status": "timeout"}
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "shadow_timeout"
+      }
+    },
+    {
+      "id": "LEDGER-005",
+      "type": "retry_blocked",
+      "context": "Visit scheduling without idempotency key cannot be replayed safely.",
+      "work_fixture": {
+        "operation": "schedule_technical_visit",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "technical_visit_scheduler": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Provider accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["technical_diagnosis", "service_address"],
+        "permissions": {"execute:schedule_technical_visit": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-005",
+        "timestamp": "2026-07-13T10:04:00+00:00"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": false,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": false,
+        "duplicate_detected": false,
+        "execution_status": "blocked_by_governance"
+      }
+    },
+    {
+      "id": "LEDGER-006",
+      "type": "partial_response",
+      "context": "Partial response from external ticket API remains auditable.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-006",
+        "timestamp": "2026-07-13T10:05:00+00:00",
+        "shadow_external_receipt": {"status": "partial_response", "receipt_id": "ticket-shadow-partial"}
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "shadow_partial_response"
+      }
+    },
+    {
+      "id": "LEDGER-007",
+      "type": "operation_cancelled",
+      "context": "User cancels before execution.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-007",
+        "timestamp": "2026-07-13T10:06:00+00:00",
+        "shadow_execution_event": "cancelled"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "cancelled_before_execution"
+      }
+    },
+    {
+      "id": "LEDGER-008",
+      "type": "approval_rejected",
+      "context": "Human approval is rejected for a high-liability financial action.",
+      "work_fixture": {
+        "operation": "apply_service_credit",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "billing_credit_apply": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Credit API returns adjustment id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["account_reference", "credit_reason"],
+        "permissions": {"execute:apply_service_credit": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-008",
+        "timestamp": "2026-07-13T10:07:00+00:00",
+        "approval_rejected": true
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "blocked_by_approval_rejected"
+      }
+    },
+    {
+      "id": "LEDGER-009",
+      "type": "tool_down",
+      "context": "Tool down response is captured as a shadow receipt and remains retry-safe.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-009",
+        "timestamp": "2026-07-13T10:08:00+00:00",
+        "shadow_external_receipt": {"status": "tool_down"}
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "shadow_tool_down"
+      }
+    },
+    {
+      "id": "LEDGER-010",
+      "type": "compensable_operation",
+      "context": "Document association is compensable when a real tool exists.",
+      "work_fixture": {
+        "operation": "associate_documentation",
+        "category": "administrative",
+        "expected_outcome": "prepared"
+      },
+      "plugin_manifests": [
+        {
+          "plugin": {"id": "galicia.insurance"},
+          "blocked_capabilities": [],
+          "public_actions": [
+            {"id": "document_upload", "capability": "insurance.document.upload", "enabled": true, "disabled_reason": null}
+          ]
+        }
+      ],
+      "tool_contracts": {
+        "document_association": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Document association returns stable attachment id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["case_reference", "documents"],
+        "permissions": {"execute:associate_documentation": true},
+        "user_confirmation": true
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-010",
+        "timestamp": "2026-07-13T10:09:00+00:00"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "would_execute"
+      }
+    },
+    {
+      "id": "LEDGER-011",
+      "type": "irreversible_operation",
+      "context": "Service cancellation remains manual and non-reversible.",
+      "work_fixture": {
+        "operation": "cancel_service",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "service_cancel": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": false,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Cancellation API accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["verified_identity", "cancellation_confirmation"],
+        "permissions": {"execute:cancel_service": true},
+        "user_confirmation": true,
+        "human_approval": true,
+        "idempotency_key": "cancel-001"
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-011",
+        "timestamp": "2026-07-13T10:10:00+00:00",
+        "idempotency_key": "cancel-001"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "manual_only"
+      }
+    },
+    {
+      "id": "LEDGER-012",
+      "type": "missing_evidence",
+      "context": "A visit request without service address records missing evidence.",
+      "work_fixture": {
+        "operation": "schedule_technical_visit",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "technical_visit_scheduler": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Provider accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["technical_diagnosis"],
+        "permissions": {"execute:schedule_technical_visit": true},
+        "user_confirmation": true,
+        "idempotency_key": "visit-012"
+      },
+      "ledger_context": {
+        "conversation_id": "ledger-012",
+        "timestamp": "2026-07-13T10:11:00+00:00",
+        "idempotency_key": "visit-012"
+      },
+      "expected_ledger": {
+        "complete": true,
+        "audit_trace_complete": true,
+        "idempotency_covered": true,
+        "receipt_covered": true,
+        "compensation_covered": true,
+        "replay_safe": true,
+        "duplicate_detected": false,
+        "execution_status": "blocked_by_governance"
+      }
+    }
+  ]
+}

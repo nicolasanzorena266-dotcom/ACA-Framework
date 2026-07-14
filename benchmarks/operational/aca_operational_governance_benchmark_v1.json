@@ -1,0 +1,548 @@
+{
+  "benchmark": "aca_operational_governance_benchmark.v1",
+  "description": "Shadow benchmark for validating whether already-selected operational work would be safe to execute under production governance rules.",
+  "domain": "operational_governance",
+  "scenarios": [
+    {
+      "id": "GOV-001",
+      "type": "informational",
+      "context": "Informative operation has no external side effect.",
+      "work_fixture": {
+        "operation": "explain_domain_concept",
+        "category": "informative",
+        "expected_outcome": "explained"
+      },
+      "expected_governance": {
+        "risk_level": 0,
+        "execution_allowed": true,
+        "requires_confirmation": false,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true
+      }
+    },
+    {
+      "id": "GOV-002",
+      "type": "preparatory",
+      "context": "Claim follow-up preparation produces no external write.",
+      "work_fixture": {
+        "operation": "prepare_claim_follow_up",
+        "category": "preparatory",
+        "expected_outcome": "prepared",
+        "evidence": {"source": "candidate_work", "claim_loaded": true}
+      },
+      "expected_governance": {
+        "risk_level": 1,
+        "execution_allowed": true,
+        "requires_confirmation": false,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true
+      }
+    },
+    {
+      "id": "GOV-003",
+      "type": "external_write",
+      "context": "Opening a ticket without a tool contract must be blocked.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared",
+        "evidence": {"source": "candidate_work"}
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": false,
+        "idempotency_safe": false,
+        "missing_preconditions_contains": ["tool_unavailable", "idempotency_unknown"]
+      }
+    },
+    {
+      "id": "GOV-004",
+      "type": "external_write",
+      "context": "Opening a ticket with evidence, permission, confirmation and safe tool can execute.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {"execute:open_ticket": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": true,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true
+      }
+    },
+    {
+      "id": "GOV-005",
+      "type": "double_execution",
+      "context": "A visit scheduler that requires idempotency key must be blocked if the key is missing.",
+      "work_fixture": {
+        "operation": "schedule_technical_visit",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "technical_visit_scheduler": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Provider accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["technical_diagnosis", "service_address"],
+        "permissions": {"execute:schedule_technical_visit": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": false,
+        "missing_preconditions_contains": ["idempotency_key_required"]
+      }
+    },
+    {
+      "id": "GOV-006",
+      "type": "missing_evidence",
+      "context": "A visit request with safe tool still needs service address.",
+      "work_fixture": {
+        "operation": "schedule_technical_visit",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "technical_visit_scheduler": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Provider accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["technical_diagnosis"],
+        "permissions": {"execute:schedule_technical_visit": true},
+        "user_confirmation": true,
+        "idempotency_key": "visit-001"
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["missing_evidence"]
+      }
+    },
+    {
+      "id": "GOV-007",
+      "type": "tool_unavailable",
+      "context": "Document association is blocked by public capability manifest.",
+      "work_fixture": {
+        "operation": "associate_documentation",
+        "category": "administrative",
+        "expected_outcome": "prepared"
+      },
+      "plugin_manifests": [
+        {
+          "plugin": {"id": "galicia.insurance"},
+          "blocked_capabilities": ["insurance.document.upload"],
+          "public_actions": [
+            {
+              "id": "document_upload",
+              "capability": "insurance.document.upload",
+              "enabled": false,
+              "disabled_reason": "No document upload tool connected."
+            }
+          ]
+        }
+      ],
+      "governance_context": {
+        "available_evidence": ["case_reference", "documents"],
+        "permissions": {"execute:associate_documentation": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": false,
+        "idempotency_safe": false,
+        "missing_preconditions_contains": ["tool_unavailable"]
+      }
+    },
+    {
+      "id": "GOV-008",
+      "type": "documentation",
+      "context": "Document association can execute only with tool, permission, evidence and confirmation.",
+      "work_fixture": {
+        "operation": "associate_documentation",
+        "category": "administrative",
+        "expected_outcome": "prepared"
+      },
+      "plugin_manifests": [
+        {
+          "plugin": {"id": "galicia.insurance"},
+          "blocked_capabilities": [],
+          "public_actions": [
+            {
+              "id": "document_upload",
+              "capability": "insurance.document.upload",
+              "enabled": true,
+              "disabled_reason": null
+            }
+          ]
+        }
+      ],
+      "tool_contracts": {
+        "document_association": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Document association returns stable attachment id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["case_reference", "documents"],
+        "permissions": {"execute:associate_documentation": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": true,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true
+      }
+    },
+    {
+      "id": "GOV-009",
+      "type": "financial_adjustment",
+      "context": "Automatic bonification is financial and must require human approval.",
+      "work_fixture": {
+        "operation": "apply_service_credit",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "billing_credit_apply": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Credit API returns adjustment id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["account_reference", "credit_reason"],
+        "permissions": {"execute:apply_service_credit": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 4,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": true,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["human_approval_required", "manual_only"]
+      }
+    },
+    {
+      "id": "GOV-010",
+      "type": "manual_only",
+      "context": "Even with human approval, high-liability automatic credit remains manual-only.",
+      "work_fixture": {
+        "operation": "apply_service_credit",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "billing_credit_apply": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Credit API returns adjustment id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["account_reference", "credit_reason"],
+        "permissions": {"execute:apply_service_credit": true},
+        "user_confirmation": true,
+        "human_approval": true
+      },
+      "expected_governance": {
+        "risk_level": 4,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": true,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["manual_only"]
+      }
+    },
+    {
+      "id": "GOV-011",
+      "type": "identity_sensitive",
+      "context": "Changing account holder needs verified identity and legal authorization.",
+      "work_fixture": {
+        "operation": "change_account_holder",
+        "category": "administrative",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "account_holder_change": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": false,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Account ownership workflow accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["verified_identity"],
+        "permissions": {"execute:change_account_holder": true},
+        "user_confirmation": true,
+        "human_approval": true,
+        "idempotency_key": "holder-001"
+      },
+      "expected_governance": {
+        "risk_level": 4,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": true,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["missing_evidence", "manual_only"]
+      }
+    },
+    {
+      "id": "GOV-012",
+      "type": "irreversible",
+      "context": "Service cancellation is irreversible and must remain manual.",
+      "work_fixture": {
+        "operation": "cancel_service",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "service_cancel": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": false,
+          "supports_shadow": false,
+          "idempotency": "requires_idempotency_key",
+          "guarantee": "Cancellation API accepts idempotency key."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["verified_identity", "cancellation_confirmation"],
+        "permissions": {"execute:cancel_service": true},
+        "user_confirmation": true,
+        "human_approval": true,
+        "idempotency_key": "cancel-001"
+      },
+      "expected_governance": {
+        "risk_level": 4,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": true,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["manual_only"]
+      }
+    },
+    {
+      "id": "GOV-013",
+      "type": "unsafe_idempotency",
+      "context": "Invoice modification with non-idempotent tool is unsafe.",
+      "work_fixture": {
+        "operation": "modify_invoice",
+        "category": "resolutive",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "invoice_modify": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": false,
+          "supports_replay": false,
+          "supports_shadow": false,
+          "idempotency": "non_idempotent",
+          "guarantee": "Legacy billing endpoint."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["invoice_id", "discrepancy_evidence"],
+        "permissions": {"execute:modify_invoice": true},
+        "user_confirmation": true,
+        "human_approval": true
+      },
+      "expected_governance": {
+        "risk_level": 4,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": true,
+        "tool_available": true,
+        "idempotency_safe": false,
+        "missing_preconditions_contains": ["unsafe_idempotency", "manual_only"]
+      }
+    },
+    {
+      "id": "GOV-014",
+      "type": "tool_unavailable",
+      "context": "Real claim status lookup is blocked by manifest when no real tool exists.",
+      "work_fixture": {
+        "operation": "real_claim_status_lookup",
+        "category": "external_lookup",
+        "expected_outcome": "completed"
+      },
+      "plugin_manifests": [
+        {
+          "plugin": {"id": "galicia.insurance"},
+          "blocked_capabilities": ["insurance.claim_status.lookup"],
+          "public_actions": [
+            {
+              "id": "real_claim_status_lookup",
+              "capability": "insurance.claim_status.lookup",
+              "enabled": false,
+              "disabled_reason": "No real lookup tool connected."
+            }
+          ]
+        }
+      ],
+      "governance_context": {
+        "available_evidence": ["case_reference"],
+        "permissions": {"execute:real_claim_status_lookup": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": false,
+        "idempotency_safe": false,
+        "missing_preconditions_contains": ["tool_unavailable"]
+      }
+    },
+    {
+      "id": "GOV-015",
+      "type": "internal_reversible_write",
+      "context": "Reversible internal note can execute with evidence, permission and confirmation.",
+      "work_fixture": {
+        "operation": "save_internal_case_note",
+        "category": "administrative",
+        "expected_outcome": "completed"
+      },
+      "tool_contracts": {
+        "internal_case_notes": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "Internal note store returns note id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["case_reference", "summary"],
+        "permissions": {"execute:save_internal_case_note": true},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 2,
+        "execution_allowed": true,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true
+      }
+    },
+    {
+      "id": "GOV-016",
+      "type": "permission",
+      "context": "External ticket creation with safe tool still fails without permission.",
+      "work_fixture": {
+        "operation": "open_ticket",
+        "category": "coordinative",
+        "expected_outcome": "prepared"
+      },
+      "tool_contracts": {
+        "ticket_create": {
+          "deterministic": false,
+          "has_side_effects": true,
+          "supports_dry_run": true,
+          "supports_replay": true,
+          "supports_shadow": false,
+          "idempotency": "idempotent",
+          "guarantee": "External ticket API returns stable ticket id."
+        }
+      },
+      "governance_context": {
+        "available_evidence": ["issue_summary"],
+        "permissions": {},
+        "user_confirmation": true
+      },
+      "expected_governance": {
+        "risk_level": 3,
+        "execution_allowed": false,
+        "requires_confirmation": true,
+        "requires_human_approval": false,
+        "tool_available": true,
+        "idempotency_safe": true,
+        "missing_preconditions_contains": ["permission_insufficient"]
+      }
+    }
+  ]
+}

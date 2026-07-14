@@ -11,6 +11,7 @@ from aca_os.event_bus import EventBus
 from aca_os.memory_engine import MemoryEngine
 from aca_os.memory_store import JsonMemoryStore
 from aca_os.mission_manager import MissionManager
+from aca_os.operational_tools import HandoffPackageAdapter
 from aca_os.runtime import ACAOSRuntime
 from aca_os.tool_engine import StaticKnowledgeAdapter, ToolEngine
 from domains.galicia.domain_pack import load_galicia_domain
@@ -32,6 +33,7 @@ def build_galicia_runtime(
             }
         )
     )
+    tool_engine.register(HandoffPackageAdapter())
 
     memory_engine = (
         MemoryEngine(store=JsonMemoryStore(memory_path))

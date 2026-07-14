@@ -1,0 +1,547 @@
+{
+  "benchmark": "aca_operational_real_world_benchmark.v1",
+  "description": "Real-world operational validation corpus built from ACA development conversations, historical regression cases and existing cognitive benchmark transcripts.",
+  "domain": "real_world_service_conversations",
+  "conversations": [
+    {
+      "id": "RW-001",
+      "title": "Basic claim intake with slot progression",
+      "source": "benchmarks/conversations/denuncia_basica_sin_lesionados",
+      "tags": ["claims", "slots", "mission_progression"],
+      "turns": [
+        {"user": "Me chocaron ayer saliendo de casa y no se como seguir.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Soy asegurado de Galicia.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "La denuncia ya esta cargada.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"},
+        {"user": "Tengo toda la documentacion.", "expected_operation": "prepare_documentation_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"}
+      ]
+    },
+    {
+      "id": "RW-002",
+      "title": "Long claim conversation with timing, correction, recap and resume",
+      "source": "benchmarks/conversations/conversacion_larga_denuncia",
+      "tags": ["long_conversation", "correction", "recap", "resume"],
+      "turns": [
+        {"user": "Me chocaron estacionado y estoy perdido.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Soy tercero, creo.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Cuanto suele tardar que me contacten?", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"},
+        {"user": "Tengo fotos, presupuesto y la patente del otro auto.", "expected_operation": "prepare_documentation_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"},
+        {"user": "Perdon, en realidad soy asegurado de Galicia.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "resume"},
+        {"user": "Resumime donde estamos.", "expected_operation": "prepare_case_summary", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"},
+        {"user": "Seguimos.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "resume"}
+      ]
+    },
+    {
+      "id": "RW-003",
+      "title": "Topic shift to CLEAS and return to claim",
+      "source": "benchmarks/conversations/cambio_tema_y_vuelta_denuncia",
+      "tags": ["topic_shift", "focus_recovery"],
+      "turns": [
+        {"user": "Me chocaron y quiero hacer la denuncia.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start"},
+        {"user": "Ah, otra cosa, tambien queria saber que es CLEAS.", "expected_operation": "explain_domain_concept", "expected_category": "informative", "expected_outcome": "explained", "expected_transition": "switch"},
+        {"user": "Bueno, volvamos a la denuncia.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "switch"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"}
+      ]
+    },
+    {
+      "id": "RW-004",
+      "title": "Lateral timing question and resume",
+      "source": "benchmarks/conversations/interrupcion_lateral_tiempos",
+      "tags": ["interruption", "resume", "timing"],
+      "turns": [
+        {"user": "Me chocaron ayer.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Y cuanto tarda normalmente?", "expected_operation": "explain_domain_concept", "expected_category": "informative", "expected_outcome": "explained", "expected_transition": "switch"},
+        {"user": "Seguimos.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "resume"}
+      ]
+    },
+    {
+      "id": "RW-005",
+      "title": "Fact correction about injuries",
+      "source": "benchmarks/conversations/correccion_lesionados",
+      "tags": ["correction", "contradiction"],
+      "turns": [
+        {"user": "Me chocaron ayer.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Perdon, si hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"}
+      ]
+    },
+    {
+      "id": "RW-006",
+      "title": "Partial answer and later certainty",
+      "source": "benchmarks/conversations/respuesta_parcial",
+      "tags": ["partial_answer", "uncertainty"],
+      "turns": [
+        {"user": "Me chocaron.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "Creo que no hubo lesionados, pero no estoy seguro.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Al final no, nadie se lastimo.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"}
+      ]
+    },
+    {
+      "id": "RW-007",
+      "title": "Repeated information complaint",
+      "source": "benchmarks/conversations/narrativa_recupera_ya_te_lo_dije",
+      "tags": ["service_recovery", "repetition"],
+      "turns": [
+        {"user": "Me chocaron ayer.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start"},
+        {"user": "No hubo lesionados.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "persist"},
+        {"user": "Ya te lo dije.", "expected_operation": "repair_service_interaction", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "repair"}
+      ]
+    },
+    {
+      "id": "RW-008",
+      "title": "Baja lexical collision correction",
+      "source": "benchmarks/conversations/correccion_nunca_dije_baja",
+      "tags": ["regression", "lexical_collision", "correction"],
+      "turns": [
+        {"user": "Ayer cargue una denuncia desde la app y todavia nadie me escribio. Ademas necesito el auto para trabajar y no se si puedo mandarlo a reparar.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["provide_repair_risk_guidance"]},
+        {"user": "Nunca dije baja.", "expected_operation": "repair_service_interaction", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "repair"}
+      ]
+    },
+    {
+      "id": "RW-009",
+      "title": "Domain shift from billing to claim",
+      "source": "benchmarks/conversations/cambio_dominio_factura_a_siniestro",
+      "tags": ["domain_shift", "billing", "claim"],
+      "turns": [
+        {"user": "Me llego una factura con un importe mayor.", "expected_operation": "prepare_billing_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start"},
+        {"user": "En realidad queria consultar por una denuncia de siniestro.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "abandon"}
+      ]
+    },
+    {
+      "id": "RW-010",
+      "title": "Mixed billing and connectivity issue then technical escalation",
+      "source": "historical_roleplay_sprint_76",
+      "tags": ["mixed_needs", "technical_support", "billing", "handoff"],
+      "turns": [
+        {"user": "No tengo internet y encima me vino mal la factura.", "expected_operation": "continue_conversation_plan", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue", "prepare_billing_review"]},
+        {"user": "Dejemos la factura, ahora no tengo internet.", "expected_operation": "diagnose_connectivity_issue", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "switch"},
+        {"user": "Ya reinicie todo y sigue igual.", "expected_operation": "prepare_technical_visit", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"},
+        {"user": "Quiero hablar con una persona.", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "switch"}
+      ]
+    },
+    {
+      "id": "RW-011",
+      "title": "Blocked real operations and close",
+      "source": "historical_roleplay_sprint_76",
+      "tags": ["blocked_capability", "closure"],
+      "turns": [
+        {"user": "Consulta mi expediente.", "expected_operation": "block_real_status_lookup", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "start"},
+        {"user": "Te mando los documentos por aca?", "expected_operation": "block_document_upload", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "switch"},
+        {"user": "Gracias, ya quedo claro.", "expected_operation": "close_case_no_action", "expected_category": "administrative", "expected_outcome": "no_action_required", "expected_transition": "complete"}
+      ]
+    },
+    {
+      "id": "RW-012",
+      "title": "Anxious repair concern expressed indirectly",
+      "source": "benchmarks/conversations/usuario_ansioso_auto_para_trabajar",
+      "tags": ["implicit_concern", "repair_risk", "anxious_user"],
+      "turns": [
+        {"user": "Estoy bastante nervioso, necesito el auto para trabajar y no se si puedo tocarlo antes de que me respondan.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up"]},
+        {"user": "No tengo autorizacion todavia, solo saque fotos.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"}
+      ]
+    },
+    {
+      "id": "RW-013",
+      "title": "Recap after claim progress",
+      "source": "benchmarks/conversations/recapitulacion",
+      "tags": ["recap", "claim_progress"],
+      "turns": [
+        {"user": "Me chocaron y quiero avanzar con la denuncia.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start"},
+        {"user": "No hubo lesionados y soy asegurado.", "expected_operation": "collect_claim_blocker", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "switch"},
+        {"user": "La denuncia ya esta cargada.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "resume"},
+        {"user": "Resumime ese tema.", "expected_operation": "prepare_case_summary", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"}
+      ]
+    },
+    {
+      "id": "RW-014",
+      "title": "Documentation already started",
+      "source": "benchmarks/conversations/documentacion_pendiente",
+      "tags": ["documentation", "incomplete_information"],
+      "turns": [
+        {"user": "Ya hice la denuncia pero no se que documentos me faltan para que avance.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["explain_documentation_requirements"]},
+        {"user": "Tengo fotos y presupuesto, pero no se si cargue la cedula.", "expected_operation": "prepare_documentation_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "switch"}
+      ]
+    },
+    {
+      "id": "RW-015",
+      "title": "CLEAS concept and deepening",
+      "source": "benchmarks/conversations/consulta_cleas",
+      "tags": ["knowledge", "deepening"],
+      "turns": [
+        {"user": "Me nombraron CLEAS en el siniestro, que es?", "expected_operation": "explain_domain_concept", "expected_category": "informative", "expected_outcome": "explained", "expected_transition": "start"},
+        {"user": "Contame mas, porque no se si me conviene.", "expected_operation": "explain_domain_concept", "expected_category": "informative", "expected_outcome": "explained", "expected_transition": "persist"}
+      ]
+    },
+    {
+      "id": "RW-016",
+      "title": "Photos versus repair priority",
+      "source": "benchmarks/conversations/prioridad_fotos_vs_reparacion",
+      "tags": ["mixed_needs", "repair_risk", "documentation"],
+      "turns": [
+        {"user": "No se si mande las fotos... pero lo que mas me preocupa es si puedo arreglar el auto.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review"]}
+      ]
+    },
+    {
+      "id": "RW-017",
+      "title": "Internet outage and wrong bill in one turn",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "billing"],
+      "turns": [
+        {"user": "No tengo internet y ademas la factura vino mal.", "expected_operation": "continue_conversation_plan", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue", "prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-018",
+      "title": "Service failure and bill due tomorrow",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "billing", "urgency"],
+      "turns": [
+        {"user": "No funciona el servicio y vence la factura manana.", "expected_operation": "prepare_billing_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-019",
+      "title": "Repair urgency and coverage question",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "repair_risk", "coverage"],
+      "turns": [
+        {"user": "Necesito el auto para trabajar y ademas quiero saber si cubre la poliza.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-020",
+      "title": "Uploaded photos and no callback",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "documentation", "follow_up"],
+      "turns": [
+        {"user": "Ya cargue las fotos pero todavia nadie me llamo.", "expected_operation": "prepare_documentation_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up"]}
+      ]
+    },
+    {
+      "id": "RW-021",
+      "title": "Rejected document and human owner request",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "documentation", "handoff"],
+      "turns": [
+        {"user": "Me rechazaron un documento y necesito hablar con una persona.", "expected_operation": "request_rejection_detail", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["prepare_handoff"]}
+      ]
+    },
+    {
+      "id": "RW-022",
+      "title": "Blocked status lookup and handoff request",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "blocked_capability", "handoff"],
+      "turns": [
+        {"user": "Consulta mi expediente y si no podes pasame con una persona.", "expected_operation": "block_real_status_lookup", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "start", "expected_secondary_operations": ["prepare_handoff"]}
+      ]
+    },
+    {
+      "id": "RW-023",
+      "title": "Blocked upload and timing question",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "blocked_capability", "timing"],
+      "turns": [
+        {"user": "Te mando los documentos por aca y despues me decis cuanto tarda?", "expected_operation": "block_document_upload", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "start", "expected_secondary_operations": ["explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-024",
+      "title": "Area outage signal and work urgency",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "outage"],
+      "turns": [
+        {"user": "No tengo internet, mis vecinos tampoco y trabajo desde casa.", "expected_operation": "prepare_outage_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-025",
+      "title": "Diagnostics complete and technical visit requested",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "coordination"],
+      "turns": [
+        {"user": "Ya reinicie el modem, sigue igual y quiero que venga un tecnico.", "expected_operation": "prepare_technical_visit", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-026",
+      "title": "High bill and connectivity failure",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "billing", "technical_support", "urgency"],
+      "turns": [
+        {"user": "Me llego una factura de 150000 y vence manana, pero tambien no tengo internet.", "expected_operation": "continue_conversation_plan", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["prepare_billing_review", "diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-027",
+      "title": "Billing suspended and repair risk becomes active",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["priority_shift", "suspended_work", "repair_risk"],
+      "turns": [
+        {"user": "Dejemos la factura, ahora necesito arreglar el auto.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_suspended_operations": ["prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-028",
+      "title": "Summary request while recovering claim work",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["recap", "recovered_work", "claim"],
+      "turns": [
+        {"user": "Resumime rapido y despues volvamos a la denuncia.", "expected_operation": "prepare_case_summary", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_recovered_operations": ["collect_claim_blocker"]}
+      ]
+    },
+    {
+      "id": "RW-029",
+      "title": "Closure plus new technical issue",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "closure", "technical_support"],
+      "turns": [
+        {"user": "Gracias, ya quedo claro, pero ahora no tengo internet.", "expected_operation": "diagnose_connectivity_issue", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_completed_operations": ["close_case_no_action"]}
+      ]
+    },
+    {
+      "id": "RW-030",
+      "title": "No photo request and no contact",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "documentation", "follow_up"],
+      "turns": [
+        {"user": "No me pidieron fotos y todavia nadie me contacto.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review"]}
+      ]
+    },
+    {
+      "id": "RW-031",
+      "title": "Workshop authorization and photo evidence",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "repair_risk", "documentation"],
+      "turns": [
+        {"user": "El taller me pide autorizacion y no se si las fotos quedaron cargadas.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review"]}
+      ]
+    },
+    {
+      "id": "RW-032",
+      "title": "Escalation with claim in progress",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "handoff", "follow_up"],
+      "turns": [
+        {"user": "Quiero hablar con un supervisor porque mi siniestro sigue en tramite.", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up"]}
+      ]
+    },
+    {
+      "id": "RW-033",
+      "title": "Service repair with claim and repair risk",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "service_recovery", "repair_risk", "claim"],
+      "turns": [
+        {"user": "No me estas ayudando, cargue la denuncia y necesito el auto para trabajar.", "expected_operation": "repair_service_interaction", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up", "provide_repair_risk_guidance"]}
+      ]
+    },
+    {
+      "id": "RW-034",
+      "title": "Wrong topic correction with claim documents",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "service_recovery", "documentation", "claim"],
+      "turns": [
+        {"user": "Nunca dije baja, dije denuncia y tengo fotos.", "expected_operation": "repair_service_interaction", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up", "prepare_documentation_review"]}
+      ]
+    },
+    {
+      "id": "RW-035",
+      "title": "Franchise concept and billing amount",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "billing", "knowledge"],
+      "turns": [
+        {"user": "Me hablaron de franquicia y ademas la factura vino con otro monto.", "expected_operation": "prepare_billing_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-036",
+      "title": "CLEAS side question and claim follow-up",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "knowledge", "follow_up"],
+      "turns": [
+        {"user": "Me nombraron CLEAS en el siniestro y nadie me dio novedades.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-037",
+      "title": "Internet, wrong bill and human handoff",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "billing", "handoff"],
+      "turns": [
+        {"user": "No funciona internet, la factura vino mal y quiero hablar con alguien.", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue", "prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-038",
+      "title": "Outage, billing and connectivity mixed",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "billing", "outage"],
+      "turns": [
+        {"user": "No tengo internet, mis vecinos tampoco, y encima me llego la factura.", "expected_operation": "continue_conversation_plan", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue", "prepare_billing_review", "prepare_outage_follow_up"]}
+      ]
+    },
+    {
+      "id": "RW-039",
+      "title": "Billing suspended while connectivity remains",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["suspended_work", "technical_support", "billing"],
+      "turns": [
+        {"user": "No importa la factura, ahora estoy sin internet.", "expected_operation": "diagnose_connectivity_issue", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_suspended_operations": ["prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-040",
+      "title": "Connectivity suspended while billing remains",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["suspended_work", "technical_support", "billing"],
+      "turns": [
+        {"user": "Olvidate de internet, ahora quiero resolver la factura que vino mal.", "expected_operation": "prepare_billing_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_suspended_operations": ["diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-041",
+      "title": "Repair question and photo uncertainty",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "repair_risk", "documentation"],
+      "turns": [
+        {"user": "Puedo reparar el auto si no estoy seguro de haber mandado las fotos?", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review"]}
+      ]
+    },
+    {
+      "id": "RW-042",
+      "title": "Claim follow-up with document upload request",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "claim", "blocked_capability"],
+      "turns": [
+        {"user": "Nadie me escribio por la denuncia y quiero subir documentos por aca.", "expected_operation": "block_document_upload", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up"]}
+      ]
+    },
+    {
+      "id": "RW-043",
+      "title": "Claim status lookup with repair concern",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "blocked_capability", "repair_risk"],
+      "turns": [
+        {"user": "Ver mi expediente y decime si puedo reparar el auto.", "expected_operation": "block_real_status_lookup", "expected_category": "protective", "expected_outcome": "blocked", "expected_transition": "start", "expected_secondary_operations": ["provide_repair_risk_guidance"]}
+      ]
+    },
+    {
+      "id": "RW-044",
+      "title": "Unsafe modem action and connectivity issue",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "safety"],
+      "turns": [
+        {"user": "No tengo internet y estaba por abrir el modem para ver si arreglo algo.", "expected_operation": "prevent_unsafe_technical_action", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-045",
+      "title": "Technical visit and area outage clue",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "outage", "coordination"],
+      "turns": [
+        {"user": "Quiero una visita tecnica porque el modem no anda y en el barrio todos estan igual.", "expected_operation": "prepare_outage_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_technical_visit", "diagnose_connectivity_issue"]}
+      ]
+    },
+    {
+      "id": "RW-046",
+      "title": "Billing specific charge and handoff",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "billing", "handoff"],
+      "turns": [
+        {"user": "Por que me cobraron esto y puedo hablar con un representante?", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "start", "expected_secondary_operations": ["request_billing_line_item"]}
+      ]
+    },
+    {
+      "id": "RW-047",
+      "title": "Documentation requirements and claim progress",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "documentation", "follow_up"],
+      "turns": [
+        {"user": "Que documentos me faltan para que la denuncia avance?", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["explain_documentation_requirements"]}
+      ]
+    },
+    {
+      "id": "RW-048",
+      "title": "Franchise and repair authorization",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "knowledge", "repair_risk"],
+      "turns": [
+        {"user": "No entiendo la franquicia y tampoco se si puedo mandar el auto al taller.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-049",
+      "title": "Human escalation and blocked status check",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "handoff", "blocked_capability"],
+      "turns": [
+        {"user": "Quiero que una persona revise mi expediente ahora.", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "start", "expected_secondary_operations": ["block_real_status_lookup"]}
+      ]
+    },
+    {
+      "id": "RW-050",
+      "title": "Topic returns from billing to internet",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["recovered_work", "technical_support", "billing"],
+      "turns": [
+        {"user": "La factura la vemos despues; volvamos a internet porque sigue sin funcionar.", "expected_operation": "diagnose_connectivity_issue", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_suspended_operations": ["prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-051",
+      "title": "Claim was completed but documentation question remains",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["completed_work", "documentation", "claim"],
+      "turns": [
+        {"user": "Listo, la denuncia ya quedo cargada, pero no se si faltan documentos.", "expected_operation": "prepare_documentation_review", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_completed_operations": ["close_case_no_action"]}
+      ]
+    },
+    {
+      "id": "RW-052",
+      "title": "Multiple claim needs with explicit coverage question",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "coverage", "claim", "documentation"],
+      "turns": [
+        {"user": "Cargue la denuncia, tengo presupuesto y quiero saber si cubre cristales.", "expected_operation": "prepare_claim_follow_up", "expected_category": "preparatory", "expected_outcome": "prepared", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review", "explain_domain_concept"]}
+      ]
+    },
+    {
+      "id": "RW-053",
+      "title": "Connectivity, billing and callback after failed support",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "technical_support", "billing", "handoff"],
+      "turns": [
+        {"user": "Sin internet desde ayer, la factura vence hoy y necesito que me llamen.", "expected_operation": "prepare_handoff", "expected_category": "escalation", "expected_outcome": "delegated", "expected_transition": "start", "expected_secondary_operations": ["diagnose_connectivity_issue", "prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-054",
+      "title": "Billing amount and service outage with abandoned billing",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["priority_shift", "suspended_work", "billing", "technical_support"],
+      "turns": [
+        {"user": "La factura vino en 11000, pero olvidate de la factura porque el modem no funciona.", "expected_operation": "diagnose_connectivity_issue", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_suspended_operations": ["prepare_billing_review"]}
+      ]
+    },
+    {
+      "id": "RW-055",
+      "title": "Claim follow-up, rejected document and human handoff",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "documentation", "claim", "handoff"],
+      "turns": [
+        {"user": "Mi siniestro sigue en tramite, me rechazaron un documento y quiero hablar con alguien.", "expected_operation": "request_rejection_detail", "expected_category": "administrative", "expected_outcome": "waiting_for_user", "expected_transition": "start", "expected_secondary_operations": ["prepare_claim_follow_up", "prepare_handoff"]}
+      ]
+    },
+    {
+      "id": "RW-056",
+      "title": "Repair urgency, timing and documentation in one message",
+      "source": "sprint_77_mixed_need_roleplay",
+      "tags": ["mixed_needs", "repair_risk", "timing", "documentation"],
+      "turns": [
+        {"user": "Necesito arreglar el auto, tengo las fotos y quiero saber cuanto demora normalmente.", "expected_operation": "provide_repair_risk_guidance", "expected_category": "protective", "expected_outcome": "unsafe_operation", "expected_transition": "start", "expected_secondary_operations": ["prepare_documentation_review", "explain_domain_concept"]}
+      ]
+    }
+  ]
+}

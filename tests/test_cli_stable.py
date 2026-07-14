@@ -40,3 +40,101 @@ def test_cli_stable_session_replay_command(tmp_path: Path):
 
     assert saved["status"] == "written"
     assert replayed["response"]
+
+
+def test_cli_operational_benchmark_command():
+    result = json.loads(
+        _run(
+            "operational-benchmark",
+            "--scenario",
+            "OB-004",
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_work_benchmark_result.v1"
+    assert result["scenario_count"] == 1
+    assert result["quality"]["correct_operation_selection_percentage"] == 100.0
+
+
+def test_cli_operational_real_world_benchmark_command():
+    result = json.loads(
+        _run(
+            "operational-real-world-benchmark",
+            "--conversation",
+            "RW-010",
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_real_world_benchmark_result.v1"
+    assert result["conversation_count"] == 1
+    assert "multi_work_detection_percentage" in result["quality"]
+
+
+def test_cli_operational_governance_benchmark_command():
+    result = json.loads(
+        _run(
+            "operational-governance-benchmark",
+            "--scenario",
+            "GOV-004",
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_governance_benchmark_result.v1"
+    assert result["scenario_count"] == 1
+    assert result["quality"]["governance_accuracy_percentage"] == 100.0
+
+
+def test_cli_operational_audit_ledger_benchmark_command():
+    result = json.loads(
+        _run(
+            "operational-audit-ledger-benchmark",
+            "--scenario",
+            "LEDGER-004",
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_audit_ledger_benchmark_result.v1"
+    assert result["scenario_count"] == 1
+    assert result["quality"]["ledger_accuracy_percentage"] == 100.0
+
+
+def test_cli_operational_dry_run_benchmark_command():
+    result = json.loads(
+        _run(
+            "operational-dry-run-benchmark",
+            "--scenario",
+            "DRY-001",
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_dry_run_benchmark_result.v1"
+    assert result["scenario_count"] == 1
+    assert result["quality"]["end_to_end_success_percentage"] == 100.0
+
+
+def test_cli_operational_production_benchmark_command(tmp_path: Path):
+    result = json.loads(
+        _run(
+            "operational-production-benchmark",
+            "--scenario",
+            "PROD-001",
+            "--storage-root",
+            str(tmp_path),
+            "--format",
+            "json",
+        ).stdout
+    )
+
+    assert result["contract"] == "operational_production_benchmark_result.v1"
+    assert result["scenario_count"] == 1
+    assert result["quality"]["production_success_percentage"] == 100.0

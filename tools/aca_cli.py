@@ -16,7 +16,19 @@ for path in [ROOT, KERNEL_PATH]:
 from aca_os.dx import inspect_runtime, print_json, read_project_version, run_doctor, run_pytest
 from aca_os.evaluation import (
     render_cognitive_benchmark_report,
+    render_operational_audit_ledger_benchmark_report,
+    render_operational_dry_run_benchmark_report,
+    render_operational_governance_benchmark_report,
+    render_operational_production_benchmark_report,
+    render_operational_real_world_benchmark_report,
+    render_operational_work_benchmark_report,
     run_cognitive_conversation_benchmark,
+    run_operational_audit_ledger_benchmark,
+    run_operational_dry_run_benchmark,
+    run_operational_governance_benchmark,
+    run_operational_production_benchmark,
+    run_operational_real_world_benchmark,
+    run_operational_work_benchmark,
 )
 from aca_os.runtime_cli import RuntimeCLI
 
@@ -176,6 +188,103 @@ def _handle_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_operational_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_work_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_work_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
+def _handle_operational_real_world_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_real_world_benchmark(
+        path=args.input,
+        conversation_ids=args.conversation or None,
+        max_conversations=args.max_conversations,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_real_world_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
+def _handle_operational_governance_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_governance_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_governance_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
+def _handle_operational_audit_ledger_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_audit_ledger_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_audit_ledger_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
+def _handle_operational_dry_run_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_dry_run_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_dry_run_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
+def _handle_operational_production_benchmark(args: argparse.Namespace) -> int:
+    result = run_operational_production_benchmark(
+        path=args.input,
+        scenario_ids=args.scenario or None,
+        max_scenarios=args.max_scenarios,
+        storage_root=args.storage_root,
+    )
+    if args.format == "markdown":
+        _write_or_print(render_operational_production_benchmark_report(result), output=args.output)
+        return 0
+    if args.format == "json":
+        _write_or_print(json.dumps(result, ensure_ascii=False, indent=2), output=args.output)
+        return 0
+    _write_or_print(result, output=args.output)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ACA Runtime CLI")
     subparsers = parser.add_subparsers(dest="command")
@@ -278,6 +387,103 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--output", default=None, help="Optional report output path.")
     _format_arg(benchmark_parser, values=("dict", "json", "markdown"), default="dict")
     benchmark_parser.set_defaults(handler=_handle_benchmark)
+
+    operational_benchmark_parser = subparsers.add_parser(
+        "operational-benchmark",
+        help="Run the operational work shadow benchmark against the real Runtime.",
+    )
+    operational_benchmark_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_benchmark_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    operational_benchmark_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    operational_benchmark_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_benchmark_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_benchmark_parser.set_defaults(handler=_handle_operational_benchmark)
+
+    operational_real_world_parser = subparsers.add_parser(
+        "operational-real-world-benchmark",
+        help="Run the operational work mapper against real-world multi-turn conversations.",
+    )
+    operational_real_world_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_real_world_parser.add_argument(
+        "--conversation",
+        action="append",
+        default=[],
+        help="Conversation id to run. Can be provided multiple times.",
+    )
+    operational_real_world_parser.add_argument("--max-conversations", type=int, default=None, help="Run only the first N conversations.")
+    operational_real_world_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_real_world_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_real_world_parser.set_defaults(handler=_handle_operational_real_world_benchmark)
+
+    operational_governance_parser = subparsers.add_parser(
+        "operational-governance-benchmark",
+        help="Run the operational governance gate shadow benchmark.",
+    )
+    operational_governance_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_governance_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    operational_governance_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    operational_governance_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_governance_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_governance_parser.set_defaults(handler=_handle_operational_governance_benchmark)
+
+    operational_audit_ledger_parser = subparsers.add_parser(
+        "operational-audit-ledger-benchmark",
+        help="Run the operational audit ledger shadow benchmark.",
+    )
+    operational_audit_ledger_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_audit_ledger_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    operational_audit_ledger_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    operational_audit_ledger_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_audit_ledger_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_audit_ledger_parser.set_defaults(handler=_handle_operational_audit_ledger_benchmark)
+
+    operational_dry_run_parser = subparsers.add_parser(
+        "operational-dry-run-benchmark",
+        help="Run the first operational tool integration benchmark in dry-run mode.",
+    )
+    operational_dry_run_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_dry_run_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    operational_dry_run_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    operational_dry_run_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_dry_run_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_dry_run_parser.set_defaults(handler=_handle_operational_dry_run_benchmark)
+
+    operational_production_parser = subparsers.add_parser(
+        "operational-production-benchmark",
+        help="Run the first real operational tool production benchmark.",
+    )
+    operational_production_parser.add_argument("--input", default=None, help="Optional benchmark JSON path.")
+    operational_production_parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario id to run. Can be provided multiple times.",
+    )
+    operational_production_parser.add_argument("--max-scenarios", type=int, default=None, help="Run only the first N scenarios.")
+    operational_production_parser.add_argument("--storage-root", default=None, help="Optional durable benchmark storage root.")
+    operational_production_parser.add_argument("--output", default=None, help="Optional report output path.")
+    _format_arg(operational_production_parser, values=("dict", "json", "markdown"), default="dict")
+    operational_production_parser.set_defaults(handler=_handle_operational_production_benchmark)
 
     _message_args(parser, required=False)
     parser.add_argument("--events", action="store_true", help="Include internal runtime events.")

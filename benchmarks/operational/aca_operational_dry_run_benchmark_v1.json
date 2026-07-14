@@ -1,0 +1,345 @@
+{
+  "benchmark": "aca_operational_dry_run_benchmark.v1",
+  "description": "Validates the first real operational tool integration in dry-run mode over realistic handoff preparation scenarios.",
+  "domain": "operational_integration",
+  "operation": "prepare_handoff",
+  "tool": "handoff_package",
+  "scenarios": [
+    {
+      "id": "DRY-001",
+      "type": "claim_handoff",
+      "context": "A claim is delayed and the customer asks for a person.",
+      "turns": [
+        {"user": "Cargue una denuncia por choque hace una semana y quiero hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-002",
+      "type": "claim_handoff",
+      "context": "The customer needs escalation because nobody contacted them.",
+      "turns": [
+        {"user": "Nadie me escribio por el siniestro y necesito que me llame un representante."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-003",
+      "type": "documentation_handoff",
+      "context": "Document rejection with a request for a human owner.",
+      "turns": [
+        {"user": "Me rechazaron las fotos y quiero hablar con alguien para que lo revise."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-004",
+      "type": "repair_handoff",
+      "context": "Repair concern plus explicit handoff request.",
+      "turns": [
+        {"user": "Necesito arreglar el auto para trabajar y quiero que una persona revise mi caso."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-005",
+      "type": "status_handoff",
+      "context": "Claim status uncertainty and request for representative.",
+      "turns": [
+        {"user": "Mi denuncia sigue en tramite y quiero hablar con un representante."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-006",
+      "type": "billing_handoff",
+      "context": "Billing review request with handoff.",
+      "turns": [
+        {"user": "La factura vino mal y quiero hablar con un representante."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-007",
+      "type": "technical_handoff",
+      "context": "Technical service issue and callback need.",
+      "turns": [
+        {"user": "No tengo internet desde ayer y necesito que me llamen."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-008",
+      "type": "mixed_need_handoff",
+      "context": "Two simultaneous problems with a human request.",
+      "turns": [
+        {"user": "No tengo internet y ademas la factura vino mal, quiero hablar con alguien."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-009",
+      "type": "claim_handoff_multiturn",
+      "context": "Claim guidance followed by handoff request.",
+      "turns": [
+        {"user": "Me chocaron y cargue la denuncia desde la app."},
+        {"user": "Ahora quiero hablar con una persona porque sigue todo igual."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-010",
+      "type": "documentation_handoff_multiturn",
+      "context": "Documentation issue followed by request for a representative.",
+      "turns": [
+        {"user": "Ya subi toda la documentacion pero aparece pendiente."},
+        {"user": "Necesito que un representante lo mire."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-011",
+      "type": "status_handoff_multiturn",
+      "context": "Follow-up concern with direct escalation.",
+      "turns": [
+        {"user": "Cargue el siniestro hace diez dias."},
+        {"user": "Quiero hablar con un representante ahora por ese siniestro."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-012",
+      "type": "angry_user_handoff",
+      "context": "Frustrated customer requests supervisor.",
+      "turns": [
+        {"user": "Estoy cansado de esperar, quiero hablar con un supervisor por mi denuncia."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-013",
+      "type": "billing_angry_handoff",
+      "context": "Billing frustration with supervisor request.",
+      "turns": [
+        {"user": "Me cobraron cualquier cosa y quiero hablar con un supervisor."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-014",
+      "type": "callback_handoff",
+      "context": "Customer requests a callback about a claim.",
+      "turns": [
+        {"user": "Quiero que me llamen por la denuncia porque no entiendo que falta."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-015",
+      "type": "callback_handoff",
+      "context": "Customer requests a callback about a billing problem.",
+      "turns": [
+        {"user": "Necesito que me llamen por la factura que vence manana."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-016",
+      "type": "cleas_handoff",
+      "context": "CLEAS explanation request with human owner.",
+      "turns": [
+        {"user": "Me hablaron de CLEAS pero quiero que una persona me explique mi caso."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-017",
+      "type": "franchise_handoff",
+      "context": "Franchise question and representative request.",
+      "turns": [
+        {"user": "No entiendo la franquicia y quiero hablar con un representante."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-018",
+      "type": "coverage_handoff",
+      "context": "Coverage concern and explicit human review.",
+      "turns": [
+        {"user": "No se si la poliza cubre el arreglo y quiero que una persona lo revise."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-019",
+      "type": "technical_visit_handoff",
+      "context": "Visit need plus human request.",
+      "turns": [
+        {"user": "Sigo sin internet, necesito una visita y quiero hablar con alguien."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-020",
+      "type": "mixed_claim_billing_handoff",
+      "context": "Claim and billing are mixed with escalation.",
+      "turns": [
+        {"user": "Tengo el siniestro trabado y tambien una factura rara, pasame con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-021",
+      "type": "handoff_after_correction",
+      "context": "The user corrects the domain and asks for a human.",
+      "turns": [
+        {"user": "Creo que era por baja."},
+        {"user": "No, era siniestro, quiero hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-022",
+      "type": "handoff_after_partial_answer",
+      "context": "The user answers a pending question and then asks for escalation.",
+      "turns": [
+        {"user": "Necesito la denuncia por choque."},
+        {"user": "No hubo lesionados y quiero hablar con una persona ahora."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-023",
+      "type": "handoff_after_complete_docs",
+      "context": "All documentation is complete but the user wants a representative.",
+      "turns": [
+        {"user": "Ya tengo toda la documentacion y quiero que un representante revise el caso."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-024",
+      "type": "handoff_due_to_delay",
+      "context": "Long delay with human request.",
+      "turns": [
+        {"user": "Hace dos semanas que la denuncia no avanza, quiero hablar con alguien."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-025",
+      "type": "handoff_due_to_uncertainty",
+      "context": "Customer does not know what is missing and asks for a person.",
+      "turns": [
+        {"user": "No se que falta para que avance el tramite, necesito hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-026",
+      "type": "handoff_due_to_repeated_questions",
+      "context": "Customer complains about repeated questions and asks for a representative.",
+      "turns": [
+        {"user": "Ya respondi eso varias veces y quiero hablar con un representante."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-027",
+      "type": "handoff_after_side_question",
+      "context": "Side question then request to speak with a person.",
+      "turns": [
+        {"user": "Cuanto suele tardar una denuncia?"},
+        {"user": "Igual quiero hablar con una persona por mi caso."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-028",
+      "type": "handoff_mixed_repair_status",
+      "context": "Repair need and status delay with human request.",
+      "turns": [
+        {"user": "Necesito el auto para trabajar, la denuncia no avanza y quiero hablar con alguien."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-029",
+      "type": "handoff_with_documentation_and_callback",
+      "context": "Documentation was uploaded and the user wants a call.",
+      "turns": [
+        {"user": "Subi las fotos y la denuncia, pero necesito que me llamen."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    },
+    {
+      "id": "DRY-030",
+      "type": "handoff_customer_effort",
+      "context": "The customer wants a person after repeated effort.",
+      "turns": [
+        {"user": "Ya mande todo por la app y no quiero seguir dando vueltas, quiero hablar con una persona."}
+      ],
+      "expected_operation": "prepare_handoff",
+      "expected_tool": "handoff_package",
+      "expected_receipt_status": "dry_run_completed"
+    }
+  ]
+}
