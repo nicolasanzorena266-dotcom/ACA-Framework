@@ -583,8 +583,31 @@ class ConversationState:
     def recognize_conversational_act(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
         return recognize_conversational_act(self, message)
 
-    def apply_conversational_goal(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
-        return apply_conversational_goal(self, message)
+    def project_conversational_goal(
+        self,
+        *,
+        source: str,
+        goal_projection: Mapping[str, Any] | None = None,
+        projection_metadata: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return project_conversational_goal(
+            self,
+            source=source,
+            goal_projection=goal_projection,
+            projection_metadata=projection_metadata,
+        )
+
+    def apply_conversational_goal(
+        self,
+        goal: Mapping[str, Any],
+        *,
+        authority_decision: Mapping[str, Any] | None = None,
+    ) -> tuple["ConversationState", Dict[str, Any]]:
+        return apply_conversational_goal(
+            self,
+            goal,
+            authority_decision=authority_decision,
+        )
 
     def update_topic_stack(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
         return update_topic_stack(self, message)
@@ -1302,40 +1325,98 @@ def plan_conversation(
     )
 
 
-def apply_conversational_goal(
+def project_conversational_goal(
     conversation_state: ConversationState,
-    message: Any,
-) -> tuple[ConversationState, Dict[str, Any]]:
+    *,
+    source: str,
+    goal_projection: Mapping[str, Any] | None = None,
+    projection_metadata: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
     act = dict(conversation_state.last_conversational_act or {})
     if not act:
+        return {}
+    return _conversational_goal_for_act(
+        conversation_state,
+        act,
+        source=source,
+        goal_projection=goal_projection,
+        projection_metadata=projection_metadata,
+    )
+
+
+def apply_conversational_goal(
+    conversation_state: ConversationState,
+    goal: Mapping[str, Any],
+    *,
+    authority_decision: Mapping[str, Any] | None = None,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    selected_goal = deepcopy(dict(goal or {}))
+    if not selected_goal:
         return conversation_state, {}
-    goal = _conversational_goal_for_act(conversation_state, message, act)
     derived_state = deepcopy(conversation_state.derived_state)
     derived_state["conversation_goal"] = {
         "contract": "conversation_goal_trace.v1",
         "component": "conversation_state",
-        "goal": deepcopy(goal),
-        "fulfillment": deepcopy(goal.get("fulfillment") or {}),
+        "goal": deepcopy(selected_goal),
+        "fulfillment": deepcopy(selected_goal.get("fulfillment") or {}),
+        "authority": deepcopy(dict(authority_decision or {})),
     }
     topic_stack = _topic_stack_with_conversational_goal(
         conversation_state.topic_stack,
-        goal=goal,
+        goal=selected_goal,
         derived_state=derived_state,
         turn=conversation_state.turn_count,
     )
+    projection_source = "conversation_state.conversational_goal"
+    if (authority_decision or {}).get("authority_selected") == "semantic":
+        projection_source = "semantic_projection.conversational_goal"
     return (
         replace(
             conversation_state,
             topic_stack=topic_stack,
-            conversational_strategy=deepcopy(goal.get("strategy") or {}),
+            conversational_strategy=deepcopy(selected_goal.get("strategy") or {}),
             derived_state=derived_state,
             projection_sources=_append_unique(
                 conversation_state.projection_sources,
-                "conversation_state.conversational_goal",
+                projection_source,
             ),
         ),
-        goal,
+        selected_goal,
     )
+
+
+def conversational_goal_state_effect(
+    conversation_state: ConversationState,
+) -> Dict[str, Any]:
+    trace = dict(conversation_state.derived_state.get("conversation_goal") or {})
+    goal = dict(trace.get("goal") or {})
+    decision_fields = {
+        key: deepcopy(goal.get(key))
+        for key in (
+            "contract",
+            "originating_act",
+            "act",
+            "intention",
+            "strategy",
+            "success_criteria",
+            "abandonment_criteria",
+            "priority",
+            "mission_impact",
+            "fulfillment",
+            "component",
+            "turn",
+        )
+    }
+    topic_goals = [
+        deepcopy(dict(topic.get("conversational_goal") or {}))
+        for topic in conversation_state.topic_stack
+        if isinstance(topic, Mapping) and topic.get("conversational_goal")
+    ]
+    return {
+        "goal": decision_fields,
+        "conversational_strategy": deepcopy(conversation_state.conversational_strategy),
+        "topic_goals": topic_goals,
+    }
 
 
 def plan_conversational_response(
@@ -4115,11 +4196,16 @@ def _act_suppresses_slot_resolution(conversational_act: Mapping[str, Any]) -> bo
 
 def _conversational_goal_for_act(
     conversation_state: ConversationState,
-    message: Any,
     act: Mapping[str, Any],
+    *,
+    source: str,
+    goal_projection: Mapping[str, Any] | None = None,
+    projection_metadata: Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
     act_name = str(act.get("act") or ConversationalActType.UNKNOWN)
     strategy_name = _strategy_for_act(conversation_state, act)
+    projected_goal = deepcopy(dict((goal_projection or {}).get("primary_goal") or {}))
+    metadata = deepcopy(dict(projection_metadata or {}))
     return {
         "contract": "conversational_goal.v1",
         "originating_act": deepcopy(dict(act)),
@@ -4135,7 +4221,10 @@ def _conversational_goal_for_act(
         "priority": _goal_priority_for(strategy_name),
         "mission_impact": _mission_impact_for(conversation_state, strategy_name),
         "evidence": {
-            "message": str(message),
+            "source": str(source),
+            "semantic_goal": projected_goal,
+            "semantic_projection_id": metadata.get("projection_id"),
+            "semantic_representation_id": metadata.get("representation_id"),
             "act_confidence": act.get("confidence"),
             "active_mission": deepcopy(conversation_state.active_mission),
             "confirmed_facts": _active_fact_values(conversation_state.confirmed_facts),

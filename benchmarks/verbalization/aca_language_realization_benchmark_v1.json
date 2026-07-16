@@ -1,0 +1,121 @@
+{
+  "benchmark": "aca_language_realization_benchmark.v1",
+  "description": "Language realization quality over Runtime-authorized content without cognitive changes.",
+  "scenarios": [
+    {
+      "id": "realiza_prioridad_sin_repeticion",
+      "user_message": "Hola",
+      "deterministic_response": "Que necesitas resolver primero? Asi puedo responder primero la preocupacion mas importante.",
+      "verbalized_response": "Hola. Que necesitas resolver? Empecemos por lo que mas te preocupa.",
+      "semantic_requirements": [["necesitas resolver", "te preocupa"], ["empecemos", "empezamos"]],
+      "bureaucratic_phrases": ["responder primero la preocupacion mas importante"],
+      "expects_repetition_reduction": true,
+      "brief": {
+        "pending_information": [{"slot": "user_need", "question": "Que necesitas resolver primero?", "purpose": "comprender la necesidad principal"}]
+      }
+    },
+    {
+      "id": "realiza_pregunta_documentacion",
+      "user_message": "Ya mande algunas cosas.",
+      "deterministic_response": "Tenes toda la documentacion?",
+      "verbalized_response": "Antes de seguir, ya tenes toda la documentacion que te pidieron?",
+      "semantic_requirements": [["documentacion"], ["tenes", "ya contas"]],
+      "bureaucratic_phrases": [],
+      "brief": {
+        "pending_information": [{"slot": "documentation", "question": "Tenes toda la documentacion?", "purpose": "verificar si se puede continuar"}]
+      }
+    },
+    {
+      "id": "realiza_limite_de_acceso",
+      "user_message": "Podes decirme como esta?",
+      "deterministic_response": "No tengo acceso al expediente.",
+      "verbalized_response": "Desde aca no puedo consultar el expediente, pero si puedo orientarte con los pasos disponibles.",
+      "semantic_requirements": [["no puedo", "no tengo acceso"], ["expediente"]],
+      "bureaucratic_phrases": [],
+      "brief": {
+        "response_directives": {"next_action": {"type": "explain", "label": "orientar sobre los pasos disponibles"}}
+      }
+    },
+    {
+      "id": "realiza_demora_denuncia",
+      "user_message": "Hace una semana que sigue en tramite.",
+      "deterministic_response": "Si ya paso una semana y la denuncia sigue en tramite, corresponde revisar la demora. Alguien te contacto?",
+      "verbalized_response": "Entiendo. Como la denuncia sigue en tramite despues de una semana, conviene revisar que esta demorando el avance. Llego a contactarte alguien?",
+      "semantic_requirements": [["denuncia"], ["semana"], ["contactarte", "contacto"]],
+      "bureaucratic_phrases": ["corresponde revisar la demora"],
+      "brief": {
+        "confirmed_facts": {"claim_report_loaded": true},
+        "case_state": {"case_stage": "claim_submitted", "blockers": ["status_unknown"]},
+        "pending_information": [{"slot": "contact_received", "question": "Alguien te contacto?", "purpose": "saber si hubo seguimiento"}]
+      }
+    },
+    {
+      "id": "realiza_reparacion_por_repeticion",
+      "user_message": "Ya te lo dije.",
+      "deterministic_response": "Tenes razon, ya tengo ese dato. Veamos entonces como seguimos con el estado de la denuncia.",
+      "verbalized_response": "Tenes razon, ese dato ya estaba registrado. Sigamos con el estado de la denuncia.",
+      "semantic_requirements": [["tenes razon"], ["dato"], ["denuncia"]],
+      "bureaucratic_phrases": ["veamos entonces como seguimos"],
+      "brief": {
+        "confirmed_facts": {"injuries": false}
+      }
+    },
+    {
+      "id": "realiza_siguiente_dato_pendiente",
+      "user_message": "No hubo lesionados.",
+      "deterministic_response": "No hubo lesionados. Todavia necesito saber si sos asegurado o tercero.",
+      "verbalized_response": "Perfecto, queda confirmado que no hubo lesionados. Para continuar, sos asegurado o tercero?",
+      "semantic_requirements": [["no hubo lesionados"], ["asegurado"], ["tercero"]],
+      "bureaucratic_phrases": ["todavia necesito saber"],
+      "brief": {
+        "confirmed_facts": {"injuries": false},
+        "pending_information": [{"slot": "user_role", "question": "Sos asegurado o tercero?", "purpose": "seguir el circuito correcto"}]
+      }
+    },
+    {
+      "id": "realiza_consulta_lateral_y_retorno",
+      "user_message": "Y cuanto tarda normalmente?",
+      "deterministic_response": "El plazo habitual depende de la revision. Respecto de la denuncia, falta confirmar si enviaron las fotos.",
+      "verbalized_response": "El tiempo puede variar segun la revision. Sobre tu denuncia, todavia falta confirmar si ya enviaron las fotos.",
+      "semantic_requirements": [["revision"], ["denuncia"], ["fotos"]],
+      "bureaucratic_phrases": ["respecto de la denuncia"],
+      "brief": {
+        "pending_information": [{"slot": "photos_sent", "question": "Enviaron las fotos?", "purpose": "confirmar la documentacion"}]
+      }
+    },
+    {
+      "id": "realiza_handoff_sin_promesa",
+      "user_message": "Quiero hablar con una persona.",
+      "deterministic_response": "Puedo preparar la derivacion, pero todavia no fue enviada.",
+      "verbalized_response": "Puedo dejar preparada la derivacion; por ahora, todavia no fue enviada.",
+      "semantic_requirements": [["derivacion"], ["no fue enviada", "todavia no"]],
+      "bureaucratic_phrases": [],
+      "brief": {
+        "selected_operation": {"action": "prepare_handoff", "status": "not_executed"},
+        "governance": {"execution_allowed": false, "requires_confirmation": true}
+      }
+    },
+    {
+      "id": "realiza_diagnostico_servicio",
+      "user_message": "No tengo internet.",
+      "deterministic_response": "Primero necesitamos revisar el estado del servicio. El servicio esta caido solo en tu domicilio?",
+      "verbalized_response": "Empecemos revisando el estado del servicio. El problema ocurre solamente en tu domicilio?",
+      "semantic_requirements": [["servicio"], ["domicilio"]],
+      "bureaucratic_phrases": ["primero necesitamos revisar"],
+      "brief": {
+        "pending_information": [{"slot": "outage_scope", "question": "El servicio esta caido solo en tu domicilio?", "purpose": "distinguir una falla individual de una general"}]
+      }
+    },
+    {
+      "id": "realiza_plazo_sin_cambiar_numero",
+      "user_message": "Ya espere bastante.",
+      "deterministic_response": "Ya pasaron 7 dias. Corresponde revisar si existe alguna observacion pendiente.",
+      "verbalized_response": "Como ya pasaron 7 dias, conviene verificar si quedo alguna observacion pendiente.",
+      "semantic_requirements": [["7 dias"], ["observacion"]],
+      "bureaucratic_phrases": ["corresponde revisar"],
+      "brief": {
+        "confirmed_facts": {"elapsed_days": 7}
+      }
+    }
+  ]
+}

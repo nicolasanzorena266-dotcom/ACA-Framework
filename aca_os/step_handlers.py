@@ -9,8 +9,22 @@ from aca_kernel.core.events import Event
 from aca_kernel.core.kernel import ACAKernel
 from aca_kernel.core.state import CognitiveState
 from aca_os.context_manager import ContextManager
+from aca_os.conversation_objective import (
+    CONVERSATION_FIRST_MODE,
+    LEGACY_RESPONSE_MODE,
+    ConversationObjectiveProjector,
+    ConversationalFirstConfig,
+    ObjectiveDeterministicRealizer,
+    conversation_context_summary,
+    semantic_context_summary,
+)
 from aca_os.conversation_state import ConversationState
 from aca_os.execution_trace import monotonic_ms, utc_now_iso
+from aca_os.llm_verbalization import (
+    LLMVerbalizer,
+    VerbalizationBrief,
+    build_default_llm_verbalizer,
+)
 from aca_os.memory_engine import MemoryEngine
 from aca_os.mission_manager import MissionManager
 from aca_os.narrative_response_composer import NarrativeResponseComposer
@@ -84,6 +98,9 @@ class StepHandlerRegistry:
 
     def registered_steps(self) -> list[str]:
         return sorted(self._handlers)
+
+    def all(self) -> Dict[str, StepHandler]:
+        return dict(self._handlers)
 
 
 class PolicyStepHandler:
@@ -299,6 +316,21 @@ class ContextStepHandler:
 class OutputStepHandler:
     step_name = "output"
 
+    def __init__(
+        self,
+        *,
+        llm_verbalizer: LLMVerbalizer | None = None,
+        conversational_first_config: ConversationalFirstConfig | None = None,
+        objective_projector: ConversationObjectiveProjector | None = None,
+        objective_realizer: ObjectiveDeterministicRealizer | None = None,
+    ) -> None:
+        self.llm_verbalizer = llm_verbalizer or build_default_llm_verbalizer()
+        self.conversational_first_config = (
+            conversational_first_config or ConversationalFirstConfig.from_env()
+        )
+        self.objective_projector = objective_projector or ConversationObjectiveProjector()
+        self.objective_realizer = objective_realizer or ObjectiveDeterministicRealizer()
+
     def execute(self, context: StepExecutionContext) -> StepExecutionResult:
         started_at = utc_now_iso()
         started_perf = perf_counter()
@@ -310,9 +342,108 @@ class OutputStepHandler:
         state = context.state
         if narrative.changed:
             state = context.state.evolve("NARRATIVE_RESPONSE_COMPOSE", response=narrative.response)
+        legacy_state = state
+        authority_mode = LEGACY_RESPONSE_MODE
+        authority_reason = "conversational_first_disabled"
+        rollback_reason = None
+        objective_record: Dict[str, Any] = {}
+
+        if self.conversational_first_config.enabled:
+            try:
+                semantic_representation = context.runtime_context.get("semantic_representation")
+                semantic_projection = context.runtime_context.get("semantic_projection")
+                objective = self.objective_projector.project(
+                    state=context.state,
+                    execution_plan=context.execution_plan,
+                    conversation_state=context.conversation_state,
+                    semantic_representation=semantic_representation,
+                    semantic_projection=semantic_projection,
+                )
+                if not objective.valid:
+                    raise ValueError("invalid_conversation_objective")
+                deterministic_response = self.objective_realizer.realize(objective)
+                objective_record = {
+                    "contract": "conversation_objective_trace.v1",
+                    "objective": objective.to_dict(),
+                    "projection_hash": objective.projection_hash,
+                    "authority_mode": CONVERSATION_FIRST_MODE,
+                    "legacy_response": narrative.response,
+                    "deterministic_fallback": deterministic_response,
+                    "rollback_reason": None,
+                }
+                facts = dict(context.state.facts)
+                facts["conversation_objective"] = objective_record
+                state = context.state.evolve(
+                    "CONVERSATION_OBJECTIVE",
+                    facts=facts,
+                    response=deterministic_response,
+                )
+                brief = VerbalizationBrief.from_runtime(
+                    deterministic_response=deterministic_response,
+                    state=state,
+                    event=context.event,
+                    execution_plan=context.execution_plan,
+                    conversation_state=context.conversation_state,
+                    config=self.llm_verbalizer.config,
+                    authority_mode=CONVERSATION_FIRST_MODE,
+                    conversation_objective=objective.to_dict(),
+                    semantic_context=semantic_context_summary(
+                        semantic_representation,
+                        semantic_projection,
+                    ),
+                    conversation_context=conversation_context_summary(
+                        context.conversation_state
+                    ),
+                )
+                authority_mode = CONVERSATION_FIRST_MODE
+                authority_reason = "valid_structured_objective_selected"
+            except Exception as exc:
+                rollback_reason = str(exc) or exc.__class__.__name__
+                authority_reason = "conversation_objective_projection_failed"
+                objective_record = {
+                    "contract": "conversation_objective_trace.v1",
+                    "objective": {},
+                    "authority_mode": LEGACY_RESPONSE_MODE,
+                    "legacy_response": narrative.response,
+                    "rollback_reason": rollback_reason,
+                }
+                brief = VerbalizationBrief.from_runtime(
+                    deterministic_response=narrative.response,
+                    state=legacy_state,
+                    event=context.event,
+                    execution_plan=context.execution_plan,
+                    conversation_state=context.conversation_state,
+                    config=self.llm_verbalizer.config,
+                )
+                state = legacy_state
+        else:
+            brief = VerbalizationBrief.from_runtime(
+                deterministic_response=narrative.response,
+                state=state,
+                event=context.event,
+                execution_plan=context.execution_plan,
+                conversation_state=context.conversation_state,
+                config=self.llm_verbalizer.config,
+            )
+        llm_result = self.llm_verbalizer.verbalize(brief)
+        if llm_result.final_response != state.response:
+            state = state.evolve("LLM_VERBALIZE", response=llm_result.final_response)
+        llm_record = llm_result.to_dict()
+        llm_execution_metrics = {
+            "provider": llm_result.provider,
+            "model": llm_result.model,
+            "provider_called": llm_record.pop("provider_called"),
+            "cache_hit": llm_record.pop("cache_hit"),
+            "latency_ms": llm_record.pop("latency_ms"),
+            "fallback_reason": llm_result.fallback_reason,
+        }
         outcome = _outcome(
             step=context.step.name,
-            executor="narrative_response_composer",
+            executor=(
+                "conversation_objective_output"
+                if authority_mode == CONVERSATION_FIRST_MODE
+                else "narrative_response_composer"
+            ),
             status="success",
             started_at=started_at,
             started_perf=started_perf,
@@ -321,10 +452,26 @@ class OutputStepHandler:
                 "base_response": context.state.response,
                 "changed": narrative.changed,
                 "reason": narrative.reason,
+                "conversation_objective": objective_record,
+                "conversation_authority": {
+                    "authority_mode": authority_mode,
+                    "authority_reason": authority_reason,
+                    "rollback_reason": rollback_reason,
+                    "legacy_response": narrative.response,
+                    "selected_response": state.response,
+                    "responses_equal": narrative.response == state.response,
+                },
+                "llm_verbalization": llm_record,
             },
             state_changes={
                 "response_present": bool(state.response),
                 "narrative_response_composed": narrative.changed,
+                "llm_response_accepted": llm_result.accepted,
+                "llm_fallback_used": not llm_result.accepted,
+                "llm_execution": llm_execution_metrics,
+                "conversation_authority_mode": authority_mode,
+                "conversation_authority_reason": authority_reason,
+                "conversation_authority_rollback": rollback_reason,
             },
         )
         return StepExecutionResult(
@@ -334,6 +481,12 @@ class OutputStepHandler:
             state_changes={
                 "response_present": bool(state.response),
                 "narrative_response_composed": narrative.changed,
+                "llm_response_accepted": llm_result.accepted,
+                "llm_fallback_used": not llm_result.accepted,
+                "llm_execution": llm_execution_metrics,
+                "conversation_authority_mode": authority_mode,
+                "conversation_authority_reason": authority_reason,
+                "conversation_authority_rollback": rollback_reason,
             },
         )
 

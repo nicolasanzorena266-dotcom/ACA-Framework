@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import hashlib
 from typing import Any, Mapping, Sequence
 
 from aca_core.text import normalize_text
@@ -45,7 +46,13 @@ def map_operational_work(
     final_conversation_state = _mapping(runtime_record.get("final_state"))
     tool_contracts = dict(tool_contracts or {})
 
-    source_text = _source_text(response_plan, intent_model, final_conversation_state, state_snapshot)
+    source_selection = _source_text(
+        response_plan,
+        intent_model,
+        runtime_record,
+        state_snapshot,
+    )
+    source_text = str(source_selection["text"])
     normalized_text = normalize_text(source_text)
     operation = _select_operation(
         normalized_text=normalized_text,
@@ -171,6 +178,7 @@ def map_operational_work(
             "runtime_outcomes": len(outcomes),
             "plugin_manifest_count": len(plugin_manifests),
             "tool_contract_count": len(tool_contracts),
+            "semantic_projection": bool(source_selection["semantic_available"]),
         },
         "evidence": {
             "primary_user_need": deepcopy(_mapping(response_plan.get("primary_user_need"))),
@@ -179,6 +187,24 @@ def map_operational_work(
             "kernel_program": execution_plan.get("kernel_program") or runtime_engine.get("kernel_program"),
             "policy_decision": policy.get("decision"),
             "source_text_available": bool(source_text),
+        },
+        "semantic_firewall": {
+            "contract": "candidate_work_semantic_firewall.v1",
+            "package": "FW-3",
+            "authority_mode": source_selection["authority_mode"],
+            "authority_reason": source_selection["authority_reason"],
+            "semantic_usage": source_selection["authority_mode"] == "semantic",
+            "legacy_usage": source_selection["authority_mode"] in {"legacy", "rollback"},
+            "rollback": source_selection["authority_mode"] == "rollback",
+            "legacy_available": source_selection["legacy_available"],
+            "semantic_available": source_selection["semantic_available"],
+            "agreement_rate": source_selection["agreement_rate"],
+            "confidence": source_selection["confidence"],
+            "failure_reason": source_selection["failure_reason"],
+            "selected_source": source_selection["selected_source"],
+            "source_hash": source_selection["source_hash"],
+            "mixed_authority": False,
+            "downstream_raw_payload_access": False,
         },
         "candidate_summary": _candidate_summary(candidate_work),
     }
@@ -271,23 +297,134 @@ def _policy_from_snapshot(snapshot: Mapping[str, Any], facts: Mapping[str, Any])
 def _source_text(
     response_plan: Mapping[str, Any],
     intent_model: Mapping[str, Any],
-    conversation_state: Mapping[str, Any],
+    runtime_record: Mapping[str, Any],
     state_snapshot: Mapping[str, Any],
-) -> str:
-    for source in (
-        _mapping(conversation_state.get("confirmed_facts")).get("last_raw_payload"),
-        _mapping(state_snapshot.get("facts")).get("last_raw_payload"),
-        _mapping(_mapping(response_plan.get("primary_user_need")).get("evidence")).get("text"),
-        _mapping(response_plan.get("evidence")).get("message"),
+) -> dict[str, Any]:
+    legacy_sources = (
         _mapping(intent_model.get("evidence")).get("message"),
         _mapping(_mapping(intent_model.get("response_objective")).get("evidence")).get("normalized_message"),
-        _mapping(_mapping(state_snapshot.get("facts")).get("conversation_state_runtime"))
-        .get("last_raw_payload"),
-        state_snapshot.get("response"),
-    ):
+        _mapping(response_plan.get("evidence")).get("message"),
+        _mapping(_mapping(response_plan.get("primary_user_need")).get("evidence")).get("text"),
+    )
+    legacy_text = ""
+    for source in legacy_sources:
         if source:
-            return str(source)
-    return ""
+            legacy_text = str(source)
+            break
+
+    semantic_projection = _semantic_projection_from_runtime(runtime_record)
+    semantic_text = _semantic_projection_signal(semantic_projection)
+    rollback_text = str(state_snapshot.get("response") or "")
+
+    if legacy_text:
+        selected_text = legacy_text
+        authority_mode = "legacy"
+        authority_reason = "structured_legacy_plan_available"
+        selected_source = "conversation_planning_projection"
+        failure_reason = None
+        confidence = 1.0
+    elif semantic_text:
+        selected_text = semantic_text
+        authority_mode = "semantic"
+        authority_reason = "semantic_projection_replaced_raw_payload_fallback"
+        selected_source = "semantic_projection"
+        failure_reason = None
+        confidence = _semantic_projection_confidence(semantic_projection)
+    elif rollback_text:
+        selected_text = rollback_text
+        authority_mode = "rollback"
+        authority_reason = "semantic_projection_unavailable_legacy_output_rollback"
+        selected_source = "legacy_output"
+        failure_reason = "semantic_projection_unavailable"
+        confidence = 0.5
+    else:
+        selected_text = ""
+        authority_mode = "rollback"
+        authority_reason = "no_candidate_work_source_available"
+        selected_source = "none"
+        failure_reason = "semantic_and_legacy_sources_unavailable"
+        confidence = 0.0
+
+    return {
+        "text": selected_text,
+        "authority_mode": authority_mode,
+        "authority_reason": authority_reason,
+        "selected_source": selected_source,
+        "legacy_available": bool(legacy_text or rollback_text),
+        "semantic_available": bool(semantic_text),
+        "agreement_rate": _source_agreement(legacy_text, semantic_text),
+        "confidence": confidence,
+        "failure_reason": failure_reason,
+        "source_hash": hashlib.sha256(selected_text.encode("utf-8")).hexdigest(),
+    }
+
+
+def _semantic_projection_from_runtime(runtime_record: Mapping[str, Any]) -> dict[str, Any]:
+    shadow = _mapping(runtime_record.get("semantic_projection_shadow"))
+    projection = _mapping(shadow.get("semantic_projection"))
+    if projection.get("contract") != "semantic_projection.v1":
+        return {}
+    return projection
+
+
+def _semantic_projection_signal(projection: Mapping[str, Any]) -> str:
+    if not projection:
+        return ""
+
+    signals: list[str] = []
+    intent_projection = _mapping(projection.get("intent_projection"))
+    selected_intent = _mapping(intent_projection.get("selected"))
+    _append_semantic_signal(signals, selected_intent.get("intent"))
+    for candidate in intent_projection.get("candidates") or []:
+        _append_semantic_signal(signals, _mapping(candidate).get("intent"))
+
+    topic_projection = _mapping(projection.get("topic_projection"))
+    for topic in topic_projection.get("topics") or []:
+        _append_semantic_signal(signals, _mapping(topic).get("type"))
+
+    goal_projection = _mapping(projection.get("goal_projection"))
+    for goal in goal_projection.get("goals") or []:
+        item = _mapping(goal)
+        _append_semantic_signal(signals, item.get("type"))
+        _append_semantic_signal(signals, item.get("target"))
+
+    fact_projection = _mapping(projection.get("fact_projection"))
+    for fact in fact_projection.get("items") or []:
+        item = _mapping(fact)
+        _append_semantic_signal(signals, item.get("predicate"))
+        value = item.get("value")
+        if isinstance(value, (str, int, float, bool)):
+            _append_semantic_signal(signals, value)
+
+    entity_projection = _mapping(projection.get("entity_projection"))
+    for entity in entity_projection.get("items") or []:
+        item = _mapping(entity)
+        _append_semantic_signal(signals, item.get("type"))
+        _append_semantic_signal(signals, item.get("value"))
+
+    return " ".join(dict.fromkeys(signals))
+
+
+def _append_semantic_signal(signals: list[str], value: Any) -> None:
+    signal = normalize_text(str(value or "").replace("_", " "))
+    if signal:
+        signals.append(signal)
+
+
+def _semantic_projection_confidence(projection: Mapping[str, Any]) -> float:
+    selected = _mapping(_mapping(projection.get("intent_projection")).get("selected"))
+    try:
+        return max(0.0, min(1.0, float(selected.get("confidence") or 0.0)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _source_agreement(legacy_text: str, semantic_text: str) -> float:
+    legacy_tokens = set(normalize_text(legacy_text).split())
+    semantic_tokens = set(normalize_text(semantic_text).split())
+    if not legacy_tokens or not semantic_tokens:
+        return 0.0
+    return round(len(legacy_tokens & semantic_tokens) / len(legacy_tokens | semantic_tokens), 4)
 
 
 def _select_operation(

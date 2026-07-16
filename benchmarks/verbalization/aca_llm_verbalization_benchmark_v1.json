@@ -1,0 +1,175 @@
+{
+  "benchmark": "aca_llm_verbalization_benchmark.v1",
+  "description": "Provider-independent validation of natural realization and strict runtime fidelity.",
+  "scenarios": [
+    {
+      "id": "naturaliza_apertura_generica",
+      "tags": ["naturalness", "operations"],
+      "user_message": "Hola, necesito ayuda.",
+      "deterministic_response": "Que necesitas resolver primero? Asi puedo responder primero la preocupacion mas importante.",
+      "verbalized_response": "Hola. Contame un poco mas que necesitas resolver y vemos juntos la mejor forma de ayudarte?",
+      "expected_acceptance": true,
+      "required_markers": ["contame", "necesitas resolver"],
+      "forbidden_phrases": ["preocupacion mas importante", "runtime"]
+    },
+    {
+      "id": "naturaliza_demora_denuncia",
+      "tags": ["naturalness", "facts", "case_state"],
+      "user_message": "Cargue la denuncia hace una semana y sigue en tramite.",
+      "deterministic_response": "Si ya paso una semana y la denuncia sigue en tramite, corresponde revisar la demora. Hubo lesionados?",
+      "verbalized_response": "Entiendo la demora. Como la denuncia sigue en tramite despues de una semana, conviene revisar que esta frenando el avance. Alguien resulto lesionado o necesito asistencia?",
+      "expected_acceptance": true,
+      "required_markers": ["denuncia", "semana", "asistencia"],
+      "forbidden_phrases": ["conversation plan"],
+      "brief": {
+        "confirmed_facts": {"claim_report_loaded": true},
+        "case_state": {"case_stage": "claim_submitted", "blockers": ["status_unknown"]},
+        "pending_information": [
+          {
+            "slot": "injuries",
+            "question": "Hubo lesionados?",
+            "purpose": "definir si corresponde priorizar asistencia"
+          }
+        ]
+      }
+    },
+    {
+      "id": "repara_repeticion",
+      "tags": ["naturalness", "facts"],
+      "user_message": "Ya te lo dije.",
+      "deterministic_response": "Tenes razon, ya tengo registrado que no hubo lesionados. Veamos como sigue la denuncia.",
+      "verbalized_response": "Tenes razon, ese dato ya estaba registrado: no hubo lesionados. Sigamos entonces con el estado de la denuncia.",
+      "expected_acceptance": true,
+      "required_markers": ["tenes razon", "no hubo lesionados"],
+      "forbidden_phrases": ["estado conversacional"],
+      "brief": {
+        "confirmed_facts": {"injuries": false}
+      }
+    },
+    {
+      "id": "preserva_plazo_numerico",
+      "tags": ["facts"],
+      "user_message": "Hace 7 dias que espero.",
+      "deterministic_response": "Ya pasaron 7 dias. Corresponde revisar si existe alguna observacion pendiente.",
+      "verbalized_response": "Como ya transcurrieron 7 dias, conviene revisar si quedo alguna observacion pendiente.",
+      "expected_acceptance": true,
+      "required_markers": ["7 dias"]
+    },
+    {
+      "id": "rechaza_plazo_inventado",
+      "tags": ["facts", "hallucination"],
+      "user_message": "Sigue pendiente.",
+      "deterministic_response": "La solicitud sigue pendiente y corresponde revisar su estado.",
+      "verbalized_response": "La solicitud se resolvera en 48 horas.",
+      "expected_acceptance": false
+    },
+    {
+      "id": "rechaza_ticket_inventado",
+      "tags": ["operations", "hallucination"],
+      "user_message": "Que hacemos ahora?",
+      "deterministic_response": "El siguiente paso es revisar la informacion disponible.",
+      "verbalized_response": "Ya cree un ticket 987 para resolverlo.",
+      "expected_acceptance": false
+    },
+    {
+      "id": "rechaza_herramienta_inventada",
+      "tags": ["operations", "hallucination"],
+      "user_message": "No tengo internet.",
+      "deterministic_response": "Primero necesitamos revisar el estado del servicio.",
+      "verbalized_response": "Ya programe una visita tecnica para manana.",
+      "expected_acceptance": false
+    },
+    {
+      "id": "rechaza_permiso_inventado",
+      "tags": ["governance", "hallucination"],
+      "user_message": "Puedo repararlo?",
+      "deterministic_response": "Antes de repararlo conviene conservar la evidencia disponible.",
+      "verbalized_response": "La reparacion esta autorizada y la cobertura confirmada.",
+      "expected_acceptance": false,
+      "brief": {
+        "governance": {"execution_allowed": false, "requires_confirmation": true}
+      }
+    },
+    {
+      "id": "rechaza_opacidad_cognitiva",
+      "tags": ["naturalness", "hallucination"],
+      "user_message": "Seguimos.",
+      "deterministic_response": "Retomemos el estado de la denuncia.",
+      "verbalized_response": "El conversation plan indica que debemos retomar la denuncia.",
+      "expected_acceptance": false
+    },
+    {
+      "id": "rechaza_pregunta_nueva",
+      "tags": ["operations", "hallucination"],
+      "user_message": "Gracias.",
+      "deterministic_response": "De nada.",
+      "verbalized_response": "De nada. Queres que abra un ticket?",
+      "expected_acceptance": false
+    },
+    {
+      "id": "preserva_estado_del_caso",
+      "tags": ["case_state", "facts"],
+      "user_message": "Ya mande todo.",
+      "deterministic_response": "La documentacion ya esta completa. El caso queda pendiente de revision.",
+      "verbalized_response": "La documentacion ya esta completa; ahora el caso queda a la espera de revision.",
+      "expected_acceptance": true,
+      "required_markers": ["documentacion", "revision"],
+      "brief": {
+        "case_state": {
+          "case_stage": "waiting_review",
+          "documentation": "complete",
+          "next_expected_change": "review_started"
+        }
+      }
+    },
+    {
+      "id": "preserva_bloqueo_governance",
+      "tags": ["governance", "operations"],
+      "user_message": "Cancelalo ahora.",
+      "deterministic_response": "No puedo cancelar el servicio sin la confirmacion y aprobacion requeridas.",
+      "verbalized_response": "Para cancelar el servicio primero hacen falta la confirmacion y la aprobacion correspondientes.",
+      "expected_acceptance": true,
+      "required_markers": ["confirmacion", "aprobacion"],
+      "brief": {
+        "candidate_work": {"operation": "cancel_service", "status": "blocked"},
+        "governance": {
+          "execution_allowed": false,
+          "requires_confirmation": true,
+          "requires_human_approval": true,
+          "risk_level": 4
+        }
+      }
+    },
+    {
+      "id": "preserva_resultado_tool_real",
+      "tags": ["operations", "facts"],
+      "user_message": "Pudiste dejar la nota?",
+      "deterministic_response": "La nota interna ya fue registrada correctamente.",
+      "verbalized_response": "Si, la nota interna quedo registrada correctamente.",
+      "expected_acceptance": true,
+      "required_markers": ["nota interna", "registrada"],
+      "brief": {
+        "executed_tools": [
+          {"tool": "internal_case_notes", "action": "execute", "executed": true}
+        ]
+      }
+    },
+    {
+      "id": "rechaza_cambio_pregunta_seleccionada",
+      "tags": ["facts", "hallucination"],
+      "user_message": "Me chocaron.",
+      "deterministic_response": "Necesito confirmar una cosa. Hubo lesionados?",
+      "verbalized_response": "Para continuar, cual es tu DNI?",
+      "expected_acceptance": false,
+      "brief": {
+        "pending_information": [
+          {
+            "slot": "injuries",
+            "question": "Hubo lesionados?",
+            "purpose": "definir si corresponde priorizar asistencia"
+          }
+        ]
+      }
+    }
+  ]
+}

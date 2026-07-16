@@ -261,7 +261,7 @@ def _natural_question_from_required_information(
             conversation_state=conversation_state,
             default=question or "La denuncia ya esta cargada?",
         )
-    elif slot == "documentation_available" or "documentacion" in normalize_text(question):
+    elif slot == "documentation_available":
         question = _question_variant(
             "documentation_available",
             conversation_state=conversation_state,

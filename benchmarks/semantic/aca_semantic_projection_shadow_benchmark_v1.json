@@ -1,0 +1,137 @@
+{
+  "contract": "semantic_projection_shadow_benchmark_suite.v1",
+  "version": 1,
+  "description": "Real-runtime conversations used to compare Legacy Projection against SA-2 Semantic Projection without changing decisions.",
+  "scenarios": [
+    {
+      "id": "SP-001",
+      "title": "Service outage",
+      "tags": ["real_manual", "connectivity"],
+      "turns": [
+        {
+          "user": "No funciona el internet.",
+          "expect": {"topics": ["connectivity"], "facts": {"service_available": false}}
+        }
+      ]
+    },
+    {
+      "id": "SP-002",
+      "title": "Immediate personal memory",
+      "tags": ["real_manual", "memory", "entity"],
+      "turns": [
+        {
+          "user": "Hola. Mi nombre es Nicolas.",
+          "expect": {"entities": ["Nicolas"], "facts": {"user_name": "Nicolas"}}
+        },
+        {
+          "user": "Como me llamo?",
+          "expect": {"topics": ["identity"]}
+        }
+      ]
+    },
+    {
+      "id": "SP-003",
+      "title": "Billing and service mixed need",
+      "tags": ["real_manual", "multiple_topics", "billing", "connectivity"],
+      "turns": [
+        {
+          "user": "No tengo internet y ademas la factura vino mal.",
+          "expect": {"topics": ["connectivity", "billing"], "multiple_topics": true}
+        }
+      ]
+    },
+    {
+      "id": "SP-004",
+      "title": "Negation followed by correction",
+      "tags": ["negation", "correction", "fact_revision"],
+      "turns": [
+        {
+          "user": "No hubo heridos.",
+          "expect": {"facts": {"injuries": false}}
+        },
+        {
+          "user": "Perdon, me equivoque: si hubo heridos.",
+          "expect": {"act": "correction", "facts": {"injuries": true}, "correction": "replace_prior_assertion"}
+        }
+      ]
+    },
+    {
+      "id": "SP-005",
+      "title": "Explicit retraction",
+      "tags": ["retraction", "conversation_control"],
+      "turns": [
+        {
+          "user": "Choque el auto.",
+          "expect": {"topics": ["insurance_claim"]}
+        },
+        {
+          "user": "Olvidate de eso.",
+          "expect": {"act": "correction", "correction": "retract"}
+        }
+      ]
+    },
+    {
+      "id": "SP-006",
+      "title": "Explicit topic shift",
+      "tags": ["topic_shift", "longitudinal"],
+      "turns": [
+        {
+          "user": "Cargue una denuncia por el choque.",
+          "expect": {"topics": ["insurance_claim"], "facts": {"claim_report_loaded": true}}
+        },
+        {
+          "user": "Ahora quiero hablar de internet.",
+          "expect": {"act": "topic_shift", "topics": ["connectivity"]}
+        }
+      ]
+    },
+    {
+      "id": "SP-007",
+      "title": "Rich first turn with retraction and domain change",
+      "tags": ["real_manual", "rich_turn", "correction", "multiple_topics"],
+      "turns": [
+        {
+          "user": "Hola. Me llamo Nicolas. Tengo un perro llamado Noah. Choque el auto. No hubo heridos. Era un vidrio. Olvidate del choque. Ahora quiero reclamar internet. Como se llama mi perro?",
+          "expect": {"entities": ["Nicolas", "Noah"], "facts": {"injuries": false, "user_name": "Nicolas", "pet_name": "Noah"}, "correction": "retract", "multiple_topics": true}
+        }
+      ]
+    },
+    {
+      "id": "SP-008",
+      "title": "Documentation completion",
+      "tags": ["documentation", "fact", "slot"],
+      "turns": [
+        {
+          "user": "Ya tengo toda la documentacion.",
+          "expect": {"topics": ["documentation"], "facts": {"documentation_available": true}}
+        }
+      ]
+    },
+    {
+      "id": "SP-009",
+      "title": "Claim waiting and work dependency",
+      "tags": ["real_manual", "claim", "constraint"],
+      "turns": [
+        {
+          "user": "Ayer cargue una denuncia desde la app y todavia nadie me escribio. Ademas necesito el auto para trabajar y no se si puedo mandarlo a reparar.",
+          "expect": {"topics": ["insurance_claim"], "facts": {"claim_report_loaded": true, "contact_received": false}}
+        }
+      ]
+    },
+    {
+      "id": "SP-010",
+      "title": "Ambiguous correction",
+      "tags": ["correction", "ambiguity"],
+      "turns": [
+        {
+          "user": "La denuncia ya esta cargada.",
+          "expect": {"facts": {"claim_report_loaded": true}}
+        },
+        {
+          "user": "Perdon. Me equivoque.",
+          "expect": {"act": "correction", "correction": "replace_prior_assertion"}
+        }
+      ]
+    }
+  ]
+}

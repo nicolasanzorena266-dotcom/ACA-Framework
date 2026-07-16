@@ -136,6 +136,18 @@ class RuntimeIntrospectionAPI:
     def inspect_timeline(self, state: CognitiveState) -> Dict[str, Any]:
         return RuntimeTimeline.from_state(state, self.runtime.event_bus.events()).to_dict()
 
+    def inspect_authority_graph(self, artifact: str | None = None) -> Dict[str, Any]:
+        """Build the passive SA-3.1 authority graph from source and the last trace."""
+        from aca_os.authority_dependency_graph import build_authority_dependency_graph
+
+        trace = self.runtime.last_trace()
+        graph = build_authority_dependency_graph(
+            runtime_trace=trace.to_dict() if trace is not None else None,
+        )
+        if artifact is not None:
+            return graph.inspect_artifact(artifact)
+        return graph.to_dict()
+
 
 
 def _state_summary(state: CognitiveState | None) -> Dict[str, Any]:
@@ -156,8 +168,33 @@ def _state_summary(state: CognitiveState | None) -> Dict[str, Any]:
         "conversation_state_runtime": state.facts.get("conversation_state_runtime", {}),
         "runtime_executor_shadow": state.facts.get("runtime_executor_shadow", {}),
         "tool_executions": _tool_execution_summary(state),
+        "output_decision": _output_decision_summary(state),
         "fact_keys": sorted(state.facts.keys()),
     }
+
+
+def _output_decision_summary(state: CognitiveState) -> Dict[str, Any]:
+    """Reconstruct why the visible response is what it is.
+
+    ExecutionStepOutcome for the "output" step already records the Composer
+    decision, the Conversational-First authority selection (with rollback
+    reason when it fell back) and the LLM verbalization outcome, but nothing
+    surfaced it above `execution_step_outcomes` -- a turn could not be fully
+    audited from `_state_summary`/`_trace_summary` alone (ACA-303).
+    """
+    for outcome in state.facts.get("execution_step_outcomes", []):
+        if not isinstance(outcome, dict) or outcome.get("step") != "output":
+            continue
+        result = outcome.get("result", {})
+        if not isinstance(result, dict):
+            continue
+        return {
+            "composer_changed_response": result.get("changed"),
+            "composer_reason": result.get("reason"),
+            "conversation_authority": result.get("conversation_authority", {}),
+            "llm_verbalization": result.get("llm_verbalization", {}),
+        }
+    return {}
 
 
 def _tool_execution_summary(state: CognitiveState) -> list[Dict[str, Any]]:
@@ -205,4 +242,10 @@ def _trace_summary(trace: ExecutionTrace | None) -> Dict[str, Any]:
         "duration_ms": trace.duration_ms,
         "event_count": len(trace.events),
         "operations": trace.operations(),
+        "semantic_authority": dict(trace.semantic_authority),
+        "semantic_projection": dict(trace.semantic_projection),
+        "semantic_authority_pilot": dict(trace.semantic_authority_pilot),
+        "conversational_goal_authority": dict(
+            trace.conversational_goal_authority
+        ),
     }

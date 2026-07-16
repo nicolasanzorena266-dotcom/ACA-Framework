@@ -1,0 +1,250 @@
+{
+  "contract": "semantic_understanding_benchmark.v1",
+  "version": 1,
+  "name": "ACA Semantic Understanding Evaluation Suite",
+  "methodology": "deterministic_gold_profile_expansion",
+  "context_policy": "teacher_forced_prior_gold",
+  "description": "Permanent, provider-independent benchmark for SemanticRepresentation. Gold labels are declared independently from SemanticAuthority and expanded into unique realistic conversations.",
+  "profiles": [
+    {
+      "id": "identity_entities",
+      "categories": ["entities", "memory", "personal"],
+      "variants": [
+        {"person": "Nicolas", "pet": "Noah", "place": "Rosario", "organization": "Galicia", "product": "Cuenta Move", "service": "internet hogar"},
+        {"person": "Lucia", "pet": "Mora", "place": "Cordoba", "organization": "Acme Salud", "product": "Plan Familiar", "service": "telefonia movil"},
+        {"person": "Martin", "pet": "Toto", "place": "Mendoza", "organization": "Cooperativa Sur", "product": "Tarjeta Naranja", "service": "television digital"},
+        {"person": "Camila", "pet": "Lola", "place": "Salta", "organization": "Banco del Norte", "product": "Seguro Hogar", "service": "fibra optica"},
+        {"person": "Joaquin", "pet": "Roco", "place": "Neuquen", "organization": "Energia Patagonica", "product": "Plan Empresa", "service": "linea corporativa"},
+        {"person": "Valentina", "pet": "Kira", "place": "Parana", "organization": "Clinica Central", "product": "Cobertura Plus", "service": "portal de turnos"},
+        {"person": "Federico", "pet": "Bruno", "place": "Tandil", "organization": "Metalurgica Azul", "product": "Pack Pyme", "service": "internet dedicado"},
+        {"person": "Sofia", "pet": "Nina", "place": "Ushuaia", "organization": "Turismo Austral", "product": "Asistencia Viajera", "service": "aplicacion movil"},
+        {"person": "Ramiro", "pet": "Simba", "place": "Santa Fe", "organization": "Logistica Litoral", "product": "Cuenta Sueldo", "service": "banca online"},
+        {"person": "Agustina", "pet": "Pipa", "place": "Bahia Blanca", "organization": "Puerto Bahia", "product": "Poliza Integral", "service": "seguimiento web"}
+      ],
+      "turns": [
+        {"message": "Me llamo {person}. Vivo en {place}.", "categories": ["person", "place", "explicit_fact"], "expected": {"entities": [{"type": "person", "value": "{person}", "role": "user"}, {"type": "place", "value": "{place}"}], "facts": [{"predicate": "user_name", "value": "{person}"}]}},
+        {"message": "Tengo un perro llamado {pet} y siempre viaja conmigo en {place}.", "categories": ["pet", "place", "memory"], "expected": {"entities": [{"type": "animal", "value": "{pet}", "role": "user_pet"}, {"type": "place", "value": "{place}"}], "facts": [{"predicate": "pet_name", "value": "{pet}"}]}},
+        {"message": "Trabajo en {organization} y uso el producto {product}.", "categories": ["organization", "product"], "expected": {"entities": [{"type": "organization", "value": "{organization}"}, {"type": "product", "value": "{product}"}]}},
+        {"message": "El servicio de {service} dejo de funcionar para {person}.", "categories": ["service", "negative_fact"], "expected": {"entities": [{"type": "service", "value": "{service}"}, {"type": "person", "value": "{person}"}], "facts": [{"predicate": "service_available", "value": false}], "negations": [{"predicate": "service_available", "value": false}]}},
+        {"message": "Como se llama mi perro {pet}?", "categories": ["memory", "coreference"], "expected": {"coreferences": [{"mention": "mi perro", "target_type": "animal", "target_value": "{pet}"}], "goals": [{"type": "obtain_answer", "target": "Como se llama mi perro {pet}?"}]}},
+        {"message": "Que te dije sobre ese producto {product}?", "categories": ["coreference", "product"], "expected": {"coreferences": [{"mention": "ese producto", "target_type": "product", "target_value": "{product}"}], "goals": [{"type": "obtain_answer", "target": "Que te dije sobre ese producto {product}?"}]}}
+      ]
+    },
+    {
+      "id": "insurance_negation_contradiction",
+      "categories": ["insurance", "negation", "contradiction"],
+      "variants": [
+        {"vehicle": "auto gris", "place": "Palermo", "channel": "app", "reference": "A-1041"},
+        {"vehicle": "camioneta roja", "place": "Belgrano", "channel": "web", "reference": "B-2082"},
+        {"vehicle": "moto azul", "place": "Caballito", "channel": "telefono", "reference": "C-3123"},
+        {"vehicle": "sedan negro", "place": "Almagro", "channel": "sucursal", "reference": "D-4164"},
+        {"vehicle": "utilitario blanco", "place": "Flores", "channel": "app", "reference": "E-5205"},
+        {"vehicle": "coupe verde", "place": "San Telmo", "channel": "web", "reference": "F-6246"},
+        {"vehicle": "taxi amarillo", "place": "Retiro", "channel": "telefono", "reference": "G-7287"},
+        {"vehicle": "furgon azul", "place": "Barracas", "channel": "sucursal", "reference": "H-8328"},
+        {"vehicle": "hatchback rojo", "place": "Saavedra", "channel": "app", "reference": "I-9369"},
+        {"vehicle": "pickup plateada", "place": "Villa Urquiza", "channel": "web", "reference": "J-0410"}
+      ],
+      "turns": [
+        {"message": "Choque el {vehicle} en {place} y anote la referencia {reference}.", "categories": ["event", "object", "place"], "expected": {"entities": [{"type": "object", "value": "{vehicle}"}, {"type": "place", "value": "{place}"}], "events": [{"type": "vehicle_collision"}], "topics": ["insurance_claim"], "intents": ["manage_insurance_claim"]}},
+        {"message": "No hubo heridos en el choque del {vehicle}.", "categories": ["negative_fact", "negation"], "expected": {"facts": [{"predicate": "injuries", "value": false}], "negations": [{"predicate": "injuries", "value": false}]}},
+        {"message": "No quiero hacer la denuncia por el {vehicle} mediante {channel}.", "categories": ["negative_fact", "intent"], "expected": {"facts": [{"predicate": "claim_submission_intent", "value": false}], "negations": [{"predicate": "claim_submission_intent", "value": false}], "topics": ["insurance_claim"]}},
+        {"message": "Nunca me llamaron por el caso {reference} del {vehicle}.", "categories": ["negative_fact", "temporal"], "expected": {"facts": [{"predicate": "contact_received", "value": false}], "negations": [{"predicate": "contact_received", "value": false}]}},
+        {"message": "Todavia no resolvieron el reclamo {reference} en {place}.", "categories": ["negative_fact", "temporal"], "expected": {"facts": [{"predicate": "case_resolved", "value": false}], "negations": [{"predicate": "case_resolved", "value": false}]}},
+        {"message": "Si hubo heridos en el accidente del {vehicle}; lo confirme despues.", "categories": ["contradiction", "fact_revision"], "expected": {"facts": [{"predicate": "injuries", "value": true}], "contradictions": [{"fact": "injuries", "previous_value": false, "new_value": true}]}}
+      ]
+    },
+    {
+      "id": "corrections",
+      "categories": ["correction", "fact_revision"],
+      "variants": [
+        {"case": "siniestro del Gol", "document": "fotos del paragolpes", "person": "Ana"},
+        {"case": "reclamo del modem", "document": "captura del router", "person": "Belen"},
+        {"case": "factura de marzo", "document": "comprobante bancario", "person": "Carla"},
+        {"case": "visita del tecnico", "document": "orden de servicio", "person": "Diego"},
+        {"case": "denuncia del cristal", "document": "presupuesto del taller", "person": "Elena"},
+        {"case": "cambio de plan", "document": "formulario firmado", "person": "Fabian"},
+        {"case": "ticket de soporte", "document": "video de la falla", "person": "Gabriela"},
+        {"case": "reclamo de roaming", "document": "detalle de consumos", "person": "Hernan"},
+        {"case": "pedido de reintegro", "document": "factura del proveedor", "person": "Ines"},
+        {"case": "consulta de cobertura", "document": "copia de la poliza", "person": "Julian"}
+      ],
+      "turns": [
+        {"message": "Para el {case}, soy asegurado y me contacto {person}.", "categories": ["explicit_fact"], "expected": {"facts": [{"predicate": "user_role", "value": "insured"}]}},
+        {"message": "Perdon, me equivoque sobre el {case}: soy tercero.", "categories": ["correction", "contradiction"], "expected": {"facts": [{"predicate": "user_role", "value": "third_party"}], "corrections": ["replace_prior_assertion"], "contradictions": [{"fact": "user_role", "previous_value": "insured", "new_value": "third_party"}]}},
+        {"message": "La denuncia del {case} ya esta cargada con {document}.", "categories": ["explicit_fact", "documentation"], "expected": {"facts": [{"predicate": "claim_report_loaded", "value": true}], "topics": ["insurance_claim", "documentation"]}},
+        {"message": "En realidad la denuncia del {case} todavia no esta cargada.", "categories": ["correction", "negative_fact"], "expected": {"facts": [{"predicate": "claim_report_loaded", "value": false}], "corrections": ["replace_prior_assertion"], "contradictions": [{"fact": "claim_report_loaded", "previous_value": true, "new_value": false}]}},
+        {"message": "Quise decir que tengo toda la documentacion: {document}.", "categories": ["correction", "documentation"], "expected": {"facts": [{"predicate": "documentation_available", "value": true}], "corrections": ["replace_prior_assertion"], "topics": ["documentation"]}},
+        {"message": "No era eso lo que queria corregir del {case}; no puedo precisar cual dato.", "categories": ["correction", "ambiguity"], "expected": {"corrections": ["replace_prior_assertion"], "ambiguity": true}}
+      ]
+    },
+    {
+      "id": "retractions_topic_change",
+      "categories": ["retraction", "topic_shift"],
+      "variants": [
+        {"first": "choque del auto", "second": "internet del local", "third": "factura de abril", "place": "Rosario"},
+        {"first": "cristal roto", "second": "wifi de casa", "third": "factura de mayo", "place": "Cordoba"},
+        {"first": "denuncia pendiente", "second": "modem de la oficina", "third": "cobro de junio", "place": "Mendoza"},
+        {"first": "siniestro de la moto", "second": "fibra del estudio", "third": "importe de julio", "place": "Salta"},
+        {"first": "reparacion del auto", "second": "servicio sin señal", "third": "vencimiento de agosto", "place": "Neuquen"},
+        {"first": "accidente estacionado", "second": "internet del deposito", "third": "factura de septiembre", "place": "Parana"},
+        {"first": "presupuesto del taller", "second": "wifi del consultorio", "third": "cobro de octubre", "place": "Tandil"},
+        {"first": "fotos del choque", "second": "modem del hotel", "third": "importe de noviembre", "place": "Ushuaia"},
+        {"first": "poliza del vehiculo", "second": "internet de la sucursal", "third": "factura de diciembre", "place": "Santa Fe"},
+        {"first": "tramite del siniestro", "second": "fibra del puerto", "third": "vencimiento de enero", "place": "Bahia Blanca"}
+      ],
+      "turns": [
+        {"message": "Quiero revisar el {first} ocurrido en {place}.", "categories": ["topic"], "expected": {"topics": ["insurance_claim"], "intents": ["manage_insurance_claim"]}},
+        {"message": "Olvidate de eso del {first}; no quiero seguir con ese asunto.", "categories": ["retraction"], "expected": {"retractions": ["retract"], "corrections": ["retract"]}},
+        {"message": "Ahora quiero hablar del {second} en {place}.", "categories": ["topic_shift", "service"], "expected": {"conversational_act": "topic_shift", "topics": ["connectivity"], "intents": ["restore_connectivity"]}},
+        {"message": "No importa lo del {second}; dejalo por ahora.", "categories": ["retraction"], "expected": {"retractions": ["retract"], "corrections": ["retract"]}},
+        {"message": "Mejor revisemos la {third} de {place}.", "categories": ["topic_shift", "billing"], "expected": {"topics": ["billing"], "intents": ["review_billing"]}},
+        {"message": "Dejemos ese tema de la {third} y hablemos de otra cosa en {place}.", "categories": ["retraction", "topic_shift"], "expected": {"retractions": ["retract"], "conversational_act": "topic_shift"}}
+      ]
+    },
+    {
+      "id": "temporality",
+      "categories": ["temporal"],
+      "variants": [
+        {"duration": "una semana", "date": "12 de marzo", "future": "mañana", "time": "a las nueve", "case": "ticket T-101"},
+        {"duration": "dos dias", "date": "18 de abril", "future": "el lunes", "time": "a las diez", "case": "reclamo T-202"},
+        {"duration": "tres semanas", "date": "7 de mayo", "future": "la semana proxima", "time": "al mediodia", "case": "denuncia T-303"},
+        {"duration": "un mes", "date": "22 de junio", "future": "el viernes", "time": "a las quince", "case": "visita T-404"},
+        {"duration": "dos meses", "date": "3 de julio", "future": "esta noche", "time": "a las dieciocho", "case": "factura T-505"},
+        {"duration": "cinco dias", "date": "14 de agosto", "future": "pasado mañana", "time": "a las ocho", "case": "orden T-606"},
+        {"duration": "cuatro semanas", "date": "9 de septiembre", "future": "el martes", "time": "a las once", "case": "caso T-707"},
+        {"duration": "seis dias", "date": "27 de octubre", "future": "el mes que viene", "time": "a las trece", "case": "pedido T-808"},
+        {"duration": "tres meses", "date": "5 de noviembre", "future": "el jueves", "time": "a las dieciseis", "case": "expediente T-909"},
+        {"duration": "ocho dias", "date": "19 de diciembre", "future": "el sabado", "time": "a las veinte", "case": "gestion T-010"}
+      ],
+      "turns": [
+        {"message": "Cargue el {case} hace {duration}.", "categories": ["past", "duration"], "expected": {"temporal": ["hace {duration}"]}},
+        {"message": "El {case} sigue pendiente en este momento.", "categories": ["present"], "expected": {"temporal": ["este momento"]}},
+        {"message": "Me dijeron que el {case} se resolvera {future}.", "categories": ["future"], "expected": {"temporal": ["{future}"]}},
+        {"message": "La gestion del {case} empezo el {date}.", "categories": ["date", "past"], "expected": {"temporal": ["{date}"]}},
+        {"message": "Van a llamarme por el {case} {time}.", "categories": ["future", "time"], "expected": {"temporal": ["{time}"]}},
+        {"message": "Si el {case} no avanza en {duration}, voy a reclamar.", "categories": ["conditional", "duration", "future"], "expected": {"temporal": ["{duration}"], "facts": [{"predicate": "future_claim_condition", "value": "no_progress_in_{duration}"}]}}
+      ]
+    },
+    {
+      "id": "multi_topic_priority",
+      "categories": ["multi_topic", "priority", "goals"],
+      "variants": [
+        {"vehicle": "auto", "amount": "$150.000", "service": "internet", "document": "fotos", "priority": "reparar el auto", "place": "Rosario"},
+        {"vehicle": "moto", "amount": "$82.500", "service": "wifi", "document": "presupuesto", "priority": "recuperar internet", "place": "Cordoba"},
+        {"vehicle": "camioneta", "amount": "$210.300", "service": "fibra", "document": "cedula", "priority": "revisar la factura", "place": "Mendoza"},
+        {"vehicle": "taxi", "amount": "$97.800", "service": "modem", "document": "denuncia", "priority": "volver a trabajar", "place": "Salta"},
+        {"vehicle": "utilitario", "amount": "$315.000", "service": "linea movil", "document": "poliza", "priority": "cargar documentos", "place": "Neuquen"},
+        {"vehicle": "sedan", "amount": "$64.200", "service": "internet", "document": "comprobante", "priority": "autorizar la reparacion", "place": "Parana"},
+        {"vehicle": "pickup", "amount": "$188.900", "service": "wifi", "document": "fotos", "priority": "recuperar el servicio", "place": "Tandil"},
+        {"vehicle": "coupe", "amount": "$143.600", "service": "fibra", "document": "presupuesto", "priority": "entender el cobro", "place": "Ushuaia"},
+        {"vehicle": "furgon", "amount": "$256.400", "service": "modem", "document": "cedula", "priority": "resolver el siniestro", "place": "Santa Fe"},
+        {"vehicle": "hatchback", "amount": "$119.700", "service": "internet", "document": "denuncia", "priority": "evitar el vencimiento", "place": "Bahia Blanca"}
+      ],
+      "turns": [
+        {"message": "Choque el {vehicle} y ademas no funciona el {service} en {place}.", "categories": ["multi_topic"], "expected": {"topics": ["insurance_claim", "connectivity"], "intents": ["manage_insurance_claim", "restore_connectivity"]}},
+        {"message": "La factura de {service} vino por {amount}, pero lo principal es {priority}.", "categories": ["multi_topic", "priority"], "expected": {"entities": [{"type": "money", "value": "{amount}"}], "topics": ["billing", "connectivity"], "primary_goal_contains": "{priority}"}},
+        {"message": "Ya mande {document} del {vehicle} y nadie me llamo por el siniestro de {place}.", "categories": ["multi_fact", "documentation"], "expected": {"facts": [{"predicate": "contact_received", "value": false}], "topics": ["documentation", "insurance_claim"], "negations": [{"predicate": "contact_received", "value": false}]}},
+        {"message": "Necesito el {vehicle} para trabajar y quiero saber si la poliza cubre el arreglo en {place}.", "categories": ["priority", "goal"], "expected": {"topics": ["insurance_claim"], "goals": [{"type": "achieve_user_outcome"}], "primary_goal_contains": "quiero saber"}},
+        {"message": "Primero respondeme por el {amount}; despues vemos el {service} de {place}.", "categories": ["priority", "multi_topic"], "expected": {"topics": ["billing", "connectivity"], "primary_intent": "review_billing"}},
+        {"message": "Ahora mi prioridad es {priority}, aunque falte revisar {document} en {place}.", "categories": ["priority", "topic_shift"], "expected": {"conversational_act": "topic_shift", "primary_goal_contains": "{priority}"}}
+      ]
+    },
+    {
+      "id": "ambiguity_uncertainty",
+      "categories": ["ambiguity", "uncertainty"],
+      "variants": [
+        {"subject": "lesionados", "case": "choque A1", "option": "asegurado"},
+        {"subject": "documentacion", "case": "reclamo B2", "option": "tercero"},
+        {"subject": "factura", "case": "ticket C3", "option": "titular"},
+        {"subject": "visita", "case": "orden D4", "option": "inquilino"},
+        {"subject": "cobertura", "case": "poliza E5", "option": "conductor"},
+        {"subject": "fotos", "case": "denuncia F6", "option": "asegurado"},
+        {"subject": "presupuesto", "case": "caso G7", "option": "tercero"},
+        {"subject": "reparacion", "case": "siniestro H8", "option": "titular"},
+        {"subject": "llamado", "case": "seguimiento I9", "option": "conductor"},
+        {"subject": "pago", "case": "factura J0", "option": "inquilino"}
+      ],
+      "turns": [
+        {"message": "No se si hubo {subject} en el {case}.", "categories": ["explicit_uncertainty"], "expected": {"ambiguity": true}},
+        {"message": "Creo que para el {case} soy {option}, pero no estoy seguro.", "categories": ["explicit_uncertainty"], "expected": {"ambiguity": true}},
+        {"message": "Quizas el dato de {subject} corresponde a otro {case}.", "categories": ["explicit_uncertainty"], "expected": {"ambiguity": true}},
+        {"message": "No recuerdo si confirme {subject} para el {case}.", "categories": ["memory_uncertainty"], "expected": {"ambiguity": true}},
+        {"message": "Capaz que el {case} ya avanzo con {subject}.", "categories": ["implicit_uncertainty"], "expected": {"ambiguity": true}},
+        {"message": "Estoy seguro: el dato de {subject} pertenece al {case}.", "categories": ["clear_statement"], "expected": {"ambiguity": false}}
+      ]
+    },
+    {
+      "id": "support_products_services",
+      "categories": ["support", "entities", "conditional_facts"],
+      "variants": [
+        {"organization": "TeleRed", "service": "internet", "product": "modem ZX1", "place": "local de Rosario", "object": "cable azul"},
+        {"organization": "FibraSur", "service": "wifi", "product": "router AX2", "place": "casa de Cordoba", "object": "fuente negra"},
+        {"organization": "MovilNet", "service": "linea movil", "product": "telefono M3", "place": "oficina de Mendoza", "object": "chip blanco"},
+        {"organization": "CableCentro", "service": "television", "product": "decoder D4", "place": "departamento de Salta", "object": "control remoto"},
+        {"organization": "NubeActiva", "service": "portal web", "product": "cuenta P5", "place": "estudio de Neuquen", "object": "token gris"},
+        {"organization": "EnergiaUno", "service": "medidor online", "product": "sensor S6", "place": "taller de Parana", "object": "fusible rojo"},
+        {"organization": "SaludYa", "service": "turnos", "product": "app T7", "place": "clinica de Tandil", "object": "credencial verde"},
+        {"organization": "BancoRio", "service": "home banking", "product": "tarjeta V8", "place": "sucursal de Ushuaia", "object": "lector plateado"},
+        {"organization": "Logistica24", "service": "seguimiento", "product": "envio E9", "place": "deposito de Santa Fe", "object": "etiqueta amarilla"},
+        {"organization": "SeguroTotal", "service": "denuncias", "product": "poliza K0", "place": "agencia de Bahia Blanca", "object": "formulario violeta"}
+      ],
+      "turns": [
+        {"message": "Soy cliente de {organization} y uso {service} en el {place}.", "categories": ["organization", "service", "place"], "expected": {"entities": [{"type": "organization", "value": "{organization}"}, {"type": "service", "value": "{service}"}, {"type": "place", "value": "{place}"}]}},
+        {"message": "El producto {product} esta conectado al {object}.", "categories": ["product", "object", "relation"], "expected": {"entities": [{"type": "product", "value": "{product}"}, {"type": "object", "value": "{object}"}]}},
+        {"message": "No funciona el {service} de {organization} en el {place}.", "categories": ["negative_fact", "service"], "expected": {"facts": [{"predicate": "service_available", "value": false}], "negations": [{"predicate": "service_available", "value": false}]}},
+        {"message": "Si reinicio el {product}, entonces el {service} podria volver.", "categories": ["conditional_fact"], "expected": {"facts": [{"predicate": "service_recovery_condition", "value": "restart_{product}"}]}},
+        {"message": "Quiero que {organization} revise el {product} antes de cambiar el {object}.", "categories": ["goal", "entities"], "expected": {"goals": [{"type": "achieve_user_outcome"}], "primary_goal_contains": "revise el {product}"}},
+        {"message": "El tecnico dijo que visitara el {place} para revisar {service}.", "categories": ["future", "place", "service"], "expected": {"entities": [{"type": "place", "value": "{place}"}, {"type": "service", "value": "{service}"}], "temporal": ["future_visit"]}}
+      ]
+    },
+    {
+      "id": "coreference",
+      "categories": ["coreference", "memory"],
+      "variants": [
+        {"person": "Laura", "relation": "hermana", "object": "router blanco", "product": "plan premium", "place": "casa de Rosario"},
+        {"person": "Mateo", "relation": "hijo", "object": "modem negro", "product": "seguro hogar", "place": "local de Cordoba"},
+        {"person": "Paula", "relation": "socia", "object": "telefono azul", "product": "cuenta empresa", "place": "oficina de Mendoza"},
+        {"person": "Sergio", "relation": "padre", "object": "decoder gris", "product": "pack familiar", "place": "departamento de Salta"},
+        {"person": "Marina", "relation": "jefa", "object": "notebook roja", "product": "asistencia plus", "place": "estudio de Neuquen"},
+        {"person": "Tomas", "relation": "vecino", "object": "medidor verde", "product": "plan ahorro", "place": "taller de Parana"},
+        {"person": "Rocio", "relation": "amiga", "object": "tablet plateada", "product": "cobertura total", "place": "clinica de Tandil"},
+        {"person": "Emilio", "relation": "abogado", "object": "token violeta", "product": "cuenta sueldo", "place": "sucursal de Ushuaia"},
+        {"person": "Natalia", "relation": "gestora", "object": "carpeta amarilla", "product": "poliza auto", "place": "deposito de Santa Fe"},
+        {"person": "Pablo", "relation": "tecnico", "object": "sensor naranja", "product": "servicio pyme", "place": "agencia de Bahia Blanca"}
+      ],
+      "turns": [
+        {"message": "Mi {relation} se llama {person} y esta en la {place}.", "categories": ["person", "place"], "expected": {"entities": [{"type": "person", "value": "{person}"}, {"type": "place", "value": "{place}"}]}},
+        {"message": "Ella necesita que la llamen por el problema de {person}.", "categories": ["pronoun", "coreference"], "expected": {"coreferences": [{"mention": "ella", "target_type": "person", "target_value": "{person}"}]}},
+        {"message": "Tengo un {object} asociado al {product}.", "categories": ["object", "product"], "expected": {"entities": [{"type": "object", "value": "{object}"}, {"type": "product", "value": "{product}"}]}},
+        {"message": "Ese es el que falla: el {object}.", "categories": ["demonstrative", "coreference"], "expected": {"coreferences": [{"mention": "ese", "target_type": "object", "target_value": "{object}"}]}},
+        {"message": "Aquello que contrate fue el {product} para la {place}.", "categories": ["demonstrative", "coreference"], "expected": {"coreferences": [{"mention": "aquello", "target_type": "product", "target_value": "{product}"}]}},
+        {"message": "Quiero volver a eso de la {place}, donde estaba {person} con el {object}.", "categories": ["topic_coreference", "multiple_entities"], "expected": {"coreferences": [{"mention": "eso", "target_type": "place", "target_value": "{place}"}], "entities": [{"type": "person", "value": "{person}"}, {"type": "object", "value": "{object}"}, {"type": "place", "value": "{place}"}]}}
+      ]
+    },
+    {
+      "id": "mixed_long_context",
+      "categories": ["long_conversation", "mixed", "memory", "priority"],
+      "variants": [
+        {"person": "Nicolas", "pet": "Noah", "vehicle": "auto gris", "service": "internet", "amount": "$101.000", "place": "Rosario"},
+        {"person": "Lucia", "pet": "Mora", "vehicle": "moto roja", "service": "wifi", "amount": "$112.000", "place": "Cordoba"},
+        {"person": "Martin", "pet": "Toto", "vehicle": "camioneta azul", "service": "fibra", "amount": "$123.000", "place": "Mendoza"},
+        {"person": "Camila", "pet": "Lola", "vehicle": "taxi amarillo", "service": "modem", "amount": "$134.000", "place": "Salta"},
+        {"person": "Joaquin", "pet": "Roco", "vehicle": "utilitario blanco", "service": "linea movil", "amount": "$145.000", "place": "Neuquen"},
+        {"person": "Valentina", "pet": "Kira", "vehicle": "sedan negro", "service": "internet", "amount": "$156.000", "place": "Parana"},
+        {"person": "Federico", "pet": "Bruno", "vehicle": "pickup plateada", "service": "wifi", "amount": "$167.000", "place": "Tandil"},
+        {"person": "Sofia", "pet": "Nina", "vehicle": "coupe verde", "service": "fibra", "amount": "$178.000", "place": "Ushuaia"},
+        {"person": "Ramiro", "pet": "Simba", "vehicle": "furgon azul", "service": "modem", "amount": "$189.000", "place": "Santa Fe"},
+        {"person": "Agustina", "pet": "Pipa", "vehicle": "hatchback rojo", "service": "internet", "amount": "$190.000", "place": "Bahia Blanca"}
+      ],
+      "turns": [
+        {"message": "Me llamo {person}, tengo un perro llamado {pet} y vivo en {place}.", "categories": ["person", "pet", "place"], "expected": {"entities": [{"type": "person", "value": "{person}", "role": "user"}, {"type": "animal", "value": "{pet}", "role": "user_pet"}, {"type": "place", "value": "{place}"}], "facts": [{"predicate": "user_name", "value": "{person}"}, {"predicate": "pet_name", "value": "{pet}"}]}},
+        {"message": "Choque el {vehicle} en {place}, pero no hubo heridos.", "categories": ["insurance", "negation", "event"], "expected": {"topics": ["insurance_claim"], "events": [{"type": "vehicle_collision"}], "facts": [{"predicate": "injuries", "value": false}], "negations": [{"predicate": "injuries", "value": false}]}},
+        {"message": "Olvidate del choque del {vehicle}; ahora quiero reclamar el {service}.", "categories": ["retraction", "topic_shift", "multi_topic"], "expected": {"retractions": ["retract"], "conversational_act": "correction", "topics": ["insurance_claim", "connectivity"], "primary_intent": "restore_connectivity"}},
+        {"message": "La factura del {service} vino por {amount}, aunque lo urgente es volver a trabajar en {place}.", "categories": ["billing", "priority", "constraint"], "expected": {"entities": [{"type": "money", "value": "{amount}"}, {"type": "place", "value": "{place}"}], "topics": ["billing", "connectivity"], "primary_goal_contains": "volver a trabajar"}},
+        {"message": "Perdon, me equivoque: el {amount} no era de mi factura de {service}.", "categories": ["correction", "negation"], "expected": {"corrections": ["replace_prior_assertion"], "facts": [{"predicate": "billing_amount_applies", "value": false}], "negations": [{"predicate": "billing_amount_applies", "value": false}]}},
+        {"message": "Como se llama mi perro {pet} y cual era el tema principal de {place}?", "categories": ["memory", "coreference", "multi_question"], "expected": {"coreferences": [{"mention": "mi perro", "target_type": "animal", "target_value": "{pet}"}, {"mention": "tema principal", "target_type": "topic", "target_value": "connectivity"}], "goals": [{"type": "obtain_answer", "target": "Como se llama mi perro {pet} y cual era el tema principal de {place}?"}]}}
+      ]
+    }
+  ]
+}

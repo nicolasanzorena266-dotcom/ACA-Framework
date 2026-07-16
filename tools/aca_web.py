@@ -20,6 +20,7 @@ for path in [ROOT, KERNEL_PATH]:
         sys.path.insert(0, value)
 
 from aca_os.runtime_rest import RuntimeRESTAPI
+from aca_os.llm_verbalization import warmup_default_llm_provider
 from aca_os.web_runtime_launcher import build_local_web_runtime_plan, render_launch_banner
 
 
@@ -125,6 +126,9 @@ def serve(
     open_browser: bool = False,
 ) -> None:
     plan = build_local_web_runtime_plan(host=host, port=port, studio_path=studio_file, open_browser=open_browser)
+    warmup_event = warmup_default_llm_provider()
+    if warmup_event["warmup_requested"]:
+        print(json.dumps({"technical_event": warmup_event}, ensure_ascii=False), flush=True)
     server = build_server(host, port, studio_file=studio_file)
     print(render_launch_banner(plan), flush=True)
     if open_browser:
