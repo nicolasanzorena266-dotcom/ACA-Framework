@@ -1205,6 +1205,2481 @@
           "no_crm_access"
         ]
       }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "static_response",
+          "kernel_program": "greeting",
+          "payload": {
+            "message_key": "greeting"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "static_response",
+          "steps": [
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {
+                "message_key": "greeting"
+              },
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "static_response",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "next_act": "ask_injuries",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "guided_process",
+          "kernel_program": "auto_claim_guidance",
+          "payload": {
+            "flow": "galicia_auto_claim_guidance"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "process_guidance",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "guided_process",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "cleas",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "cleas"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "cleas"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "cleas"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "cleas"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "franquicia",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "franquicia"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "franquicia"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "franquicia"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "franquicia"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "modifications": [
+          {
+            "component": "policy_manager",
+            "reason": "requires_real_claim_data",
+            "type": "policy_interruption"
+          }
+        ],
+        "plan_received": {
+          "flow": "safe_escalation",
+          "kernel_program": "fallback",
+          "payload": {
+            "reason": "requires_real_claim_data"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "safe_escalation",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "escalation",
+              "payload": {
+                "reason": "requires_real_claim_data"
+              },
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "request_requires_real_file_or_crm_access",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "escalation_required",
+            "reason": "requires_real_claim_data",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "static_response",
+          "kernel_program": "greeting",
+          "payload": {
+            "message_key": "greeting"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "static_response",
+          "steps": [
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {
+                "message_key": "greeting"
+              },
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "static_response",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "next_act": "ask_injuries",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "guided_process",
+          "kernel_program": "auto_claim_guidance",
+          "payload": {
+            "flow": "galicia_auto_claim_guidance"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "process_guidance",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "guided_process",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "cleas",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "cleas"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "cleas"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "cleas"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "cleas"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "franquicia",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "franquicia"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "franquicia"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "franquicia"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "franquicia"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "modifications": [
+          {
+            "component": "policy_manager",
+            "reason": "requires_real_claim_data",
+            "type": "policy_interruption"
+          }
+        ],
+        "plan_received": {
+          "flow": "safe_escalation",
+          "kernel_program": "fallback",
+          "payload": {
+            "reason": "requires_real_claim_data"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "safe_escalation",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "escalation",
+              "payload": {
+                "reason": "requires_real_claim_data"
+              },
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "request_requires_real_file_or_crm_access",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "escalation_required",
+            "reason": "requires_real_claim_data",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "static_response",
+          "kernel_program": "greeting",
+          "payload": {
+            "message_key": "greeting"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "static_response",
+          "steps": [
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {
+                "message_key": "greeting"
+              },
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "static_response",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "next_act": "ask_injuries",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "guided_process",
+          "kernel_program": "auto_claim_guidance",
+          "payload": {
+            "flow": "galicia_auto_claim_guidance"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "process_guidance",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "guided_process",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "cleas",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "cleas"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "cleas"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "cleas"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "cleas"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "franquicia",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "franquicia"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "franquicia"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "franquicia"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "franquicia"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "modifications": [
+          {
+            "component": "policy_manager",
+            "reason": "requires_real_claim_data",
+            "type": "policy_interruption"
+          }
+        ],
+        "plan_received": {
+          "flow": "safe_escalation",
+          "kernel_program": "fallback",
+          "payload": {
+            "reason": "requires_real_claim_data"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "safe_escalation",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "escalation",
+              "payload": {
+                "reason": "requires_real_claim_data"
+              },
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "request_requires_real_file_or_crm_access",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "escalation_required",
+            "reason": "requires_real_claim_data",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "static_response",
+          "kernel_program": "greeting",
+          "payload": {
+            "message_key": "greeting"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "static_response",
+          "steps": [
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {
+                "message_key": "greeting"
+              },
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "static_response",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "next_act": "ask_injuries",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "guided_process",
+          "kernel_program": "auto_claim_guidance",
+          "payload": {
+            "flow": "galicia_auto_claim_guidance"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "process_guidance",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "guided_process",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "cleas",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "cleas"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "cleas"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "cleas"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "cleas"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "franquicia",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "franquicia"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "franquicia"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "franquicia"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "franquicia"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "modifications": [
+          {
+            "component": "policy_manager",
+            "reason": "requires_real_claim_data",
+            "type": "policy_interruption"
+          }
+        ],
+        "plan_received": {
+          "flow": "safe_escalation",
+          "kernel_program": "fallback",
+          "payload": {
+            "reason": "requires_real_claim_data"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "safe_escalation",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "escalation",
+              "payload": {
+                "reason": "requires_real_claim_data"
+              },
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "request_requires_real_file_or_crm_access",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "escalation_required",
+            "reason": "requires_real_claim_data",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "static_response",
+          "kernel_program": "greeting",
+          "payload": {
+            "message_key": "greeting"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "static_response",
+          "steps": [
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {
+                "message_key": "greeting"
+              },
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "static_response",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "injuries_unknown",
+          "user_role_unknown"
+        ],
+        "goal": "orientar correctamente al usuario sobre un siniestro automotor",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "injuries",
+          "user_role"
+        ],
+        "next_act": "ask_injuries",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "auto_claim_guidance"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ALLOW",
+        "modifications": [],
+        "plan_received": {
+          "flow": "guided_process",
+          "kernel_program": "auto_claim_guidance",
+          "payload": {
+            "flow": "galicia_auto_claim_guidance"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "process_guidance",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "plan_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "flow": "guided_process",
+            "name": "no_policy_restriction",
+            "result": "passed"
+          }
+        ]
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "cleas",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "cleas"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "cleas"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "cleas",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "cleas"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "cleas"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "cleas": {
+          "agent_rules": [
+            "No prometer resolucion automatica.",
+            "No confirmar aplicacion real sin consultar expediente.",
+            "Explicar en terminos simples."
+          ],
+          "applies_when": [
+            "hay dos vehiculos involucrados",
+            "ambas aseguradoras estan adheridas",
+            "no hay lesionados",
+            "la responsabilidad puede determinarse con claridad"
+          ],
+          "does_not_apply_when": [
+            "hay lesionados",
+            "falta la denuncia de una parte",
+            "no esta clara la responsabilidad",
+            "la otra compania no esta adherida"
+          ],
+          "id": "cleas",
+          "name": "CLEAS",
+          "simple_explanation": "CLEAS es un convenio entre aseguradoras que puede agilizar la resolucion de ciertos siniestros automotores.",
+          "type": "claims_convention"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [],
+        "concept_key": "franquicia",
+        "goal": "explicar un concepto usando evidencia estructurada",
+        "lifecycle_status": "initialized",
+        "missing": [],
+        "next_act": "provide_concept_explanation",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "knowledge_lookup"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "USE_TOOL",
+        "modifications": [],
+        "plan_received": {
+          "flow": "knowledge_lookup",
+          "kernel_program": "knowledge_lookup",
+          "payload": {
+            "tool_key": "franquicia"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "knowledge_lookup",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "tool_lookup",
+              "payload": {
+                "tool_key": "franquicia"
+              },
+              "required": true
+            },
+            {
+              "name": "kernel",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "execution_plan_tool_lookup_authorized",
+        "source": "execution_plan_policy",
+        "tool_key": "franquicia",
+        "triggered_rules": [
+          "plan_tool_lookup_authorized"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_key_present",
+            "result": "passed",
+            "tool_key": "franquicia"
+          },
+          {
+            "component": "policy_manager",
+            "name": "tool_available",
+            "result": "passed",
+            "tool_key": "franquicia"
+          }
+        ]
+      }
+    },
+    {
+      "key": "tool_evidence",
+      "relevance": 0.7,
+      "source": "tool_engine",
+      "value": {
+        "franquicia": {
+          "agent_rules": [
+            "Explicar con ejemplo numerico si el usuario no entiende.",
+            "No confirmar montos reales sin consultar poliza o expediente."
+          ],
+          "common_confusions": [
+            "confundir franquicia con deuda",
+            "creer que la aseguradora paga siempre el 100% del arreglo",
+            "pedir carta de franquicia antes de que el siniestro este cerrado"
+          ],
+          "id": "franquicia",
+          "name": "Franquicia",
+          "simple_explanation": "La franquicia es la parte del arreglo que queda a cargo del asegurado cuando tiene una cobertura con franquicia.",
+          "type": "coverage_concept"
+        }
+      }
+    },
+    {
+      "key": "mission",
+      "relevance": 0.9,
+      "source": "active_mission",
+      "value": {
+        "blockers": [
+          "need_more_context"
+        ],
+        "goal": "comprender la necesidad del usuario y orientar sin inventar",
+        "lifecycle_status": "initialized",
+        "missing": [
+          "user_need"
+        ],
+        "next_act": "ask_user_need",
+        "progress": 0.75,
+        "status": "in_progress",
+        "type": "general_orientation"
+      }
+    },
+    {
+      "key": "policy_result",
+      "relevance": 0.8,
+      "source": "policy_manager",
+      "value": {
+        "decision": "ESCALATE",
+        "modifications": [
+          {
+            "component": "policy_manager",
+            "reason": "requires_real_claim_data",
+            "type": "policy_interruption"
+          }
+        ],
+        "plan_received": {
+          "flow": "safe_escalation",
+          "kernel_program": "fallback",
+          "payload": {
+            "reason": "requires_real_claim_data"
+          },
+          "reason": "zero_cost_execution_plan",
+          "source_action": "safe_escalation",
+          "steps": [
+            {
+              "name": "policy",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "escalation",
+              "payload": {
+                "reason": "requires_real_claim_data"
+              },
+              "required": true
+            },
+            {
+              "name": "memory",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "context",
+              "payload": {},
+              "required": true
+            },
+            {
+              "name": "output",
+              "payload": {},
+              "required": true
+            }
+          ]
+        },
+        "reason": "request_requires_real_file_or_crm_access",
+        "source": "execution_plan_policy",
+        "tool_key": null,
+        "triggered_rules": [
+          "no_real_claim_status",
+          "no_crm_access"
+        ],
+        "validations": [
+          {
+            "component": "policy_manager",
+            "name": "execution_plan_present",
+            "result": "passed"
+          },
+          {
+            "component": "policy_manager",
+            "name": "escalation_required",
+            "reason": "requires_real_claim_data",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "procedural": {},

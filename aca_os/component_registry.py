@@ -213,6 +213,21 @@ def build_registry_from_runtime(runtime: Any) -> ComponentRegistry:
 
 def _runtime_component_specs() -> Dict[str, Dict[str, Any]]:
     return {
+        "kernel": {
+            "role": "kernel execution",
+            "capabilities": ("kernel.run",),
+            "tags": ("kernel", "runtime"),
+        },
+        "compiler": {
+            "role": "operation graph compilation",
+            "capabilities": ("compiler.compile",),
+            "tags": ("kernel", "runtime"),
+        },
+        "mission_manager": {
+            "role": "mission lifecycle",
+            "capabilities": ("mission.before_kernel",),
+            "tags": ("runtime", "mission"),
+        },
         "conversation_manager": {
             "role": "conversation lifecycle",
             "capabilities": ("conversation.state", "conversation.history"),

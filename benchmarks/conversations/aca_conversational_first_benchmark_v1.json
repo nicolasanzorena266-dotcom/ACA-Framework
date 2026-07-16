@@ -1,0 +1,86 @@
+{
+  "benchmark": "aca_conversational_first.v1",
+  "scenarios": [
+    {
+      "id": "free_greeting",
+      "user_message": "Hola",
+      "semantic_context": {"conversational_act": {"act": "greeting"}, "goals": [{"type": "satisfy_intent", "target": "greet"}]},
+      "objective": {"goal": {"type": "satisfy_intent:greet", "confidence": 0.99}, "missing_information": [], "next_step": {"action": "converse", "target": "greet", "operation": null, "question_budget": 1}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unverified_facts"], "emoji": "allowed"},
+      "legacy_response": "Hola. Contame qué necesitás y te oriento.",
+      "candidate_response": "¡Hola! ¿Cómo puedo ayudarte hoy?",
+      "forbidden_terms": ["documentación", "siniestro", "vehículo"]
+    },
+    {
+      "id": "casual_weather_comment",
+      "user_message": "Qué frío hace hoy 🥶",
+      "semantic_context": {"assertions": [{"predicate": "weather_comment", "value": "Qué frío hace hoy"}], "conversational_act": {"act": "new_information"}},
+      "objective": {"goal": {"type": "acknowledge_user_comment", "confidence": 0.9}, "missing_information": [], "next_step": {"action": "converse", "target": "user_comment", "operation": null}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unverified_facts"], "emoji": "allowed"},
+      "legacy_response": "Necesito un poco más de contexto para orientarte sin inventar.",
+      "candidate_response": "Sí, está para abrigarse bien 🥶",
+      "forbidden_terms": ["trámite", "documentación", "denuncia"]
+    },
+    {
+      "id": "personal_fatigue",
+      "user_message": "Estoy cansado.",
+      "semantic_context": {"assertions": [{"subject": "user", "predicate": "feels", "value": "cansado"}]},
+      "objective": {"goal": {"type": "acknowledge_user_state", "confidence": 0.9}, "missing_information": [], "next_step": {"action": "converse", "target": "user_state", "operation": null}, "empathy": "medium", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unverified_facts"], "emoji": "allowed"},
+      "legacy_response": "Necesito un poco más de contexto para orientarte sin inventar.",
+      "candidate_response": "Te entiendo, debe haber sido un día largo. Estoy acá con vos.",
+      "forbidden_terms": ["documentación", "siniestro", "factura"]
+    },
+    {
+      "id": "cancel_internet_service",
+      "user_message": "Quiero dar de baja internet.",
+      "semantic_context": {"goals": [{"type": "cancel_service", "target": "internet"}], "topic_structure": {"primary_topic": "connectivity"}},
+      "objective": {"goal": {"type": "cancel_service", "confidence": 0.95}, "missing_information": [], "next_step": {"action": "converse", "target": "cancel_service", "operation": null}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unapproved_operations", "no_unexecuted_tool_claims"], "emoji": "allowed"},
+      "legacy_response": "Qué punto querés resolver primero: el arreglo, la denuncia, la documentación o los tiempos?",
+      "candidate_response": "Entiendo, querés dar de baja el servicio de internet. Puedo ayudarte a revisar cómo seguir.",
+      "forbidden_terms": ["fotos", "taller", "vehículo", "siniestro"]
+    },
+    {
+      "id": "invoice_explanation",
+      "user_message": "No entiendo la factura.",
+      "semantic_context": {"goals": [{"type": "understand_invoice"}], "assertions": [{"predicate": "understands_invoice", "value": false}]},
+      "objective": {"goal": {"type": "explain_invoice", "confidence": 0.92}, "missing_information": [], "next_step": {"action": "respond", "target": "invoice_question", "operation": null}, "empathy": "medium", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unverified_facts"], "emoji": "allowed"},
+      "legacy_response": "Contame qué parte quedó trabada y te oriento.",
+      "candidate_response": "Claro, veamos la factura juntos para que quede más clara.",
+      "forbidden_terms": ["denuncia", "fotos", "vehículo"]
+    },
+    {
+      "id": "connectivity_failure",
+      "user_message": "No funciona internet.",
+      "semantic_context": {"intents": [{"type": "restore_connectivity"}], "assertions": [{"predicate": "internet_available", "value": false}]},
+      "objective": {"goal": {"type": "restore_connectivity", "confidence": 0.96}, "missing_information": [], "next_step": {"action": "converse", "target": "restore_connectivity", "operation": null}, "empathy": "medium", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unverified_facts"], "emoji": "allowed"},
+      "legacy_response": "¿Tenés toda la documentación?",
+      "candidate_response": "Entiendo, te quedaste sin internet. Veamos qué está pasando con el servicio.",
+      "forbidden_terms": ["documentación", "siniestro", "fotos"]
+    },
+    {
+      "id": "required_account_holder",
+      "user_message": "Quiero dar de baja el servicio.",
+      "semantic_context": {"goals": [{"type": "cancel_service"}]},
+      "objective": {"goal": {"type": "cancel_service", "confidence": 0.94}, "missing_information": ["account_holder"], "next_step": {"action": "request_information", "target": "account_holder", "operation": null}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unapproved_operations"], "emoji": "allowed"},
+      "legacy_response": "¿Tenés toda la documentación?",
+      "candidate_response": "Para seguir con la baja, ¿podés confirmarme si sos el titular de la cuenta?",
+      "forbidden_terms": ["fotos", "taller", "vehículo"]
+    },
+    {
+      "id": "share_documents",
+      "user_message": "¿Te puedo compartir la documentación?",
+      "semantic_context": {"goals": [{"type": "obtain_answer", "target": "share_documents"}]},
+      "objective": {"goal": {"type": "answer_document_sharing", "confidence": 0.91}, "missing_information": [], "next_step": {"action": "respond", "target": "document_sharing", "operation": null}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["no_unexecuted_tool_claims"], "emoji": "allowed"},
+      "legacy_response": "¿Tenés toda la documentación?",
+      "candidate_response": "Sí, podés compartirla por este medio y la revisamos.",
+      "forbidden_terms": ["siniestro", "vehículo", "taller"]
+    },
+    {
+      "id": "thanks",
+      "user_message": "Gracias por ayudarme ❤️",
+      "semantic_context": {"conversational_act": {"act": "closing"}, "goals": [{"type": "acknowledge_thanks"}]},
+      "objective": {"goal": {"type": "acknowledge_thanks", "confidence": 0.99}, "missing_information": [], "next_step": {"action": "finish", "target": "conversation", "operation": null}, "empathy": "light", "tone": "friendly_professional", "urgency": "normal", "constraints": ["preserve_cognitive_opacity"], "emoji": "allowed"},
+      "legacy_response": "Avancemos con el trámite.",
+      "candidate_response": "¡De nada! Me alegra haberte ayudado ❤️",
+      "forbidden_terms": ["trámite", "plan", "runtime"]
+    }
+  ]
+}

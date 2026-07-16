@@ -30,7 +30,7 @@ Do not reconstruct the project from chat history unless repository evidence is i
 
 ## Current next step
 
-Read `CURRENT_STATE.md`. The current recommended work is an architecture decision for Mission Lifecycle Authority, not immediate implementation.
+Read `CURRENT_STATE.md`. **The ACA-305 series (Mission Lifecycle Authority, A through D plus RC1-RC3) is complete and closed**: implementation finished, all six permanent fixtures green, full suite green (736/736), observability validated, `MissionManager` verified as sole writer of `active_mission`, and at most one mission transition per turn verified. The working tree contains the finished, uncommitted ACA-305 work plus the earlier uncommitted LLM Verbalization / Conversational-First subsystem; it is ready for the final ACA-305 commit, which was deliberately not made (commits require explicit user instruction). There is no in-progress sprint. The next body of work is whatever the user directs — `CURRENT_STATE.md`'s "Next recommended step" section lists the two small, non-blocking deferred items.
 
 ## Closing protocol
 

@@ -176,7 +176,7 @@ def _canonical_operations_for_compare(operations: list[str]) -> list[str]:
     for operation in operations:
         if operation in ignored:
             continue
-        if operation == "MISSION_LOAD_FROM_CONVERSATION_STATE":
+        if operation in ("MISSION_LOAD_FROM_CONVERSATION_STATE", "MISSION_TRANSITION"):
             canonical.append("MISSION_CREATE")
         else:
             canonical.append(operation)

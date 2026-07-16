@@ -1,0 +1,174 @@
+{
+  "contract": "semantic_adversarial_benchmark.v1",
+  "version": 1,
+  "name": "ACA Semantic Authority Adversarial Red Team",
+  "description": "Independent, failure-seeking corpus for semantic robustness. It is not a promotion benchmark and shares no messages with SA-2.5.",
+  "context_policy": "teacher_forced_prior_gold_read_only",
+  "minimum_conversations": 100,
+  "minimum_long_message_words": 2000,
+  "minimum_stress_turns": 51,
+  "variant_sets": {
+    "red_team": [
+      {"person": "Maia", "other": "Esteban", "pet": "Copo", "city": "Junin", "org": "Red Austral", "service": "conexion satelital", "product": "Plan Horizonte", "object": "terminal blanca", "case": "caso RX-711", "amount": "$73.450", "duration": "cuatro dias"},
+      {"person": "Lautaro", "other": "Cintia", "pet": "Bambu", "city": "Posadas", "org": "Enlace Norte", "service": "enlace inalambrico", "product": "Pack Delta", "object": "antena gris", "case": "gestion RX-722", "amount": "$91.280", "duration": "once dias"},
+      {"person": "Vera", "other": "Ruben", "pet": "Menta", "city": "La Plata", "org": "Servicios Orion", "service": "red comunitaria", "product": "Cuenta Prisma", "object": "equipo naranja", "case": "tramite RX-733", "amount": "$128.640", "duration": "dos semanas"},
+      {"person": "Ignacio", "other": "Nadia", "pet": "Trufa", "city": "San Juan", "org": "Cooperativa Cuyo", "service": "acceso remoto", "product": "Modulo Sierra", "object": "consola verde", "case": "expediente RX-744", "amount": "$56.930", "duration": "nueve dias"},
+      {"person": "Milagros", "other": "Leandro", "pet": "Duna", "city": "Rio Cuarto", "org": "Red Central", "service": "vinculo digital", "product": "Cobertura Atlas", "object": "receptor azul", "case": "reclamo RX-755", "amount": "$204.510", "duration": "tres semanas"},
+      {"person": "Ezequiel", "other": "Ariadna", "pet": "Kiwi", "city": "Comodoro Rivadavia", "org": "Patagonia Conecta", "service": "canal de datos", "product": "Servicio Boreal", "object": "unidad plateada", "case": "incidente RX-766", "amount": "$167.090", "duration": "seis dias"},
+      {"person": "Julieta", "other": "Marcelo", "pet": "Tiza", "city": "Pergamino", "org": "Nodo Pampa", "service": "acceso de oficina", "product": "Plan Raiz", "object": "dispositivo rojo", "case": "solicitud RX-777", "amount": "$84.320", "duration": "quince dias"},
+      {"person": "Gaspar", "other": "Lorena", "pet": "Nube", "city": "Resistencia", "org": "Litoral Digital", "service": "conexion empresarial", "product": "Paquete Faro", "object": "estacion negra", "case": "ticket RX-788", "amount": "$239.770", "duration": "cinco semanas"},
+      {"person": "Delfina", "other": "Brenda", "pet": "Rulo", "city": "Trelew", "org": "Sur Integrado", "service": "enlace domestico", "product": "Producto Viento", "object": "caja amarilla", "case": "pedido RX-799", "amount": "$112.860", "duration": "ocho dias"},
+      {"person": "Bautista", "other": "Horacio", "pet": "Limon", "city": "San Rafael", "org": "Andes Online", "service": "red del comercio", "product": "Programa Cumbre", "object": "modulo violeta", "case": "registro RX-700", "amount": "$146.250", "duration": "un mes"}
+    ]
+  },
+  "profiles": [
+    {
+      "id": "pragmatic_noise",
+      "variants": "red_team",
+      "categories": ["irony", "sarcasm", "humor", "emoji", "short_message", "whatsapp"],
+      "turns": [
+        {"message": "Si, claro... el {service} funciona perfecto; por eso llevo {duration} completamente sin conexion.", "tags": ["irony", "sarcasm", "negation", "noise"], "expected": {"facts": [{"predicate": "service_available", "value": false}], "topics": ["connectivity"]}},
+        {"message": "Que maravilla, otra factura de {amount}; justo lo que me faltaba para alegrar el dia.", "tags": ["sarcasm", "billing"], "expected": {"topics": ["billing"]}},
+        {"message": "El {object} decidio tomarse vacaciones y el servicio murio otra vez, ja.", "tags": ["humor", "service_failure"], "expected": {"facts": [{"predicate": "service_available", "value": false}]}},
+        {"message": "Buenisimo 🙃, {org} dice que el {case} esta resuelto y yo sigo exactamente igual.", "tags": ["irony", "emoji", "contradiction"], "expected": {"facts": [{"predicate": "case_resolved", "value": false}]}},
+        {"message": "jajaja si obvio q anda el {service}... no carga nada 😅", "tags": ["whatsapp", "sarcasm", "emoji", "noise"], "expected": {"facts": [{"predicate": "service_available", "value": false}], "topics": ["connectivity"]}},
+        {"message": "Si, sobre lo de {person}.", "tags": ["short_message", "context_dependent", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "No, lo de {other}.", "tags": ["short_message", "context_dependent", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "Capaz... lo vemos despues en {city}.", "tags": ["short_message", "ambiguity", "temporal"], "expected": {"ambiguity": true, "temporal": ["despues"]}}
+      ]
+    },
+    {
+      "id": "nested_negation_and_revision",
+      "variants": "red_team",
+      "categories": ["double_negation", "triple_negation", "contradiction", "multiple_corrections", "recovery"],
+      "turns": [
+        {"message": "No es que no quiera presentar la denuncia del {case}.", "tags": ["double_negation", "negation"], "expected": {"facts": [{"predicate": "claim_submission_intent", "value": true}]}},
+        {"message": "No es cierto que no hubo personas heridas en {city}.", "tags": ["triple_negation", "negation"], "expected": {"facts": [{"predicate": "injuries", "value": true}]}},
+        {"message": "Jamas dije que no queria continuar con el {case}; me atribuyeron otra frase.", "tags": ["triple_negation", "correction"], "expected": {"corrections": ["deny_prior_assertion"], "ambiguity": true}},
+        {"message": "Para ser preciso: ninguna persona resulto lesionada en el episodio.", "tags": ["negation"], "expected": {"facts": [{"predicate": "injuries", "value": false}]}},
+        {"message": "Perdon, corrijo lo anterior: si hubo una persona herida.", "tags": ["correction", "contradiction", "recovery"], "recovery_checkpoint": true, "consistency_checkpoint": true, "expected": {"facts": [{"predicate": "injuries", "value": true}], "corrections": ["replace_prior_assertion"], "contradictions": [{"fact": "injuries", "previous_value": false, "new_value": true}]}},
+        {"message": "Me vuelvo a corregir: en realidad no hubo nadie lesionado.", "tags": ["multiple_corrections", "negation", "recovery"], "recovery_checkpoint": true, "consistency_checkpoint": true, "expected": {"facts": [{"predicate": "injuries", "value": false}], "corrections": ["replace_prior_assertion"], "contradictions": [{"fact": "injuries", "previous_value": true, "new_value": false}]}},
+        {"message": "Ni {org} ni ninguna otra persona me llamaron por el {case}.", "tags": ["negation"], "expected": {"facts": [{"predicate": "contact_received", "value": false}]}},
+        {"message": "No queda nada sin resolver del {case}; ya termino.", "tags": ["double_negation"], "expected": {"facts": [{"predicate": "case_resolved", "value": true}]}}
+      ]
+    },
+    {
+      "id": "ambiguous_cross_reference",
+      "variants": "red_team",
+      "categories": ["ambiguous_reference", "multiple_interlocutors", "cross_reference", "coreference"],
+      "turns": [
+        {"message": "Mi socio se llama {person} y mi hermana se llama {other}; ambos usan el {product}.", "tags": ["multiple_interlocutors"], "expected": {"entities": [{"type": "person", "value": "{person}"}, {"type": "person", "value": "{other}"}, {"type": "product", "value": "{product}"}]}},
+        {"message": "El dijo que ella tenia razon.", "tags": ["ambiguous_reference", "multiple_interlocutors"], "expected": {"ambiguity": true, "coreferences": []}},
+        {"message": "Ella necesita que llamen a {other}, no a {person}.", "tags": ["cross_reference", "coreference"], "expected": {"coreferences": [{"mention": "ella", "target_type": "person", "target_value": "{other}"}]}},
+        {"message": "Eso fue lo que se rompio, pero no recuerdo si era el {object} o el {product}.", "tags": ["ambiguous_reference", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "Aquello quedo pendiente.", "tags": ["ambiguous_reference", "ambiguity"], "expected": {"ambiguity": true, "coreferences": []}},
+        {"message": "El mismo volvio a fallar en {city}.", "tags": ["ambiguous_reference", "coreference"], "expected": {"coreferences": [{"mention": "el mismo", "target_type": "object", "target_value": "{object}"}]}},
+        {"message": "La otra dijo que no, aunque no se cual de las dos era.", "tags": ["ambiguous_reference", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "Este, el {object}, es el equipo que quiero revisar.", "tags": ["cross_reference", "coreference"], "expected": {"coreferences": [{"mention": "este", "target_type": "object", "target_value": "{object}"}]}}
+      ]
+    },
+    {
+      "id": "rapid_context_jumps",
+      "variants": "red_team",
+      "categories": ["context_jump", "multi_topic", "recovery", "priority"],
+      "turns": [
+        {"message": "Quiero revisar un choque asociado al {case} en {city}.", "tags": ["insurance"], "expected": {"topics": ["insurance_claim"]}},
+        {"message": "Cambio total: ahora el problema urgente es que no tengo internet para trabajar.", "tags": ["context_jump", "connectivity"], "recovery_checkpoint": true, "expected": {"topics": ["connectivity"], "facts": [{"predicate": "service_available", "value": false}]}},
+        {"message": "Parentesis: mi mascota se llama {pet}; acordate de eso.", "tags": ["context_jump", "memory"], "expected": {"entities": [{"type": "animal", "value": "{pet}"}], "facts": [{"predicate": "pet_name", "value": "{pet}"}]}},
+        {"message": "Otra cosa: la factura llego por {amount} y vence pronto.", "tags": ["context_jump", "billing"], "expected": {"topics": ["billing"], "entities": [{"type": "money", "value": "{amount}"}]}},
+        {"message": "Retomo el seguro: necesito saber si puedo reparar el vehiculo del {case}.", "tags": ["context_jump", "insurance", "recovery"], "recovery_checkpoint": true, "expected": {"topics": ["insurance_claim"]}},
+        {"message": "Volvamos a lo primero, no a la factura ni al internet.", "tags": ["cross_reference", "context_jump"], "expected": {"coreferences": [{"mention": "lo primero", "target_type": "topic", "target_value": "insurance_claim"}]}},
+        {"message": "Antes de eso, resolvamos aquello que quedo a medias.", "tags": ["ambiguous_reference", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "Ahora mi prioridad absoluta es recuperar el vehiculo; lo demas puede esperar.", "tags": ["priority", "insurance"], "expected": {"topics": ["insurance_claim"], "goal_contains": "recuperar el vehiculo"}}
+      ]
+    },
+    {
+      "id": "noisy_whatsapp_audio",
+      "variants": "red_team",
+      "categories": ["orthography", "whatsapp", "emoji", "audio_transcript", "autocorrection", "noise"],
+      "turns": [
+        {"message": "n tngo intrnet hace {duration} pls ayudaa", "tags": ["orthography", "whatsapp", "noise", "negation"], "expected": {"facts": [{"predicate": "service_available", "value": false}], "topics": ["connectivity"]}},
+        {"message": "la factra vino x {amount} y nose xq 😡", "tags": ["orthography", "whatsapp", "emoji", "noise"], "expected": {"topics": ["billing"], "entities": [{"type": "money", "value": "{amount}"}], "ambiguity": true}},
+        {"message": "qiero dnunciar q me chocarn en {city} ayer", "tags": ["orthography", "whatsapp", "temporal", "noise"], "expected": {"topics": ["insurance_claim"], "events": [{"type": "vehicle_collision"}], "temporal": ["ayer"]}},
+        {"message": "📵📵 cero señal en el {service} desde ayer 😭", "tags": ["emoji", "noise", "negation", "temporal"], "expected": {"facts": [{"predicate": "service_available", "value": false}], "topics": ["connectivity"], "temporal": ["desde ayer"]}},
+        {"message": "eh bueno a ver yo iba por {city} y tipo me pegaron digo me rozaron el auto no hubo nadie lastimado creo", "tags": ["audio_transcript", "autocorrection", "negation", "uncertainty"], "expected": {"events": [{"type": "vehicle_collision"}], "facts": [{"predicate": "injuries", "value": false}], "ambiguity": true}},
+        {"message": "digo fibra no fiebre perdon el problema es el {service}", "tags": ["audio_transcript", "autocorrection", "correction"], "recovery_checkpoint": true, "expected": {"corrections": ["replace_prior_assertion"], "topics": ["connectivity"]}}
+      ]
+    },
+    {
+      "id": "distributed_information",
+      "variants": "red_team",
+      "categories": ["distributed_information", "memory", "correction", "context_retention"],
+      "turns": [
+        {"message": "Para esta conversacion mi nombre es {person}.", "tags": ["memory"], "expected": {"entities": [{"type": "person", "value": "{person}", "role": "user"}], "facts": [{"predicate": "user_name", "value": "{person}"}]}},
+        {"message": "La mascota de la familia se llama {pet}.", "tags": ["memory"], "expected": {"entities": [{"type": "animal", "value": "{pet}"}], "facts": [{"predicate": "pet_name", "value": "{pet}"}]}},
+        {"message": "El {service} dejo de funcionar en {city}.", "tags": ["negation"], "expected": {"facts": [{"predicate": "service_available", "value": false}]}},
+        {"message": "Desde que abri el {case}, ninguna persona me contacto.", "tags": ["memory", "negation"], "expected": {"facts": [{"predicate": "contact_received", "value": false}]}},
+        {"message": "Tengo toda la documentacion preparada para {org}.", "tags": ["memory"], "expected": {"facts": [{"predicate": "documentation_available", "value": true}], "topics": ["documentation"]}},
+        {"message": "La denuncia correspondiente al {case} ya esta presentada.", "tags": ["memory"], "expected": {"facts": [{"predicate": "claim_report_loaded", "value": true}], "topics": ["insurance_claim"]}},
+        {"message": "Como se llama la mascota que mencione?", "tags": ["memory", "coreference"], "context_checkpoint": true, "expected": {"coreferences": [{"mention": "la mascota", "target_type": "animal", "target_value": "{pet}"}]}},
+        {"message": "Correccion: el {service} volvio a funcionar esta mañana.", "tags": ["correction", "recovery", "temporal"], "recovery_checkpoint": true, "consistency_checkpoint": true, "expected": {"facts": [{"predicate": "service_available", "value": true}], "corrections": ["replace_prior_assertion"], "temporal": ["esta mañana"]}},
+        {"message": "Otra correccion: no tengo completa la documentacion.", "tags": ["correction", "negation", "recovery"], "recovery_checkpoint": true, "consistency_checkpoint": true, "expected": {"facts": [{"predicate": "documentation_available", "value": false}], "corrections": ["replace_prior_assertion"]}},
+        {"message": "Cual fue el nombre que te di al principio?", "tags": ["memory", "coreference"], "context_checkpoint": true, "expected": {"coreferences": [{"mention": "el nombre", "target_type": "person", "target_value": "{person}"}]}},
+        {"message": "Que hechos siguen vigentes para el {case}?", "tags": ["memory", "question"], "context_checkpoint": true, "expected": {"goal_contains": "hechos siguen vigentes"}},
+        {"message": "Y retomemos solamente la denuncia, dejando suspendido el servicio.", "tags": ["context_jump", "retraction", "recovery"], "recovery_checkpoint": true, "expected": {"topics": ["insurance_claim"], "corrections": ["retract"]}}
+      ]
+    },
+    {
+      "id": "distant_memory_stress",
+      "variants": "red_team",
+      "categories": ["stress", "long_conversation", "distant_memory", "context_retention", "topic_churn"],
+      "turns": [
+        {"message": "Dato inicial distante: me llamo {person} y mi mascota se llama {pet}.", "tags": ["memory"], "expected": {"entities": [{"type": "person", "value": "{person}", "role": "user"}, {"type": "animal", "value": "{pet}"}], "facts": [{"predicate": "user_name", "value": "{person}"}, {"predicate": "pet_name", "value": "{pet}"}]}},
+        {"message": "Tambien dejo asentado el {case} por un choque sin personas heridas.", "tags": ["insurance", "negation"], "expected": {"topics": ["insurance_claim"], "facts": [{"predicate": "injuries", "value": false}]}},
+        {"repeat_cycle": {"count": 51, "templates": [
+          {"message": "Intermedio {repeat_index}: revisemos por un momento la factura de {amount} de {org}.", "tags": ["billing", "topic_churn"], "expected": {"topics": ["billing"]}},
+          {"message": "Intermedio {repeat_index}: el {service} sigue sin conexion en {city}.", "tags": ["connectivity", "topic_churn", "negation"], "expected": {"topics": ["connectivity"], "facts": [{"predicate": "service_available", "value": false}]}},
+          {"message": "Intermedio {repeat_index}: adjunte un archivo distinto para el {case}.", "tags": ["documentation", "topic_churn"], "expected": {"topics": ["documentation"]}},
+          {"message": "Intermedio {repeat_index}: dejemos en pausa este asunto y sigamos luego.", "tags": ["retraction", "topic_churn", "temporal"], "expected": {"corrections": ["retract"], "temporal": ["luego"]}}
+        ]}},
+        {"message": "Despues de todos esos pasos, como se llamaba mi mascota?", "tags": ["distant_memory", "coreference"], "context_checkpoint": true, "expected": {"coreferences": [{"mention": "mi mascota", "target_type": "animal", "target_value": "{pet}"}], "temporal": ["despues"]}},
+        {"message": "Y cual era mi nombre, el que indique cincuenta turnos atras?", "tags": ["distant_memory", "coreference"], "context_checkpoint": true, "expected": {"coreferences": [{"mention": "mi nombre", "target_type": "person", "target_value": "{person}"}]}}
+      ]
+    },
+    {
+      "id": "conflicting_priorities_and_speakers",
+      "variants": "red_team",
+      "categories": ["multiple_interlocutors", "conflicting_priorities", "cross_reference", "multi_topic"],
+      "turns": [
+        {"message": "{person} dice que el {service} no funciona; {other} sostiene que funciona perfectamente.", "tags": ["multiple_interlocutors", "contradiction"], "expected": {"speaker_facts": [{"speaker": "{person}", "predicate": "service_available", "value": false}, {"speaker": "{other}", "predicate": "service_available", "value": true}]}},
+        {"message": "Para {person} lo urgente es recuperar el servicio; para {other} lo principal es discutir {amount}.", "tags": ["multiple_interlocutors", "conflicting_priorities", "multi_topic"], "expected": {"topics": ["connectivity", "billing"], "goals": [{"owner": "{person}", "contains": "recuperar el servicio"}, {"owner": "{other}", "contains": "discutir {amount}"}]}},
+        {"message": "Mi prioridad, no la de {other}, es resolver primero el {case}.", "tags": ["priority", "cross_reference"], "expected": {"goal_contains": "resolver primero el {case}"}},
+        {"message": "{other} se corrige: tampoco tiene servicio.", "tags": ["multiple_interlocutors", "correction", "recovery"], "recovery_checkpoint": true, "consistency_checkpoint": true, "expected": {"facts": [{"predicate": "service_available", "value": false}], "corrections": ["replace_prior_assertion"]}},
+        {"message": "El problema de el es distinto del de ella.", "tags": ["ambiguous_reference", "multiple_interlocutors"], "expected": {"ambiguity": true}},
+        {"message": "Hay dos trabajos: recuperar el {service} y revisar la factura de {amount}; no descartes ninguno.", "tags": ["multi_topic", "priority"], "expected": {"topics": ["connectivity", "billing"]}},
+        {"message": "Si solo podes hacer uno, prioriza el servicio porque ambos trabajamos desde {city}.", "tags": ["priority", "multiple_interlocutors"], "expected": {"goal_contains": "prioriza el servicio"}},
+        {"message": "Finalmente conserva pendiente la factura, sin confundirla con el {case}.", "tags": ["priority", "temporal", "multi_topic"], "consistency_checkpoint": true, "expected": {"topics": ["billing", "insurance_claim"], "temporal": ["finalmente"]}}
+      ]
+    },
+    {
+      "id": "real_ambiguity_and_successive_retraction",
+      "variants": "red_team",
+      "categories": ["real_ambiguity", "short_message", "successive_retraction", "no_correct_answer"],
+      "turns": [
+        {"message": "Bueno... respecto de {person} y {other}.", "tags": ["short_message", "ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "El otro.", "tags": ["short_message", "ambiguous_reference"], "expected": {"ambiguity": true, "coreferences": []}},
+        {"message": "No importa lo del {case}.", "tags": ["retraction"], "expected": {"corrections": ["retract"]}},
+        {"message": "No, eso no; dejalo tambien.", "tags": ["successive_retraction", "ambiguous_reference"], "recovery_checkpoint": true, "expected": {"corrections": ["retract"], "ambiguity": true}},
+        {"message": "Puede ser el {object}, o puede que no; no tengo forma de saberlo.", "tags": ["real_ambiguity"], "expected": {"ambiguity": true}},
+        {"message": "Si y no al mismo tiempo.", "tags": ["short_message", "real_ambiguity", "contradiction"], "expected": {"ambiguity": true}},
+        {"message": "Olvida aquello, no importa esto y mejor dejemos tambien lo otro.", "tags": ["successive_retraction"], "recovery_checkpoint": true, "expected": {"corrections": ["retract", "retract", "retract"]}},
+        {"message": "Ahora si es claro: quiero consultar exclusivamente la factura de {amount}.", "tags": ["recovery", "billing"], "recovery_checkpoint": true, "expected": {"ambiguity": false, "topics": ["billing"]}}
+      ]
+    },
+    {
+      "id": "extreme_long_form",
+      "variants": "red_team",
+      "categories": ["extreme_length", "long_message", "noise", "context_retention"],
+      "turns": [
+        {"long_message": {"prefix": "Al comienzo dejo dos datos verificables: me llamo {person}, mi mascota se llama {pet} y el {case} no tuvo personas heridas. ", "filler": "Este fragmento intermedio agrega contexto narrativo irrelevante sin modificar ningun hecho operativo previo. ", "repeat": 190, "suffix": "Al final aclaro que el {service} dejo de funcionar y que nadie de {org} me contacto."}, "tags": ["extreme_length", "noise", "negation", "memory"], "expected": {"entities": [{"type": "person", "value": "{person}", "role": "user"}, {"type": "animal", "value": "{pet}"}], "facts": [{"predicate": "user_name", "value": "{person}"}, {"predicate": "pet_name", "value": "{pet}"}, {"predicate": "injuries", "value": false}, {"predicate": "service_available", "value": false}, {"predicate": "contact_received", "value": false}]}},
+        {"message": "Sin reconstruir todo el relato, cual era el nombre de mi mascota y que servicio seguia fallando?", "tags": ["context_retention", "coreference", "question"], "context_checkpoint": true, "expected": {"coreferences": [{"mention": "mi mascota", "target_type": "animal", "target_value": "{pet}"}], "goal_contains": "que servicio seguia fallando"}}
+      ]
+    }
+  ]
+}

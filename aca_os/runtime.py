@@ -17,7 +17,7 @@ from aca_os.execution_authority import record_execution_authority
 from aca_os.legacy_runtime_executor import LegacyRuntimeExecutor
 from aca_os.memory_engine import MemoryEngine
 from aca_os.metrics_engine import MetricsEngine
-from aca_os.component_registry import ComponentRegistry, build_registry_from_runtime
+from aca_os.component_registry import ComponentDescriptor, ComponentRegistry, build_registry_from_runtime
 from aca_os.plugin_lifecycle import PluginLifecycleManager
 from aca_os.plugin_loader import PluginLoader
 from aca_os.domain_pack_loader import DomainPackLoader
@@ -159,6 +159,62 @@ class ACAOSRuntime:
             )
             self.component_registry.initialize("domain_pack_runtime")
             self.component_registry.activate("domain_pack_runtime")
+        if self.component_registry.get("semantic_authority") is None:
+            self.component_registry.register_instance(
+                name="semantic_authority",
+                instance=self.conversation_manager.semantic_authority,
+                role="semantic interpretation (shadow representation)",
+                capabilities=("semantic.interpret",),
+                tags=("semantic-authority", "runtime", "shadow"),
+                metadata={"runtime_owned": True, "authority_mode": "shadow"},
+            )
+            self.component_registry.initialize("semantic_authority")
+            self.component_registry.activate("semantic_authority")
+        if self.component_registry.get("semantic_projector") is None:
+            self.component_registry.register_instance(
+                name="semantic_projector",
+                instance=self.conversation_manager.semantic_projector,
+                role="semantic projection (shadow projection)",
+                capabilities=("semantic.project",),
+                tags=("semantic-authority", "runtime", "shadow"),
+                metadata={"runtime_owned": True, "authority_mode": "shadow"},
+            )
+            self.component_registry.initialize("semantic_projector")
+            self.component_registry.activate("semantic_projector")
+        if self.component_registry.get("conversational_act_authority_selector") is None:
+            self.component_registry.register(
+                ComponentDescriptor(
+                    name="conversational_act_authority_selector",
+                    class_name="semantic_authority_pilot.select_conversational_act_authority",
+                    role="atomic authority selection for ConversationalAct",
+                    capabilities=("authority.select",),
+                    tags=("semantic-authority", "runtime", "pilot"),
+                    metadata={
+                        "runtime_owned": True,
+                        "instantiation": "function",
+                        "firewall_package": "FW-4",
+                    },
+                )
+            )
+            self.component_registry.initialize("conversational_act_authority_selector")
+            self.component_registry.activate("conversational_act_authority_selector")
+        if self.component_registry.get("conversational_goal_authority_selector") is None:
+            self.component_registry.register(
+                ComponentDescriptor(
+                    name="conversational_goal_authority_selector",
+                    class_name="semantic_authority_pilot.select_conversational_goal_authority",
+                    role="atomic authority selection for ConversationalGoal",
+                    capabilities=("authority.select",),
+                    tags=("semantic-authority", "runtime", "pilot"),
+                    metadata={
+                        "runtime_owned": True,
+                        "instantiation": "function",
+                        "firewall_package": "FW-5",
+                    },
+                )
+            )
+            self.component_registry.initialize("conversational_goal_authority_selector")
+            self.component_registry.activate("conversational_goal_authority_selector")
         self.domain_context = domain_context or {}
         self.domain_context.setdefault("domain_packs", self.domain_pack_runtime.context())
         self.step_services = StepRuntimeServices(
@@ -178,6 +234,70 @@ class ACAOSRuntime:
             domain_context=self.domain_context,
             emit=self._emit,
         )
+        if self.component_registry.get("legacy_runtime") is None:
+            self.component_registry.register_instance(
+                name="legacy_runtime",
+                instance=self.legacy_runtime,
+                role="legacy validation and compatibility executor",
+                capabilities=("runtime.legacy_execute", "runtime.legacy_project"),
+                tags=("runtime", "execution", "legacy"),
+                metadata={"runtime_owned": True, "authority_mode": "legacy_or_validation"},
+            )
+            self.component_registry.initialize("legacy_runtime")
+            self.component_registry.activate("legacy_runtime")
+        for step_name, handler in self.step_handlers.all().items():
+            component_name = f"step_handler_{step_name}"
+            if self.component_registry.get(component_name) is not None:
+                continue
+            self.component_registry.register_instance(
+                name=component_name,
+                instance=handler,
+                role=f"step execution handler: {step_name}",
+                capabilities=(f"step.{step_name}.execute",),
+                tags=("runtime", "execution", "step-handler"),
+                metadata={"runtime_owned": True, "step_name": step_name},
+            )
+            self.component_registry.initialize(component_name)
+            self.component_registry.activate(component_name)
+        if self.component_registry.get("runtime_executor") is None:
+            self.component_registry.register(
+                ComponentDescriptor(
+                    name="runtime_executor",
+                    class_name="RuntimeExecutor",
+                    role="official plan-driven step executor",
+                    capabilities=("runtime.execute",),
+                    tags=("runtime", "execution"),
+                    metadata={"runtime_owned": True, "instantiation": "per_turn"},
+                )
+            )
+            self.component_registry.initialize("runtime_executor")
+            self.component_registry.activate("runtime_executor")
+        if self.component_registry.get("narrative_response_composer") is None:
+            self.component_registry.register(
+                ComponentDescriptor(
+                    name="narrative_response_composer",
+                    class_name="NarrativeResponseComposer",
+                    role="deterministic output realization (output-only transform)",
+                    capabilities=("output.compose",),
+                    tags=("runtime", "output"),
+                    metadata={"runtime_owned": True, "instantiation": "per_turn"},
+                )
+            )
+            self.component_registry.initialize("narrative_response_composer")
+            self.component_registry.activate("narrative_response_composer")
+        output_handler = self.step_handlers.resolve("output") if self.step_handlers.can_handle("output") else None
+        llm_verbalizer = getattr(output_handler, "llm_verbalizer", None)
+        if llm_verbalizer is not None and self.component_registry.get("llm_verbalizer") is None:
+            self.component_registry.register_instance(
+                name="llm_verbalizer",
+                instance=llm_verbalizer,
+                role="optional output-only LLM verbalization (never an authority)",
+                capabilities=("output.verbalize",),
+                tags=("runtime", "output", "llm"),
+                metadata={"runtime_owned": True, "authority_mode": "output_transform"},
+            )
+            self.component_registry.initialize("llm_verbalizer")
+            self.component_registry.activate("llm_verbalizer")
         self.runtime_id = str(uuid4())
         self._last_trace: ExecutionTrace | None = None
         self._traces: Dict[str, ExecutionTrace] = {}
@@ -247,6 +367,8 @@ class ACAOSRuntime:
         intent_match: Any,
         action_plan: Any,
         execution_flow: Any,
+        semantic_representation: Dict[str, Any] | None = None,
+        semantic_projection: Dict[str, Any] | None = None,
     ) -> CognitiveState:
         legacy_memory = _clone_memory_engine(self.memory_engine)
         graph = None
@@ -259,6 +381,8 @@ class ACAOSRuntime:
             "policy_result": policy_result.to_dict(),
             "tool_evidence": tool_evidence,
             "conversation_state": conversation_state.to_dict(),
+            "semantic_representation": deepcopy(semantic_representation or {}),
+            "semantic_projection": deepcopy(semantic_projection or {}),
         }
         if policy_result.decision != PolicyDecision.ESCALATE:
             graph = self.compiler.compile(event, prepared)
@@ -470,10 +594,33 @@ class ACAOSRuntime:
             prepared,
             source="runtime.prepared_state",
         )
-        operational_conversation_state, _ = operational_conversation_state.model_conversational_intent(event.payload)
-        operational_conversation_state, _ = operational_conversation_state.plan_information_gain(event.payload)
-        operational_conversation_state, _ = operational_conversation_state.plan_conversation(event.payload)
-        operational_conversation_state, _ = operational_conversation_state.plan_conversational_response(event.payload)
+        # ConversationIntentModel, InformationGainPlan, ConversationPlan and
+        # ConversationResponsePlan are computed exactly once per turn, here,
+        # after MissionManager has assigned the active mission (FW-11: this
+        # used to also run in ConversationManager.begin_turn, before the
+        # mission existed; that premature computation was removed because
+        # nothing consumed it and this post-Mission write always overwrote
+        # it -- see docs/architecture/ACA-100 and
+        # aca_os/fw11_recomputation_evidence.py for the migration evidence).
+        operational_conversation_state, conversational_intent_model = (
+            operational_conversation_state.model_conversational_intent(event.payload)
+        )
+        operational_conversation_state, information_gain_plan = (
+            operational_conversation_state.plan_information_gain(event.payload)
+        )
+        operational_conversation_state, conversation_plan = (
+            operational_conversation_state.plan_conversation(event.payload)
+        )
+        operational_conversation_state, conversational_response_plan = (
+            operational_conversation_state.plan_conversational_response(event.payload)
+        )
+        self.conversation_manager.record_conversation_planning_projection(
+            turn_context.conversation_id,
+            conversational_intent_model=conversational_intent_model,
+            information_gain_plan=information_gain_plan,
+            conversation_plan=conversation_plan,
+            conversational_response_plan=conversational_response_plan,
+        )
         prepared = operational_conversation_state.to_cognitive_state(
             base=prepared,
             source="runtime.conversation_response_plan",
@@ -505,6 +652,16 @@ class ACAOSRuntime:
                 intent_match=intent_match,
                 action_plan=action_plan,
                 execution_flow=execution_flow,
+                semantic_representation=(
+                    turn_context.semantic_representation.to_dict()
+                    if turn_context.semantic_representation is not None
+                    else {}
+                ),
+                semantic_projection=(
+                    turn_context.semantic_projection.to_dict()
+                    if turn_context.semantic_projection is not None
+                    else {}
+                ),
             )
             final_state = self._attach_conversation_state_runtime_record(final_state)
             self._emit("runtime.process.completed", trace_id=trace_id, final_version=final_state.version)

@@ -583,8 +583,31 @@ class ConversationState:
     def recognize_conversational_act(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
         return recognize_conversational_act(self, message)
 
-    def apply_conversational_goal(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
-        return apply_conversational_goal(self, message)
+    def project_conversational_goal(
+        self,
+        *,
+        source: str,
+        goal_projection: Mapping[str, Any] | None = None,
+        projection_metadata: Mapping[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return project_conversational_goal(
+            self,
+            source=source,
+            goal_projection=goal_projection,
+            projection_metadata=projection_metadata,
+        )
+
+    def apply_conversational_goal(
+        self,
+        goal: Mapping[str, Any],
+        *,
+        authority_decision: Mapping[str, Any] | None = None,
+    ) -> tuple["ConversationState", Dict[str, Any]]:
+        return apply_conversational_goal(
+            self,
+            goal,
+            authority_decision=authority_decision,
+        )
 
     def update_topic_stack(self, message: Any) -> tuple["ConversationState", Dict[str, Any]]:
         return update_topic_stack(self, message)
@@ -931,13 +954,48 @@ def resolve_pending_slot_answers(
     confirmed_facts = deepcopy(conversation_state.confirmed_facts)
     derived_state = deepcopy(conversation_state.derived_state)
     resolutions: list[Dict[str, Any]] = []
+    rejections: list[Dict[str, Any]] = []
+    unmatched: list[Dict[str, Any]] = []
 
     pending_slots = _ordered_pending_slot_names(slots, pending_questions)
     explicit_matches = _explicit_slot_matches(normalized, pending_slots)
     if not explicit_matches and pending_slots:
         contextual = _contextual_slot_match(normalized, pending_slots, pending_questions)
         if contextual:
-            explicit_matches.append(contextual)
+            if _clears_generic_slot_confidence_floor(contextual):
+                explicit_matches.append(contextual)
+            else:
+                # ACA-305D-RC1 section 13: a low-confidence generic match is
+                # never applied and never silently dropped -- it is recorded
+                # explicitly (section 15) and turned into inert evidence for
+                # MissionManager (section 9/10), never written to state here.
+                rejections.append(
+                    {
+                        "slot": contextual["slot"],
+                        "component": "conversation_state",
+                        "rejected_value": deepcopy(contextual.get("value")),
+                        "confidence": float(contextual.get("confidence") or 0.0),
+                        "confidence_floor": GENERIC_SLOT_MATCH_CONFIDENCE_FLOOR,
+                        "evidence": deepcopy(contextual.get("evidence") or {}),
+                        "reason": "generic_match_below_confidence_floor",
+                    }
+                )
+        else:
+            # ACA-305D-RC1 section 7/14: distinct from a rejected match --
+            # no matcher (explicit or contextual, dedicated or generic) found
+            # any signal at all. Unlike a rejection, this is not evidence the
+            # user answered poorly; it is evidence the message does not
+            # engage with the pending question. Recorded explicitly and
+            # turned into inert `suspend` evidence for MissionManager, never
+            # written to state here.
+            unmatched.append(
+                {
+                    "slot": pending_slots[0],
+                    "component": "conversation_state",
+                    "message": normalized,
+                    "reason": "no_slot_match_found",
+                }
+            )
 
     for match in explicit_matches:
         slot_name = match["slot"]
@@ -965,17 +1023,60 @@ def resolve_pending_slot_answers(
         if repeated:
             resolutions.append(repeated)
 
-    if not resolutions:
+    if not resolutions and not rejections and not unmatched:
         return conversation_state, []
 
-    active_mission = _mission_with_slots(active_mission, slots)
-    trace = {
-        "contract": "slot_resolution_trace.v1",
-        "component": "conversation_state",
-        "message": str(message),
-        "resolutions": [dict(resolution) for resolution in resolutions],
-    }
-    derived_state["slot_resolution"] = trace
+    if resolutions:
+        active_mission = _mission_with_slots(active_mission, slots)
+        # `derived_state["slot_resolution"]` is set only when a real
+        # resolution occurred -- preserved exactly as it was before
+        # ACA-305D-RC2/this closing sprint. `_conversation_failed_steps`
+        # (a pre-existing, approved contract, conversation_fulfillment.v1)
+        # treats this key's mere presence as "something legitimate
+        # happened this turn, do not mark the expected step failed"
+        # (conversation_state.py `_conversation_failed_steps`). Rejections
+        # and unmatched evidence are NOT resolutions -- nothing was
+        # answered -- so they must never make this key appear on their
+        # own, or they would silently suppress that pre-existing recovery
+        # mechanism for auto_claim_guidance (verified regression, fixed
+        # here rather than by touching `_conversation_failed_steps` itself).
+        trace = {
+            "contract": "slot_resolution_trace.v1",
+            "component": "conversation_state",
+            "message": str(message),
+            "resolutions": [dict(resolution) for resolution in resolutions],
+        }
+        derived_state["slot_resolution"] = trace
+    if rejections or unmatched:
+        derived_state["slot_resolution_evidence"] = {
+            "contract": "slot_resolution_evidence_trace.v1",
+            "component": "conversation_state",
+            "message": str(message),
+            "rejections": [dict(rejection) for rejection in rejections],
+            "unmatched": [dict(item) for item in unmatched],
+        }
+    proposals: list[Dict[str, Any]] = []
+    if rejections and active_mission:
+        proposal = _slot_rejection_mission_proposal(
+            active_mission=active_mission,
+            rejections=rejections,
+            turn=conversation_state.turn_count,
+        )
+        if proposal:
+            proposals.append(proposal)
+    if unmatched and active_mission:
+        proposal = _slot_unmatched_mission_proposal(
+            active_mission=active_mission,
+            unmatched=unmatched,
+            turn=conversation_state.turn_count,
+        )
+        if proposal:
+            proposals.append(proposal)
+    if proposals:
+        derived_state["mission_transition_proposals"] = [
+            *(derived_state.get("mission_transition_proposals") or []),
+            *proposals,
+        ]
     return (
         replace(
             conversation_state,
@@ -991,6 +1092,103 @@ def resolve_pending_slot_answers(
         ),
         resolutions,
     )
+
+
+def _slot_rejection_mission_proposal(
+    *,
+    active_mission: Mapping[str, Any],
+    rejections: Sequence[Mapping[str, Any]],
+    turn: int,
+) -> Dict[str, Any] | None:
+    """Inert MissionTransitionProposal recording that low-confidence slot
+    evidence was rejected rather than absorbed (ACA-305D-RC1 section 13).
+
+    `mission_delta` is deliberately empty: this proposal requests no mission
+    change (`resolve_pending_slot_answers` does not become a planner,
+    ACA-305B section 8) -- it only makes the rejection auditable through the
+    same MissionTransitionDecision trail every other proposal already uses,
+    so a future evidence consumer (e.g. `abandonment_criteria` evaluation)
+    has something to read. `MissionManager` remains the only component that
+    could ever turn this into an actual transition.
+    """
+
+    if not rejections:
+        return None
+    primary = rejections[0]
+    return {
+        "contract": MISSION_TRANSITION_PROPOSAL_CONTRACT,
+        "proposal_id": f"slot_rejection:{int(turn)}:{primary['slot']}",
+        "component": "conversation_state",
+        "turn": int(turn),
+        "transition_type": "maintain",
+        "target_mission_type": None,
+        "mission_before": deepcopy(dict(active_mission)),
+        "mission_delta": {},
+        "evidence": {
+            "evidence_kind": "slot_match_rejected",
+            "rejections": [deepcopy(dict(item)) for item in rejections],
+        },
+        # Confidence in the rejection itself (deterministic: the underlying
+        # match's own confidence was below the floor), not in the rejected
+        # content -- distinct from the rejected match's own low confidence.
+        "confidence": 1.0,
+        "reason": "insufficient_evidence_for_slot_answer",
+    }
+
+
+# auto_claim_guidance already owns a complete, pre-existing, approved
+# recovery authority for an unanswered expected step -- `conversation_
+# fulfillment.v1` (introduced in the same commit as reformulation itself,
+# c0c2bcf, and covered by its own tests, e.g. test_conversation_fulfillment.
+# py::test_unanswered_expected_step_records_failure_and_recovery_action,
+# which requires the mission to stay `auto_claim_guidance`/`in_progress`
+# and reask via reformulation, not transition). Proposing `suspend` here for
+# that mission type would contradict that already-approved contract and
+# break byte-identical auto_claim_guidance behavior. This mechanism exists
+# specifically for mission types with no such dedicated recovery authority
+# (today: `general_orientation`).
+_MISSION_TYPES_WITH_OWN_RECOVERY_AUTHORITY = {"auto_claim_guidance"}
+
+
+def _slot_unmatched_mission_proposal(
+    *,
+    active_mission: Mapping[str, Any],
+    unmatched: Sequence[Mapping[str, Any]],
+    turn: int,
+) -> Dict[str, Any] | None:
+    """Inert `suspend` MissionTransitionProposal for a message that matched
+    no pending-slot pattern at all -- explicit or contextual, dedicated or
+    generic (ACA-305D-RC1 section 7, "fixture 4" root cause: distinct from a
+    rejected match, this is the absence of any relevant signal). `suspend`,
+    not `abandon`: a single non-engaging turn does not prove the mission was
+    given up on, only that it should pause rather than keep repeating an
+    unanswered question against unrelated input. MissionManager evaluates
+    and may reject this like any other proposal (ACA-305B section 9); this
+    function only proposes.
+    """
+
+    if not unmatched:
+        return None
+    if str(active_mission.get("type") or "") in _MISSION_TYPES_WITH_OWN_RECOVERY_AUTHORITY:
+        return None
+    return {
+        "contract": MISSION_TRANSITION_PROPOSAL_CONTRACT,
+        "proposal_id": f"slot_unmatched:{int(turn)}:{unmatched[0]['slot']}",
+        "component": "conversation_state",
+        "turn": int(turn),
+        "transition_type": "suspend",
+        "target_mission_type": None,
+        "mission_before": deepcopy(dict(active_mission)),
+        "mission_delta": {"lifecycle_status": MissionLifecycleStatus.SUSPENDED, "status": "suspended"},
+        "evidence": {
+            "evidence_kind": "no_slot_match_found",
+            "unmatched": [deepcopy(dict(item)) for item in unmatched],
+        },
+        # Certainty that no matcher found any signal (a deterministic fact),
+        # not a semantic judgment that the message is truly unrelated.
+        "confidence": 1.0,
+        "reason": "no_evidence_message_answers_pending_question",
+    }
 
 
 def slot_lifecycle_contract() -> Dict[str, Any]:
@@ -1302,40 +1500,98 @@ def plan_conversation(
     )
 
 
-def apply_conversational_goal(
+def project_conversational_goal(
     conversation_state: ConversationState,
-    message: Any,
-) -> tuple[ConversationState, Dict[str, Any]]:
+    *,
+    source: str,
+    goal_projection: Mapping[str, Any] | None = None,
+    projection_metadata: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
     act = dict(conversation_state.last_conversational_act or {})
     if not act:
+        return {}
+    return _conversational_goal_for_act(
+        conversation_state,
+        act,
+        source=source,
+        goal_projection=goal_projection,
+        projection_metadata=projection_metadata,
+    )
+
+
+def apply_conversational_goal(
+    conversation_state: ConversationState,
+    goal: Mapping[str, Any],
+    *,
+    authority_decision: Mapping[str, Any] | None = None,
+) -> tuple[ConversationState, Dict[str, Any]]:
+    selected_goal = deepcopy(dict(goal or {}))
+    if not selected_goal:
         return conversation_state, {}
-    goal = _conversational_goal_for_act(conversation_state, message, act)
     derived_state = deepcopy(conversation_state.derived_state)
     derived_state["conversation_goal"] = {
         "contract": "conversation_goal_trace.v1",
         "component": "conversation_state",
-        "goal": deepcopy(goal),
-        "fulfillment": deepcopy(goal.get("fulfillment") or {}),
+        "goal": deepcopy(selected_goal),
+        "fulfillment": deepcopy(selected_goal.get("fulfillment") or {}),
+        "authority": deepcopy(dict(authority_decision or {})),
     }
     topic_stack = _topic_stack_with_conversational_goal(
         conversation_state.topic_stack,
-        goal=goal,
+        goal=selected_goal,
         derived_state=derived_state,
         turn=conversation_state.turn_count,
     )
+    projection_source = "conversation_state.conversational_goal"
+    if (authority_decision or {}).get("authority_selected") == "semantic":
+        projection_source = "semantic_projection.conversational_goal"
     return (
         replace(
             conversation_state,
             topic_stack=topic_stack,
-            conversational_strategy=deepcopy(goal.get("strategy") or {}),
+            conversational_strategy=deepcopy(selected_goal.get("strategy") or {}),
             derived_state=derived_state,
             projection_sources=_append_unique(
                 conversation_state.projection_sources,
-                "conversation_state.conversational_goal",
+                projection_source,
             ),
         ),
-        goal,
+        selected_goal,
     )
+
+
+def conversational_goal_state_effect(
+    conversation_state: ConversationState,
+) -> Dict[str, Any]:
+    trace = dict(conversation_state.derived_state.get("conversation_goal") or {})
+    goal = dict(trace.get("goal") or {})
+    decision_fields = {
+        key: deepcopy(goal.get(key))
+        for key in (
+            "contract",
+            "originating_act",
+            "act",
+            "intention",
+            "strategy",
+            "success_criteria",
+            "abandonment_criteria",
+            "priority",
+            "mission_impact",
+            "fulfillment",
+            "component",
+            "turn",
+        )
+    }
+    topic_goals = [
+        deepcopy(dict(topic.get("conversational_goal") or {}))
+        for topic in conversation_state.topic_stack
+        if isinstance(topic, Mapping) and topic.get("conversational_goal")
+    ]
+    return {
+        "goal": decision_fields,
+        "conversational_strategy": deepcopy(conversation_state.conversational_strategy),
+        "topic_goals": topic_goals,
+    }
 
 
 def plan_conversational_response(
@@ -1702,7 +1958,7 @@ def _mission_conversation_steps(
                 step_id="understand_user_need",
                 step_type="clarification",
                 label="comprender necesidad principal",
-                status="pending",
+                status=_step_status_for_known_value(facts.get("user_need"), slots.get("user_need")),
                 mission=mission,
                 slot="user_need",
                 decision="response_prioritization",
@@ -2230,7 +2486,8 @@ def _maybe_reformulate_required_question(
         conversational_act=conversational_act,
     ):
         return item
-    reformulated = _reformulated_question_for_slot(slot, primary_need=primary_need)
+    mission_type = str((conversation_plan.get("active_plan") or {}).get("mission_type") or "")
+    reformulated = _reformulated_question_for_slot(slot, primary_need=primary_need, mission_type=mission_type)
     if not reformulated:
         return item
     item["question"] = reformulated
@@ -2260,26 +2517,47 @@ def _should_reformulate_selected_question(
     }
 
 
+_AUTO_CLAIM_GUIDANCE_REFORMULATION_SLOTS = {
+    "injuries",
+    "user_role",
+    "claim_report_loaded",
+    "documentation_available",
+}
+
+
 def _reformulated_question_for_slot(
     slot: str,
     *,
     primary_need: Mapping[str, Any],
+    mission_type: str = "",
 ) -> str:
+    """Reworded question for a slot the plan is asking again (ACA-305D-RC3).
+
+    Content is gated by `mission_type`, not just `slot` name: the four
+    `auto_claim_guidance` slots below only ever reformulate for that
+    mission, and `user_need` -- `general_orientation`'s own slot since the
+    project's bootstrap commit (ACA-305, "user_need origin" finding) --
+    never receives domain vocabulary from any other mission. Reformulation
+    always derives from the currently active mission, never from a slot
+    name alone.
+    """
+
     primary_key = str(primary_need.get("key") or "")
-    if slot == "injuries":
-        return "Recordas si alguna persona resulto herida o necesito atencion medica despues del choque?"
-    if slot == "user_role":
-        return "Para seguir por el circuito correcto, el seguro Galicia es tuyo o estas reclamando como tercero?"
-    if slot == "claim_report_loaded":
-        if primary_key == "claim_status_or_payment":
-            return "Para ubicar mejor los tiempos, la denuncia ya esta cargada o figura cargada en el canal?"
-        if primary_key == "photo_upload_status":
-            return "Para revisar las fotos en el lugar correcto, la denuncia ya esta cargada o figura cargada en el canal?"
-        return "Para seguir con el tramite, la denuncia ya esta cargada o figura cargada en el canal?"
-    if slot == "documentation_available":
-        return "Tenes a mano fotos, presupuesto y la documentacion que te pidieron para el tramite?"
+    if mission_type == "auto_claim_guidance" and slot in _AUTO_CLAIM_GUIDANCE_REFORMULATION_SLOTS:
+        if slot == "injuries":
+            return "Recordas si alguna persona resulto herida o necesito atencion medica despues del choque?"
+        if slot == "user_role":
+            return "Para seguir por el circuito correcto, el seguro Galicia es tuyo o estas reclamando como tercero?"
+        if slot == "claim_report_loaded":
+            if primary_key == "claim_status_or_payment":
+                return "Para ubicar mejor los tiempos, la denuncia ya esta cargada o figura cargada en el canal?"
+            if primary_key == "photo_upload_status":
+                return "Para revisar las fotos en el lugar correcto, la denuncia ya esta cargada o figura cargada en el canal?"
+            return "Para seguir con el tramite, la denuncia ya esta cargada o figura cargada en el canal?"
+        if slot == "documentation_available":
+            return "Tenes a mano fotos, presupuesto y la documentacion que te pidieron para el tramite?"
     if slot == "user_need":
-        return "Que punto queres resolver primero: el arreglo, la denuncia, la documentacion o los tiempos?"
+        return "Contame con tus palabras que necesitas resolver, asi te puedo orientar mejor."
     return ""
 
 
@@ -3367,6 +3645,17 @@ def update_topic_stack(
     }
     derived_state = deepcopy(conversation_state.derived_state)
     derived_state["topic_stack"] = trace
+    mission_proposal = _topic_shift_mission_proposal(
+        conversation_state=conversation_state,
+        suspended_topic=suspended_topic,
+        resumed_topic=resumed_topic,
+        turn=conversation_state.turn_count,
+    )
+    if mission_proposal:
+        derived_state["mission_transition_proposals"] = [
+            *(derived_state.get("mission_transition_proposals") or []),
+            mission_proposal,
+        ]
     focus = _focus_from_active_topic(active_after, fallback=conversation_state.focus)
     return (
         replace(
@@ -3381,6 +3670,74 @@ def update_topic_stack(
         ),
         trace,
     )
+
+
+def _topic_shift_mission_proposal(
+    *,
+    conversation_state: "ConversationState",
+    suspended_topic: Mapping[str, Any] | None,
+    resumed_topic: Mapping[str, Any] | None,
+    turn: int,
+) -> Dict[str, Any] | None:
+    """ACA-305C reverse cross-transition matrix: a topic suspend/resume event
+    for a mission-backed topic must, in the same turn, propose the matching
+    mission transition -- closing the divergence ACA-305C section 1.3
+    evidenced (topic resume today never resumes the mission). This proposes;
+    it never writes `active_mission` (ACA-305B section 8)."""
+
+    mission = conversation_state.active_mission
+    if not mission or not mission.get("type"):
+        return None
+    mission_topic_id = f"mission:{mission.get('type')}"
+    act = dict(conversation_state.last_conversational_act or {})
+    confidence = float(act.get("confidence") or 0.0)
+
+    if resumed_topic and str(resumed_topic.get("id") or "") == mission_topic_id:
+        if str(mission.get("lifecycle_status") or "") != MissionLifecycleStatus.SUSPENDED:
+            return None
+        target_status = (
+            MissionLifecycleStatus.WAITING_USER
+            if mission.get("missing")
+            else MissionLifecycleStatus.GATHERING_INFORMATION
+        )
+        transition_type = "resume"
+        delta = {"lifecycle_status": target_status, "status": _legacy_mission_status(target_status)}
+        reason = "topic_resumed"
+        topic_effect = {
+            "topic_id": mission_topic_id,
+            "from_status": TopicStatus.SUSPENDED,
+            "to_status": resumed_topic.get("status"),
+            "reason": "mirrors_mission_transition:resume",
+        }
+    elif suspended_topic and str(suspended_topic.get("id") or "") == mission_topic_id:
+        if str(mission.get("lifecycle_status") or "") == MissionLifecycleStatus.SUSPENDED:
+            return None
+        transition_type = "suspend"
+        delta = {"lifecycle_status": MissionLifecycleStatus.SUSPENDED, "status": "suspended"}
+        reason = "topic_suspended"
+        topic_effect = {
+            "topic_id": mission_topic_id,
+            "from_status": TopicStatus.ACTIVE,
+            "to_status": suspended_topic.get("status"),
+            "reason": "mirrors_mission_transition:suspend",
+        }
+    else:
+        return None
+
+    return {
+        "contract": MISSION_TRANSITION_PROPOSAL_CONTRACT,
+        "proposal_id": f"topic_shift:{int(turn)}:{transition_type}:{mission.get('type')}",
+        "component": "conversation_state",
+        "turn": int(turn),
+        "transition_type": transition_type,
+        "target_mission_type": None,
+        "mission_before": deepcopy(mission),
+        "mission_delta": delta,
+        "evidence": {"evidence_kind": "conversational_act", "act": deepcopy(act)},
+        "confidence": confidence,
+        "reason": reason,
+        "topic_effect": topic_effect,
+    }
 
 
 def evaluate_conversational_goal_fulfillment(
@@ -4115,11 +4472,16 @@ def _act_suppresses_slot_resolution(conversational_act: Mapping[str, Any]) -> bo
 
 def _conversational_goal_for_act(
     conversation_state: ConversationState,
-    message: Any,
     act: Mapping[str, Any],
+    *,
+    source: str,
+    goal_projection: Mapping[str, Any] | None = None,
+    projection_metadata: Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
     act_name = str(act.get("act") or ConversationalActType.UNKNOWN)
     strategy_name = _strategy_for_act(conversation_state, act)
+    projected_goal = deepcopy(dict((goal_projection or {}).get("primary_goal") or {}))
+    metadata = deepcopy(dict(projection_metadata or {}))
     return {
         "contract": "conversational_goal.v1",
         "originating_act": deepcopy(dict(act)),
@@ -4135,7 +4497,10 @@ def _conversational_goal_for_act(
         "priority": _goal_priority_for(strategy_name),
         "mission_impact": _mission_impact_for(conversation_state, strategy_name),
         "evidence": {
-            "message": str(message),
+            "source": str(source),
+            "semantic_goal": projected_goal,
+            "semantic_projection_id": metadata.get("projection_id"),
+            "semantic_representation_id": metadata.get("representation_id"),
             "act_confidence": act.get("confidence"),
             "active_mission": deepcopy(conversation_state.active_mission),
             "confirmed_facts": _active_fact_values(conversation_state.confirmed_facts),
@@ -4283,13 +4648,22 @@ def _mission_impact_for(conversation_state: ConversationState, strategy_name: st
             ConversationalStrategyType.SUMMARIZE,
             ConversationalStrategyType.DEEPEN,
             ConversationalStrategyType.CONTINUE,
-            ConversationalStrategyType.SWITCH_TOPIC,
             ConversationalStrategyType.ASK_CLARIFICATION,
             ConversationalStrategyType.REPAIR,
         },
         "active_mission_type": mission.get("type"),
         "next_act": mission.get("next_act"),
-        "may_change_mission_state": strategy_name in {ConversationalStrategyType.REPAIR, ConversationalStrategyType.CONTINUE},
+        # SWITCH_TOPIC is deliberately excluded from `preserve_active_mission`
+        # and included here (ACA-305C section 1.4/5): a topic shift is exactly
+        # the kind of evidence that may need to reevaluate the mission, not
+        # preserve it untouched. This does not force a change -- it only makes
+        # SWITCH_TOPIC-sourced evidence eligible for MissionManager's gate.
+        "may_change_mission_state": strategy_name
+        in {
+            ConversationalStrategyType.REPAIR,
+            ConversationalStrategyType.CONTINUE,
+            ConversationalStrategyType.SWITCH_TOPIC,
+        },
     }
 
 
@@ -4894,6 +5268,15 @@ def assimilate_user_facts(
                 if key != "mission_after"
             },
         }
+        proposal = _mission_transition_proposal_from_advancement(
+            mission_advancement,
+            turn=conversation_state.turn_count,
+        )
+        if proposal:
+            derived_state["mission_transition_proposals"] = [
+                *(derived_state.get("mission_transition_proposals") or []),
+                proposal,
+            ]
 
     return (
         replace(
@@ -5539,6 +5922,67 @@ def _fact_value(value: Any) -> Any:
     return deepcopy(value)
 
 
+MISSION_TRANSITION_PROPOSAL_CONTRACT = "mission_transition_proposal.v1"
+
+
+def _mission_transition_proposal_from_advancement(
+    advancement: Mapping[str, Any] | None,
+    *,
+    turn: int,
+    transition_type: str = "maintain",
+    evidence_kind: str = "fact_slot_delta",
+    confidence: float = 1.0,
+) -> Dict[str, Any] | None:
+    """Reshape an internal advancement trace (`_advance_mission` /
+    `_mission_with_revision_clarification`) into an inert
+    MissionTransitionProposal (ACA-305B section 3, section 8).
+
+    The proposal never carries a final `mission_after` -- only the
+    `mission_before` snapshot the advancement was computed against and the
+    `mission_delta` fields it changed. Only `MissionManager` may merge them
+    into a result; this function performs no write and makes no decision.
+    """
+
+    if not advancement:
+        return None
+    mission_before = deepcopy(advancement.get("mission_before") or {})
+    mission_after = advancement.get("mission_after") or {}
+    mission_delta = {
+        key: deepcopy(value)
+        for key, value in mission_after.items()
+        if mission_before.get(key) != value or key not in mission_before
+    }
+    if not mission_delta:
+        return None
+    proposal_id = "|".join(
+        [
+            "conversation_state",
+            str(turn),
+            transition_type,
+            str(advancement.get("reason") or ""),
+            str(advancement.get("to_status") or ""),
+        ]
+    )
+    return {
+        "contract": MISSION_TRANSITION_PROPOSAL_CONTRACT,
+        "proposal_id": proposal_id,
+        "component": "conversation_state",
+        "turn": int(turn),
+        "transition_type": transition_type,
+        "target_mission_type": None,
+        "mission_before": mission_before,
+        "mission_delta": mission_delta,
+        "evidence": {
+            "evidence_kind": evidence_kind,
+            "facts_considered": deepcopy(advancement.get("facts_considered") or {}),
+            "from_status": advancement.get("from_status"),
+            "to_status": advancement.get("to_status"),
+        },
+        "confidence": float(confidence),
+        "reason": str(advancement.get("reason") or ""),
+    }
+
+
 def _is_active_fact_or_plain(value: Any) -> bool:
     if isinstance(value, Mapping) and value.get("contract") == "conversational_fact.v1":
         return value.get("status", FactStatus.ACTIVE) == FactStatus.ACTIVE
@@ -5775,7 +6219,7 @@ def _looks_like_pending_answer(
     if explicit:
         return True
     contextual = _contextual_slot_match(normalized, pending_slots, pending_questions)
-    return contextual is not None
+    return contextual is not None and _clears_generic_slot_confidence_floor(contextual)
 
 
 def _is_minimal_affirmation_or_negation(normalized: str) -> bool:
@@ -6101,6 +6545,18 @@ def _match_user_role(
     return None
 
 
+GENERIC_SLOT_MATCH_CONTRACT = "generic_contextual_slot_answer"
+
+# ACA-305D-RC1 section 5/13: this is the only slot matcher with no relevance
+# check -- any non-empty, non-"uncertain" text qualifies. The confidence it
+# reports (0.5) does not vary with content, so a floor strictly above it
+# (rather than a content-derived score) is what actually gates acceptance.
+# See _clears_generic_slot_confidence_floor, the single point both
+# `_looks_like_pending_answer` and `resolve_pending_slot_answers` consult
+# (ACA-305D-RC1 section 8: one shared matching function, one shared fix).
+GENERIC_SLOT_MATCH_CONFIDENCE_FLOOR = 0.6
+
+
 def _match_generic_slot(slot_name: str, normalized: str, *, contextual: bool) -> Dict[str, Any] | None:
     if not contextual or _is_uncertain(normalized) or len(normalized) < 2:
         return None
@@ -6110,9 +6566,22 @@ def _match_generic_slot(slot_name: str, normalized: str, *, contextual: bool) ->
         confidence=0.5,
         status=SlotStatus.PARTIALLY_FILLED,
         evidence=normalized,
-        reason="generic_contextual_slot_answer",
+        reason=GENERIC_SLOT_MATCH_CONTRACT,
         close=False,
     )
+
+
+def _clears_generic_slot_confidence_floor(match: Mapping[str, Any] | None) -> bool:
+    """True for every match except a generic contextual match below the
+    confidence floor. Matches from `_match_injuries`/`_match_user_role`
+    (explicit term lists, or their own contextual branches) are untouched --
+    this only gates the no-relevance-check generic fallback."""
+
+    if match is None:
+        return False
+    if str(match.get("reason") or "") != GENERIC_SLOT_MATCH_CONTRACT:
+        return True
+    return float(match.get("confidence") or 0.0) >= GENERIC_SLOT_MATCH_CONFIDENCE_FLOOR
 
 
 def _slot_match(
